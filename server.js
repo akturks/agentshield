@@ -8,7 +8,17 @@ import {
 import {
   createEvent
 } from "./repositories/eventRepository.js";
+import {
+  calculateTrust
+} from "./repositories/trustRepository.js";
 
+import {
+  deriveIntent
+} from "./repositories/intentRepository.js";
+
+import {
+  makeDecision
+} from "./repositories/policyRepository.js"
 const app = Fastify();
 
 const TENANTS = {
@@ -112,6 +122,20 @@ app.post("/v1/evaluate", async (request, reply) => {
   const result =
     evaluateRisk(validation.data);
 
+const trust =
+  calculateTrust(identity.id);
+
+const intent =
+  deriveIntent(
+    trust.signals
+  );
+
+const policyDecision =
+  makeDecision({
+    trustScore:
+      trust.trustScore,
+    intent
+  });
   createEvent({
     identityId: identity.id,
     eventType: "request",
@@ -122,14 +146,28 @@ app.post("/v1/evaluate", async (request, reply) => {
   });
 
   return {
-    tenantId: tenant.tenantId,
-    tenantName: tenant.name,
-    identityId: identity.id,
-    ...result,
-    received: validation.data
-  };
-});
+  tenantId: tenant.tenantId,
+  tenantName: tenant.name,
+  identityId: identity.id,
 
+  trustScore:
+    trust.trustScore,
+
+  signals:
+    trust.signals,
+
+  intent,
+
+  policyDecision,
+
+  legacyRisk:
+    result,
+
+  received:
+    validation.data
+};
+
+});
 try {
   await app.listen({
     port: 3000,
