@@ -1,4 +1,4 @@
-# AgentShield Bootstrap Context
+ AgentShield Bootstrap Context
 
 ## Current Vision
 
@@ -10,9 +10,13 @@ Identity
 ↓
 Memory
 ↓
+Signals
+↓
 Intent
 ↓
 Trust
+↓
+Decision Policy
 ↓
 Decision
 
@@ -66,6 +70,8 @@ Tables:
 
 ## Current Progress
 
+Current Progress
+
 Completed:
 
 - API Foundation
@@ -78,19 +84,21 @@ Completed:
 - Architecture Blueprint
 - Identity Foundation
 - Identity Repository
+- Event Repository
+- Memory Layer
+- Trust Engine v1
+- Signal Engine v1
 
 Working:
 
-- Memory Layer
+- Trust Engine v2 (Signals → Trust)
 
 Next:
 
-- Event Repository
-- Event Recording
-- Identity integration in evaluate endpoint
-- Event integration in evaluate endpoint
-
----
+- Intent Engine v1
+- Decision Policy v1
+- Trust integration in evaluate endpoint
+- Signal integration in evaluate endpoint
 
 ## Current Checkpoint
 
