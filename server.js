@@ -1,6 +1,14 @@
 import Fastify from "fastify";
 import { z } from "zod";
 
+import {
+  findOrCreateIdentity
+} from "./repositories/identityRepository.js";
+
+import {
+  createEvent
+} from "./repositories/eventRepository.js";
+
 const app = Fastify();
 
 const TENANTS = {
@@ -91,11 +99,32 @@ app.post("/v1/evaluate", async (request, reply) => {
     });
   }
 
-  const result = evaluateRisk(validation.data);
+  const fingerprint =
+    validation.data.userAgent;
+
+  const identity =
+    findOrCreateIdentity({
+      tenantId: tenant.tenantId,
+      fingerprint,
+      identityType: "browser"
+    });
+
+  const result =
+    evaluateRisk(validation.data);
+
+  createEvent({
+    identityId: identity.id,
+    eventType: "request",
+    path: validation.data.path,
+    userAgent: validation.data.userAgent,
+    riskScore: result.score,
+    decision: result.decision
+  });
 
   return {
     tenantId: tenant.tenantId,
     tenantName: tenant.name,
+    identityId: identity.id,
     ...result,
     received: validation.data
   };
@@ -107,7 +136,9 @@ try {
     host: "0.0.0.0"
   });
 
-  console.log("AgentShield API v0.6 tenant resolution running on port 3000");
+  console.log(
+    "AgentShield API v0.9 identity memory enabled running on port 3000"
+  );
 } catch (err) {
   console.error(err);
   process.exit(1);
