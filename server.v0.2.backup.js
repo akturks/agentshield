@@ -4,34 +4,29 @@ const app = Fastify();
 
 function evaluateRisk(payload) {
   let score = 0;
-const reasons = [];
 
   const userAgent = (payload.userAgent || "").toLowerCase();
   const path = (payload.path || "").toLowerCase();
 
-if (!userAgent) {
-  score += 30;
-  reasons.push("missing_user_agent");
-}
+  if (!userAgent) {
+    score += 30;
+  }
 
-if (userAgent.includes("curl")) {
-  score += 50;
-  reasons.push("curl_user_agent");
-}
+  if (userAgent.includes("curl")) {
+    score += 50;
+  }
 
- if (userAgent.includes("wget")) {
-  score += 50;
-  reasons.push("wget_user_agent");
-}
+  if (userAgent.includes("wget")) {
+    score += 50;
+  }
 
   if (path.includes("/login")) {
-  score += 10;
-  reasons.push("login_path");
-}
+    score += 10;
+  }
+
   if (path.includes("/admin")) {
-  score += 20;
-  reasons.push("admin_path");
-}
+    score += 20;
+  }
 
   let decision = "allow";
 
@@ -41,11 +36,10 @@ if (userAgent.includes("curl")) {
     decision = "challenge";
   }
 
-return {
-  score,
-  decision,
-  reasons
-};
+  return {
+    score,
+    decision
+  };
 }
 
 app.get("/health", async () => {
@@ -72,7 +66,7 @@ try {
     host: "0.0.0.0"
   });
 
-  console.log("AgentShield API v0.3 running on port 3000");
+  console.log("AgentShield API v0.2 running on port 3000");
 } catch (err) {
   console.error(err);
   process.exit(1);
