@@ -1,5 +1,9 @@
 import db from "./db.js";
 
+import {
+  deriveSignals
+} from "./signalRepository.js";
+
 export function calculateTrust(identityId) {
   const events = db.prepare(`
     SELECT *
@@ -7,27 +11,17 @@ export function calculateTrust(identityId) {
     WHERE identityId = ?
   `).all(identityId);
 
+  const signals =
+    deriveSignals(events);
+
   let trustScore = 50;
 
-  for (const event of events) {
-    if (event.decision === "block") {
-      trustScore -= 15;
-    }
-
-    if (event.decision === "challenge") {
-      trustScore -= 5;
-    }
-
-    if (event.decision === "allow") {
-      trustScore += 1;
-    }
-
-    if (
-      event.path &&
-      event.path.includes("/admin")
-    ) {
-      trustScore -= 10;
-    }
+  if (
+    signals.includes(
+      "admin_scanning"
+    )
+  ) {
+    trustScore -= 20;
   }
 
   trustScore = Math.max(
@@ -37,6 +31,7 @@ export function calculateTrust(identityId) {
 
   return {
     trustScore,
+    signals,
     eventCount: events.length
   };
 }
