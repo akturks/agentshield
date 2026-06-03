@@ -1,4 +1,4 @@
- AgentShield Bootstrap Context
+# AgentShield Bootstrap Context
 
 ## Current Vision
 
@@ -27,15 +27,19 @@ AgentShield evaluates identities, not requests.
 ## Architecture
 
 Tenant
- ├─ ApiKey
- └─ Identity
-      └─ Event
+├─ ApiKey
+└─ Identity
+└─ Event
 
 Identity = Who
 
 Event = What happened
 
-Trust = Computed from historical behavior
+Signals = Behavioral patterns derived from events
+
+Intent = What the entity is trying to do
+
+Trust = Computed from behavioral signals
 
 Decision = allow / challenge / block
 
@@ -44,14 +48,17 @@ Decision = allow / challenge / block
 ## Current Technical Decisions
 
 Prisma:
-- Used for schema management
-- Used for migrations
+
+* Used for schema management
+* Used for migrations
 
 Runtime:
-- better-sqlite3
+
+* better-sqlite3
 
 Reason:
-Prisma 7 runtime issues in current environment.
+
+* Prisma 7 runtime issues in current environment
 
 ---
 
@@ -61,76 +68,81 @@ SQLite
 
 Tables:
 
-- Tenant
-- ApiKey
-- Identity
-- Event
+* Tenant
+* ApiKey
+* Identity
+* Event
 
 ---
 
 ## Current Progress
 
-Current Progress
-
 Completed:
 
-- API Foundation
-- Rule Engine
-- Reasons Engine
-- Validation Layer
-- API Key Authentication
-- Tenant Resolution
-- Database Foundation
-- Architecture Blueprint
-- Identity Foundation
-- Identity Repository
-- Event Repository
-- Memory Layer
-- Trust Engine v1
-- Signal Engine v1
+* API Foundation
+* Rule Engine
+* Reasons Engine
+* Validation Layer
+* API Key Authentication
+* Tenant Resolution
+* Database Foundation
+* Architecture Blueprint
+* Identity Foundation
+* Identity Repository
+* Event Repository
+* Memory Layer
+* Trust Engine v1
+* Signal Engine v1
 
 Working:
 
-- Trust Engine v2 (Signals → Trust)
+* Trust Engine v2 (Signals → Trust)
 
 Next:
 
-- Intent Engine v1
-- Decision Policy v1
-- Trust integration in evaluate endpoint
-- Signal integration in evaluate endpoint
+* Intent Engine v1
+* Decision Policy v1
+* Trust integration in evaluate endpoint
+* Signal integration in evaluate endpoint
+
+---
 
 ## Current Checkpoint
 
-Latest successful test:
+Latest successful tests:
 
-Identity creation works.
+* Identity creation works
+* Event recording works
+* Trust Engine v1 works
+* Signal Engine v1 works
 
 Example:
 
-fingerprint: curl/8.0
+Signals:
 
-identityType: browser
+* admin_scanning
 
-trustScore: 50
+Trust:
+0
 
-tenantId: tenant_1
+Event Count:
+3
 
 ---
 
 ## Immediate Next Task
 
-Build Event Repository.
+Refactor Trust Engine to use Signals.
 
 Goal:
 
 Identity
 ↓
-Event
-↓
 Memory
 ↓
-Trust
+Signals
 ↓
-Decision
+Trust
+
+
 
