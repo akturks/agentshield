@@ -109,3 +109,52 @@ Reason:
 Identity must support humans, APIs,
 devices and autonomous AI agents.
 
+
+---
+
+## Technical Decisions
+
+### Prisma Runtime
+
+Date:
+2026-06-03
+
+Status:
+OPEN
+
+Finding:
+
+Prisma migrations work correctly.
+
+Prisma runtime does not initialize correctly in the
+current development environment.
+
+Observed Issues:
+
+- Prisma Client requires adapter configuration
+- Adapter API differs from documentation/examples
+- Runtime searches for .prisma/client/default
+- Generated client does not create expected runtime files
+
+Decision:
+
+Use Prisma for:
+
+- Schema definition
+- Database migrations
+
+Use better-sqlite3 for:
+
+- Runtime database access
+- Repository layer implementation
+
+Reason:
+
+Current project stage prioritizes rapid development
+of Identity, Memory, Intent and Trust systems over
+ORM runtime complexity.
+
+Future Re-evaluation:
+
+Revisit Prisma runtime after v1 architecture is stable.
+
