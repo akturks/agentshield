@@ -2,6 +2,11 @@ import Fastify from "fastify";
 import { z } from "zod";
 
 const app = Fastify();
+
+const VALID_API_KEYS = [
+  "test_key_123"
+];
+
 const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
   path: z.string().min(1)
@@ -9,34 +14,35 @@ const EvaluateSchema = z.object({
 
 function evaluateRisk(payload) {
   let score = 0;
-const reasons = [];
+  const reasons = [];
 
   const userAgent = (payload.userAgent || "").toLowerCase();
   const path = (payload.path || "").toLowerCase();
 
-if (!userAgent) {
-  score += 30;
-  reasons.push("missing_user_agent");
-}
+  if (!userAgent) {
+    score += 30;
+    reasons.push("missing_user_agent");
+  }
 
-if (userAgent.includes("curl")) {
-  score += 50;
-  reasons.push("curl_user_agent");
-}
+  if (userAgent.includes("curl")) {
+    score += 50;
+    reasons.push("curl_user_agent");
+  }
 
- if (userAgent.includes("wget")) {
-  score += 50;
-  reasons.push("wget_user_agent");
-}
+  if (userAgent.includes("wget")) {
+    score += 50;
+    reasons.push("wget_user_agent");
+  }
 
   if (path.includes("/login")) {
-  score += 10;
-  reasons.push("login_path");
-}
+    score += 10;
+    reasons.push("login_path");
+  }
+
   if (path.includes("/admin")) {
-  score += 20;
-  reasons.push("admin_path");
-}
+    score += 20;
+    reasons.push("admin_path");
+  }
 
   let decision = "allow";
 
@@ -46,11 +52,11 @@ if (userAgent.includes("curl")) {
     decision = "challenge";
   }
 
-return {
-  score,
-  decision,
-  reasons
-};
+  return {
+    score,
+    decision,
+    reasons
+  };
 }
 
 app.get("/health", async () => {
@@ -61,6 +67,14 @@ app.get("/health", async () => {
 });
 
 app.post("/v1/evaluate", async (request, reply) => {
+  const apiKey = request.headers["x-api-key"];
+
+  if (!VALID_API_KEYS.includes(apiKey)) {
+    return reply.status(401).send({
+      error: "unauthorized"
+    });
+  }
+
   const validation = EvaluateSchema.safeParse(
     request.body || {}
   );
@@ -86,7 +100,7 @@ try {
     host: "0.0.0.0"
   });
 
-console.log("AgentShield API v0.4 running on port 3000");
+  console.log("AgentShield API v0.5 running on port 3000");
 } catch (err) {
   console.error(err);
   process.exit(1);
