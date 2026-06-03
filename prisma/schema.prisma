@@ -7,18 +7,58 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id         String     @id @default(cuid())
+  name       String
+  createdAt  DateTime   @default(now())
 
-  apiKeys   ApiKey[]
+  apiKeys    ApiKey[]
+  identities Identity[]
 }
 
 model ApiKey {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  key        String   @unique
+  createdAt  DateTime @default(now())
 
-  tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model Identity {
+  id            String   @id @default(cuid())
+
+  fingerprint   String
+
+  identityType  String
+
+  trustScore    Int      @default(50)
+
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  events        Event[]
+}
+
+model Event {
+  id            String   @id @default(cuid())
+
+  eventType     String
+
+  path          String?
+
+  ip            String?
+
+  userAgent     String?
+
+  riskScore     Int?
+
+  decision      String?
+
+  createdAt     DateTime @default(now())
+
+  identityId    String
+  identity      Identity @relation(fields: [identityId], references: [id])
 }
