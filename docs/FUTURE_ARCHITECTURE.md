@@ -1,5 +1,3 @@
-# AgentShield Future Architecture
-
 ## Long-Term Architecture
 
 Identity
@@ -120,8 +118,6 @@ AgentShield does not evaluate requests.
 AgentShield evaluates entities through memory,
 behavioral signals, inferred intent and trust.
 
-git add docs/FUTURE_ARCHITECTURE.md
-git commit -m "Define future architecture and decision policy"
 
 Entity First Principle
 
