@@ -3,9 +3,12 @@ import { z } from "zod";
 
 const app = Fastify();
 
-const VALID_API_KEYS = [
-  "test_key_123"
-];
+const TENANTS = {
+  "test_key_123": {
+    tenantId: "tenant_1",
+    name: "Demo Customer"
+  }
+};
 
 const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
@@ -69,7 +72,9 @@ app.get("/health", async () => {
 app.post("/v1/evaluate", async (request, reply) => {
   const apiKey = request.headers["x-api-key"];
 
-  if (!VALID_API_KEYS.includes(apiKey)) {
+  const tenant = TENANTS[apiKey];
+
+  if (!tenant) {
     return reply.status(401).send({
       error: "unauthorized"
     });
@@ -89,6 +94,8 @@ app.post("/v1/evaluate", async (request, reply) => {
   const result = evaluateRisk(validation.data);
 
   return {
+    tenantId: tenant.tenantId,
+    tenantName: tenant.name,
     ...result,
     received: validation.data
   };
@@ -100,7 +107,7 @@ try {
     host: "0.0.0.0"
   });
 
-  console.log("AgentShield API v0.5 running on port 3000");
+  console.log("AgentShield API v0.6 tenant resolution running on port 3000");
 } catch (err) {
   console.error(err);
   process.exit(1);
