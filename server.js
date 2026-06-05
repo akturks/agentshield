@@ -25,6 +25,10 @@ import {
   buildTrustAssessment
 } from "./repositories/trustAssessmentRepository.js";
 
+import {
+  buildTrustRepresentation
+} from "./repositories/trustRepresentationRepository.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -156,6 +160,10 @@ const trustAssessment =
 
     intent
   });
+const trustRepresentation =
+  buildTrustRepresentation(
+    trustAssessment
+  );
   createEvent({
     identityId: identity.id,
     eventType: "request",
@@ -179,9 +187,11 @@ const trustAssessment =
 evidence:
     trust.evidence,
 
-  trustAssessment,
+trustAssessment,
 
-  intent,
+trustRepresentation,
+
+intent,
 
   policyDecision,
 
