@@ -1,3 +1,7 @@
+import {
+  getModelVersions
+} from "./modelVersionRepository.js";
+
 export function buildTrustRepresentation(
   trustAssessment
 ) {
@@ -9,6 +13,9 @@ export function buildTrustRepresentation(
       now.getTime() +
       24 * 60 * 60 * 1000
     );
+
+  const modelVersions =
+    getModelVersions();
 
   return {
     identityReference:
@@ -32,7 +39,6 @@ export function buildTrustRepresentation(
     expiresAt:
       expiresAt.toISOString(),
 
-    trustModelVersion:
-      trustAssessment.trustModelVersion
+    modelVersions
   };
 }

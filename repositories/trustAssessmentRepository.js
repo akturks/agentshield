@@ -6,6 +6,10 @@ import {
   calculateTrustDimensions
 } from "./trustDimensionsRepository.js";
 
+import {
+  getModelVersions
+} from "./modelVersionRepository.js";
+
 export function buildTrustAssessment({
   identityId,
   trustScore,
@@ -30,6 +34,9 @@ export function buildTrustAssessment({
       eventCount
     });
 
+  const modelVersions =
+    getModelVersions();
+
   return {
     identityReference:
       identityId,
@@ -52,7 +59,6 @@ export function buildTrustAssessment({
     assessmentTimestamp:
       new Date().toISOString(),
 
-    trustModelVersion:
-      "1.0"
+    modelVersions
   };
 }
