@@ -21,6 +21,10 @@ import {
 } from "./repositories/policyRepository.js"
 const app = Fastify();
 
+import {
+  buildTrustAssessment
+} from "./repositories/trustAssessmentRepository.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -136,6 +140,22 @@ const policyDecision =
       trust.trustScore,
     intent
   });
+const trustAssessment =
+  buildTrustAssessment({
+    identityId:
+      identity.id,
+
+    trustScore:
+      trust.trustScore,
+
+    signals:
+      trust.signals,
+
+    evidence:
+      trust.evidence,
+
+    intent
+  });
   createEvent({
     identityId: identity.id,
     eventType: "request",
@@ -155,6 +175,11 @@ const policyDecision =
 
   signals:
     trust.signals,
+  
+evidence:
+    trust.evidence,
+
+  trustAssessment,
 
   intent,
 
