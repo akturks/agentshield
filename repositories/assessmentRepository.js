@@ -78,18 +78,52 @@ export function getIdentityProfile(
     return null;
   }
 
-  return {
-    identityId,
+return {
+  identityId,
 
-    currentTrustScore:
-      assessments[0]
-        .trust_score,
+  currentTrustScore:
+    assessments[0]
+      .trust_score,
 
-    assessmentCount:
-      assessments.length,
+  assessmentCount:
+    assessments.length,
 
-    lastIntent:
-      assessments[0]
-        .intent
-  };
+  lastIntent:
+    assessments[0]
+      .intent,
+
+  trend:
+    calculateTrend(
+      assessments
+    )
+};
+}
+
+export function calculateTrend(
+  assessments
+) {
+  if (
+    assessments.length < 2
+  ) {
+    return "stable";
+  }
+
+  const newest =
+    assessments[0]
+      .trust_score;
+
+  const oldest =
+    assessments[
+      assessments.length - 1
+    ].trust_score;
+
+  if (newest > oldest) {
+    return "rising";
+  }
+
+  if (newest < oldest) {
+    return "declining";
+  }
+
+  return "stable";
 }
