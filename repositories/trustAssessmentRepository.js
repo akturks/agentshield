@@ -1,3 +1,7 @@
+import {
+  calculateConfidence
+} from "./confidenceRepository.js";
+
 export function buildTrustAssessment({
   identityId,
   trustScore,
@@ -5,22 +9,33 @@ export function buildTrustAssessment({
   evidence,
   intent
 }) {
+  const confidence =
+    calculateConfidence({
+      signals,
+      evidence
+    });
+
   return {
-    identityReference: identityId,
+    identityReference:
+      identityId,
 
     trustScore,
+
+    confidence,
 
     signals,
 
     evidence,
 
     intentAssessment: {
-      intent
+      intent,
+      confidence
     },
 
     assessmentTimestamp:
       new Date().toISOString(),
 
-    trustModelVersion: "1.0"
+    trustModelVersion:
+      "1.0"
   };
 }
