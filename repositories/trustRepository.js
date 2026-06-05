@@ -4,6 +4,10 @@ import {
   deriveSignals
 } from "./signalRepository.js";
 
+import {
+  deriveEvidence
+} from "./evidenceRepository.js";
+
 export function calculateTrust(identityId) {
   const events = db.prepare(`
     SELECT *
@@ -13,6 +17,9 @@ export function calculateTrust(identityId) {
 
   const signals =
     deriveSignals(events);
+
+  const evidence =
+    deriveEvidence(events);
 
   let trustScore = 50;
 
@@ -32,6 +39,9 @@ export function calculateTrust(identityId) {
   return {
     trustScore,
     signals,
+    evidence,
     eventCount: events.length
   };
 }
+
+
