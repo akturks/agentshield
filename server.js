@@ -22,6 +22,10 @@ import {
 const app = Fastify();
 
 import {
+  determineEnforcement
+} from "./repositories/enforcementRepository.js";
+
+import {
   buildTrustAssessment
 } from "./repositories/trustAssessmentRepository.js";
 
@@ -144,6 +148,14 @@ const policyDecision =
       trust.trustScore,
     intent
   });
+
+const enforcement =
+  determineEnforcement({
+    policyDecision,
+    enforcementMode:
+      "observe"
+  });
+
 const trustAssessment =
   buildTrustAssessment({
     identityId:
@@ -193,10 +205,12 @@ trustRepresentation,
 
 intent,
 
-  policyDecision,
+policyDecision,
 
-  legacyRisk:
-    result,
+enforcement,
+
+legacyRisk:
+  result,
 
   received:
     validation.data
