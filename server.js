@@ -33,6 +33,10 @@ import {
   buildTrustRepresentation
 } from "./repositories/trustRepresentationRepository.js";
 
+import {
+  saveAssessment
+} from "./repositories/assessmentRepository.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -174,10 +178,32 @@ const trustAssessment =
 
     intent
   });
+
+saveAssessment({
+  identityId:
+    identity.id,
+
+  trustScore:
+    trustAssessment.trustScore,
+
+  confidence:
+    trustAssessment.confidence,
+
+  intent:
+    trustAssessment
+      .intentAssessment
+      .intent,
+
+  assessmentTimestamp:
+    trustAssessment
+      .assessmentTimestamp
+});
+
 const trustRepresentation =
   buildTrustRepresentation(
     trustAssessment
   );
+
   createEvent({
     identityId: identity.id,
     eventType: "request",
