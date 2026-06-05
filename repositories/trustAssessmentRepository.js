@@ -2,6 +2,10 @@ import {
   calculateConfidence
 } from "./confidenceRepository.js";
 
+import {
+  calculateTrustDimensions
+} from "./trustDimensionsRepository.js";
+
 export function buildTrustAssessment({
   identityId,
   trustScore,
@@ -15,11 +19,24 @@ export function buildTrustAssessment({
       evidence
     });
 
+  const eventCount =
+    Object.values(evidence)
+      .flat()
+      .length;
+
+  const trustDimensions =
+    calculateTrustDimensions({
+      signals,
+      eventCount
+    });
+
   return {
     identityReference:
       identityId,
 
     trustScore,
+
+    trustDimensions,
 
     confidence,
 
