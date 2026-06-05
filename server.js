@@ -36,7 +36,9 @@ import {
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
-    name: "Demo Customer"
+    name: "Demo Customer",
+    enforcementMode:
+      "observe"
   }
 };
 
@@ -153,7 +155,7 @@ const enforcement =
   determineEnforcement({
     policyDecision,
     enforcementMode:
-      "observe"
+      tenant.enforcementMode
   });
 
 const trustAssessment =
