@@ -34,7 +34,8 @@ import {
 } from "./repositories/trustRepresentationRepository.js";
 
 import {
-  saveAssessment
+  saveAssessment,
+  getAssessmentsByIdentity
 } from "./repositories/assessmentRepository.js";
 
 const TENANTS = {
@@ -245,6 +246,24 @@ legacyRisk:
 };
 
 });
+
+app.get(
+  "/v1/identities/:identityId/assessments",
+  async (request) => {
+    const assessments =
+      getAssessmentsByIdentity(
+        request.params.identityId
+      );
+
+    return {
+      identityId:
+        request.params.identityId,
+
+      assessments
+    };
+  }
+);
+
 try {
   await app.listen({
     port: 3000,

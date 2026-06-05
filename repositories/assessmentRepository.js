@@ -43,3 +43,23 @@ export function saveAssessment({
     assessmentTimestamp
   );
 }
+
+export function getAssessmentsByIdentity(
+  identityId
+) {
+  const stmt =
+    db.prepare(`
+      SELECT
+        trust_score,
+        confidence,
+        intent,
+        assessment_timestamp
+      FROM trust_assessments
+      WHERE identity_id = ?
+      ORDER BY id DESC
+    `);
+
+  return stmt.all(
+    identityId
+  );
+}
