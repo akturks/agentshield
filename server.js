@@ -35,7 +35,8 @@ import {
 
 import {
   saveAssessment,
-  getAssessmentsByIdentity
+  getAssessmentsByIdentity,
+  getIdentityProfile
 } from "./repositories/assessmentRepository.js";
 
 const TENANTS = {
@@ -261,6 +262,27 @@ app.get(
 
       assessments
     };
+  }
+);
+
+app.get(
+  "/v1/identities/:identityId/profile",
+  async (request, reply) => {
+    const profile =
+      getIdentityProfile(
+        request.params.identityId
+      );
+
+    if (!profile) {
+      return reply
+        .status(404)
+        .send({
+          error:
+            "identity_not_found"
+        });
+    }
+
+    return profile;
   }
 );
 

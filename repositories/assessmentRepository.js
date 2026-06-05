@@ -63,3 +63,33 @@ export function getAssessmentsByIdentity(
     identityId
   );
 }
+
+export function getIdentityProfile(
+  identityId
+) {
+  const assessments =
+    getAssessmentsByIdentity(
+      identityId
+    );
+
+  if (
+    assessments.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    identityId,
+
+    currentTrustScore:
+      assessments[0]
+        .trust_score,
+
+    assessmentCount:
+      assessments.length,
+
+    lastIntent:
+      assessments[0]
+        .intent
+  };
+}
