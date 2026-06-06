@@ -339,6 +339,64 @@ app.get(
   }
 );
 
+app.get(
+  "/v1/risk-queue",
+  async () => {
+    const identities =
+      getAllIdentityProfiles();
+
+    const queue =
+      identities
+        .map(profile => {
+          const risk =
+            classify(profile);
+
+          let priority =
+            "normal";
+
+          if (
+            risk.riskLevel === "critical"
+          ) {
+            priority = "urgent";
+          } else if (
+            risk.riskLevel === "high"
+          ) {
+            priority = "high";
+          }
+
+          return {
+            identityId:
+              profile.identityId,
+            trustScore:
+              profile.currentTrustScore,
+            riskScore:
+              risk.riskScore,
+            riskLevel:
+              risk.riskLevel,
+            priority
+          };
+        })
+        .filter(
+          item =>
+            item.riskLevel !== "low"
+        )
+        .sort(
+          (a, b) =>
+            b.riskScore - a.riskScore
+        )
+        .map(
+          (item, index) => ({
+            rank: index + 1,
+            ...item
+          })
+        );
+
+    return {
+      items: queue
+    };
+  }
+);
+
 try {
   await app.listen({
     port: 3000,
