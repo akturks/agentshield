@@ -52,6 +52,10 @@ import {
   evaluatePolicy
 } from "./src/services/policyEngineService.js";
 
+import {
+  enforce
+} from "./src/services/enforcementEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -305,12 +309,20 @@ const policy =
 const allocation =
   allocate(risk);
 
+const enforcement =
+  enforce(
+    policy,
+    allocation
+  );
+
 return {
   ...profile,
   risk,
   policy,
-  allocation
+  allocation,
+  enforcement
 };
+
   }
 );
 
@@ -367,13 +379,19 @@ app.get(
         .map(profile => {
           const risk =
             classify(profile);
-
-const policy =
+ 
+ const policy =
   evaluatePolicy(risk);
 
-          const allocation =
-            allocate(risk);
+const allocation =
+  allocate(risk);
 
+const enforcement =
+  enforce(
+    policy,
+    allocation
+  );
+            
           let priority =
             "normal";
 
@@ -403,11 +421,14 @@ const policy =
 
             riskLevel:
               risk.riskLevel,
+
 priority,
 
 policy,
 
-allocation
+allocation,
+
+enforcement
 
           };
         })
