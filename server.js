@@ -60,6 +60,10 @@ import {
   evaluateOutcome
 } from "./src/services/outcomeEngineService.js";
 
+import {
+  generateFeedback
+} from "./src/services/feedbackEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -324,13 +328,19 @@ const outcome =
     enforcement
   );
 
+const feedback =
+  generateFeedback(
+    outcome
+  );
+
 return {
   ...profile,
   risk,
   policy,
   allocation,
   enforcement,
-  outcome
+  outcome,
+  feedback
 };
 
   }
@@ -407,6 +417,11 @@ const outcome =
   evaluateOutcome(
     enforcement
   );
+
+const feedback =
+  generateFeedback(
+    outcome
+  );
             
           let priority =
             "normal";
@@ -446,7 +461,9 @@ allocation,
 
 enforcement,
 
-outcome
+outcome,
+
+feedback
 
           };
         })
