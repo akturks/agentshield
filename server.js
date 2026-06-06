@@ -44,6 +44,10 @@ import {
   classify
 } from "./src/services/riskClassificationService.js";
 
+import {
+  allocate
+} from "./src/services/allocationEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -287,8 +291,11 @@ app.get(
         });
     }
 
-    const risk =
-      classify(profile);
+const risk =
+  classify(profile);
+
+const allocation =
+  allocate(risk);
 
     return {
       ...profile,
@@ -351,42 +358,59 @@ app.get(
           const risk =
             classify(profile);
 
+          const allocation =
+            allocate(risk);
+
           let priority =
             "normal";
 
           if (
-            risk.riskLevel === "critical"
+            risk.riskLevel ===
+            "critical"
           ) {
-            priority = "urgent";
+            priority =
+              "urgent";
           } else if (
-            risk.riskLevel === "high"
+            risk.riskLevel ===
+            "high"
           ) {
-            priority = "high";
+            priority =
+              "high";
           }
 
           return {
             identityId:
               profile.identityId,
+
             trustScore:
               profile.currentTrustScore,
+
             riskScore:
               risk.riskScore,
+
             riskLevel:
               risk.riskLevel,
-            priority
+
+            priority,
+
+            allocation
           };
         })
         .filter(
           item =>
-            item.riskLevel !== "low"
+            item.riskLevel !==
+            "low"
         )
         .sort(
           (a, b) =>
-            b.riskScore - a.riskScore
+            b.riskScore -
+            a.riskScore
         )
         .map(
           (item, index) => ({
-            rank: index + 1,
+            rank:
+              index + 1,
+
             ...item
           })
         );
