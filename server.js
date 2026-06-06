@@ -56,6 +56,10 @@ import {
   enforce
 } from "./src/services/enforcementEngineService.js";
 
+import {
+  evaluateOutcome
+} from "./src/services/outcomeEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -315,12 +319,18 @@ const enforcement =
     allocation
   );
 
+const outcome =
+  evaluateOutcome(
+    enforcement
+  );
+
 return {
   ...profile,
   risk,
   policy,
   allocation,
-  enforcement
+  enforcement,
+  outcome
 };
 
   }
@@ -386,10 +396,16 @@ app.get(
 const allocation =
   allocate(risk);
 
+
 const enforcement =
   enforce(
     policy,
     allocation
+  );
+
+const outcome =
+  evaluateOutcome(
+    enforcement
   );
             
           let priority =
@@ -428,7 +444,9 @@ policy,
 
 allocation,
 
-enforcement
+enforcement,
+
+outcome
 
           };
         })
