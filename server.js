@@ -65,6 +65,10 @@ import {
 } from "./src/services/feedbackEngineService.js";
 
 import {
+  evaluateLearning
+} from "./src/services/learningEngineService.js";
+
+import {
   applyTrustUpdate
 } from "./src/services/trustUpdateEngineService.js";
 
@@ -333,7 +337,12 @@ const outcome =
   );
 
 const feedback =
-  generateFeedback(
+      generateFeedback(
+    outcome
+  );
+
+const learning =
+  evaluateLearning(
     outcome
   );
 
@@ -351,6 +360,7 @@ return {
   enforcement,
   outcome,
   feedback,
+  learning,
   trustUpdate
 };
 
@@ -434,6 +444,11 @@ const feedback =
     outcome
   );
 
+const learning =
+  evaluateLearning(
+    outcome
+  );
+
 const trustUpdate =
   applyTrustUpdate(
     profile.currentTrustScore,
@@ -481,6 +496,8 @@ enforcement,
 outcome,
 
 feedback,
+
+learning,
 
 trustUpdate
 
