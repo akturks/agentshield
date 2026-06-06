@@ -48,6 +48,10 @@ import {
   allocate
 } from "./src/services/allocationEngineService.js";
 
+import {
+  evaluatePolicy
+} from "./src/services/policyEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -96,17 +100,18 @@ function evaluateRisk(payload) {
 
   let decision = "allow";
 
-  if (score >= 70) {
-    decision = "block";
-  } else if (score >= 40) {
-    decision = "challenge";
-  }
+if (score >= 70) {
+  decision = "block";
+} else if (score >= 40) {
+  decision = "challenge";
+}
 
-  return {
-    score,
-    decision,
-    reasons
-  };
+return {
+  score,
+  decision,
+  reasons
+};
+
 }
 
 app.get("/health", async () => {
@@ -294,13 +299,18 @@ app.get(
 const risk =
   classify(profile);
 
+const policy =
+  evaluatePolicy(risk);
+
 const allocation =
   allocate(risk);
 
-    return {
-      ...profile,
-      risk
-    };
+return {
+  ...profile,
+  risk,
+  policy,
+  allocation
+};
   }
 );
 
@@ -358,6 +368,9 @@ app.get(
           const risk =
             classify(profile);
 
+const policy =
+  evaluatePolicy(risk);
+
           const allocation =
             allocate(risk);
 
@@ -390,10 +403,12 @@ app.get(
 
             riskLevel:
               risk.riskLevel,
+priority,
 
-            priority,
+policy,
 
-            allocation
+allocation
+
           };
         })
         .filter(
