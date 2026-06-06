@@ -36,7 +36,8 @@ import {
 import {
   saveAssessment,
   getAssessmentsByIdentity,
-  getIdentityProfile
+  getIdentityProfile,
+  getAllIdentityProfiles
 } from "./repositories/assessmentRepository.js";
 
 const TENANTS = {
@@ -283,6 +284,18 @@ app.get(
     }
 
     return profile;
+  }
+);
+
+app.get(
+  "/v1/identities",
+  async () => {
+    const identities =
+      getAllIdentityProfiles();
+
+    return {
+      identities
+    };
   }
 );
 

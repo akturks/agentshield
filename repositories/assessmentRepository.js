@@ -127,3 +127,22 @@ export function calculateTrend(
 
   return "stable";
 }
+
+export function getAllIdentityProfiles() {
+  const stmt =
+    db.prepare(`
+      SELECT DISTINCT
+        identity_id
+      FROM trust_assessments
+    `);
+
+  const identities =
+    stmt.all();
+
+  return identities.map(
+    ({ identity_id }) =>
+      getIdentityProfile(
+        identity_id
+      )
+  );
+}
