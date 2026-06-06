@@ -40,6 +40,10 @@ import {
   getAllIdentityProfiles
 } from "./repositories/assessmentRepository.js";
 
+import {
+  classify
+} from "./src/services/riskClassificationService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -283,7 +287,13 @@ app.get(
         });
     }
 
-    return profile;
+    const risk =
+      classify(profile);
+
+    return {
+      ...profile,
+      risk
+    };
   }
 );
 
@@ -295,6 +305,36 @@ app.get(
 
     return {
       identities
+    };
+  }
+);
+
+app.get(
+  "/v1/identities/high-risk",
+  async () => {
+    const identities =
+      getAllIdentityProfiles();
+
+    const highRiskIdentities =
+      identities
+        .map(profile => ({
+          ...profile,
+          risk: classify(profile)
+        }))
+        .filter(
+          identity =>
+            identity.risk.riskLevel === "high" ||
+            identity.risk.riskLevel === "critical"
+        )
+        .sort(
+          (a, b) =>
+            b.risk.riskScore -
+            a.risk.riskScore
+        );
+
+    return {
+      identities:
+        highRiskIdentities
     };
   }
 );
