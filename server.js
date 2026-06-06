@@ -64,6 +64,10 @@ import {
   generateFeedback
 } from "./src/services/feedbackEngineService.js";
 
+import {
+  applyTrustUpdate
+} from "./src/services/trustUpdateEngineService.js";
+
 const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
@@ -333,6 +337,12 @@ const feedback =
     outcome
   );
 
+const trustUpdate =
+  applyTrustUpdate(
+    profile.currentTrustScore,
+    feedback
+  );
+
 return {
   ...profile,
   risk,
@@ -340,7 +350,8 @@ return {
   allocation,
   enforcement,
   outcome,
-  feedback
+  feedback,
+  trustUpdate
 };
 
   }
@@ -422,6 +433,12 @@ const feedback =
   generateFeedback(
     outcome
   );
+
+const trustUpdate =
+  applyTrustUpdate(
+    profile.currentTrustScore,
+    feedback
+  );
             
           let priority =
             "normal";
@@ -463,7 +480,9 @@ enforcement,
 
 outcome,
 
-feedback
+feedback,
+
+trustUpdate
 
           };
         })
