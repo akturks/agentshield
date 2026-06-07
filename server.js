@@ -450,11 +450,31 @@ app.get(
           "allow"
       ).length;
 
-    return {
-      totalEvents,
-      blockedEvents,
-      allowedEvents
-    };
+const averageRisk =
+  totalEvents > 0
+    ? events.reduce(
+        (sum, event) =>
+          sum + (event.riskScore || 0),
+        0
+      ) / totalEvents
+    : 0;
+
+const blockRate =
+  totalEvents > 0
+    ? (
+        blockedEvents /
+        totalEvents
+      ) * 100
+    : 0;
+return {
+  totalEvents,
+  blockedEvents,
+  allowedEvents,
+  blockRate,
+  averageRisk
+};
+
+
   }
 );
 
