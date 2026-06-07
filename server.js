@@ -428,6 +428,37 @@ app.get(
 );
 
 app.get(
+  "/v1/traffic-quality",
+  async () => {
+    const events =
+      getAllEvents();
+
+    const totalEvents =
+      events.length;
+
+    const blockedEvents =
+      events.filter(
+        event =>
+          event.decision ===
+          "block"
+      ).length;
+
+    const allowedEvents =
+      events.filter(
+        event =>
+          event.decision ===
+          "allow"
+      ).length;
+
+    return {
+      totalEvents,
+      blockedEvents,
+      allowedEvents
+    };
+  }
+);
+
+app.get(
   "/v1/risk-queue",
   async () => {
     const identities =
