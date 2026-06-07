@@ -250,6 +250,8 @@ const trustRepresentation =
     eventType: "request",
     path: validation.data.path,
     userAgent: validation.data.userAgent,
+    referrer: validation.data.referrer,
+    sessionId: validation.data.sessionId,
     riskScore: result.score,
     decision: result.decision
   });

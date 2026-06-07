@@ -53,6 +53,10 @@ model Event {
 
   userAgent     String?
 
+  referrer     String?
+
+  sessionId    String?
+
   riskScore     Int?
 
   decision      String?

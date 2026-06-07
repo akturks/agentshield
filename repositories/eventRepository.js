@@ -6,39 +6,47 @@ export function createEvent({
   path = null,
   ip = null,
   userAgent = null,
+  referrer = null,
+  sessionId = null,
   riskScore = null,
   decision = null
-}) {
+})
+
+ {
   const id = crypto.randomUUID();
 
   const stmt = db.prepare(`
     INSERT INTO Event (
-      id,
-      eventType,
-      path,
-      ip,
-      userAgent,
-      riskScore,
-      decision,
-      createdAt,
-      identityId
+id,
+eventType,
+path,
+ip,
+userAgent,
+referrer,
+sessionId,
+riskScore,
+decision,
+createdAt,
+identityId
     )
     VALUES (
-      ?, ?, ?, ?, ?, ?, ?,
-      datetime('now'),
-      ?
+?, ?, ?, ?, ?, ?, ?, ?, ?,
+datetime('now'),
+?
     )
   `);
 
   stmt.run(
-    id,
-    eventType,
-    path,
-    ip,
-    userAgent,
-    riskScore,
-    decision,
-    identityId
+id,
+eventType,
+path,
+ip,
+userAgent,
+referrer,
+sessionId,
+riskScore,
+decision,
+identityId
   );
 
   return db.prepare(`
