@@ -7,7 +7,9 @@ import {
 
 import {
   createEvent,
-  getAllEvents
+  getAllEvents,
+  getEventsBySession,
+  getSessionProfile
 } from "./repositories/eventRepository.js";
 
 import {
@@ -477,6 +479,44 @@ return {
 };
 
 
+  }
+);
+
+app.get(
+  "/v1/sessions/:sessionId",
+  async (request) => {
+    const events =
+      getEventsBySession(
+        request.params.sessionId
+      );
+
+    return {
+      sessionId:
+        request.params.sessionId,
+
+      events
+    };
+  }
+);
+
+app.get(
+  "/v1/sessions/:sessionId/profile",
+  async (request, reply) => {
+    const profile =
+      getSessionProfile(
+        request.params.sessionId
+      );
+
+    if (!profile) {
+      return reply
+        .status(404)
+        .send({
+          error:
+            "session_not_found"
+        });
+    }
+
+    return profile;
   }
 );
 

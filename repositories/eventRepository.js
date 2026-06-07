@@ -72,3 +72,55 @@ export function getAllEvents() {
     LIMIT 100
   `).all();
 }
+export function getEventsBySession(
+  sessionId
+) {
+  return db.prepare(`
+    SELECT *
+    FROM Event
+    WHERE sessionId = ?
+    ORDER BY createdAt ASC
+  `).all(sessionId);
+}
+export function getSessionProfile(
+  sessionId
+) {
+  const events = db.prepare(`
+    SELECT *
+    FROM Event
+    WHERE sessionId = ?
+    ORDER BY createdAt ASC
+  `).all(sessionId);
+
+  if (events.length === 0) {
+    return null;
+  }
+
+let behaviorType =
+  "exploration";
+
+if (events.length === 1) {
+  behaviorType =
+    "bounce";
+}
+
+if (events.length > 5) {
+  behaviorType =
+    "engaged";
+}
+
+return {
+  sessionId,
+  eventCount: events.length,
+  entryPage: events[0].path,
+  exitPage:
+    events[events.length - 1].path,
+  referrer:
+    events[0].referrer,
+
+  behaviorType,
+
+  events
+};
+
+}
