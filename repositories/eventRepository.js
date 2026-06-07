@@ -56,3 +56,11 @@ export function getEventsByIdentity(identityId) {
     ORDER BY createdAt DESC
   `).all(identityId);
 }
+export function getAllEvents() {
+  return db.prepare(`
+    SELECT *
+    FROM Event
+    ORDER BY createdAt DESC
+    LIMIT 100
+  `).all();
+}

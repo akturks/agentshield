@@ -6,8 +6,10 @@ import {
 } from "./repositories/identityRepository.js";
 
 import {
-  createEvent
+  createEvent,
+  getAllEvents
 } from "./repositories/eventRepository.js";
+
 import {
   calculateTrust
 } from "./repositories/trustRepository.js";
@@ -83,8 +85,11 @@ const TENANTS = {
 
 const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
-  path: z.string().min(1)
+  path: z.string().min(1),
+  referrer: z.string().optional(),
+  sessionId: z.string().optional()
 });
+
 
 function evaluateRisk(payload) {
   let score = 0;
@@ -402,9 +407,22 @@ app.get(
             a.risk.riskScore
         );
 
+
     return {
       identities:
         highRiskIdentities
+    };
+  }
+);
+
+app.get(
+  "/v1/events",
+  async () => {
+    const events =
+      getAllEvents();
+
+    return {
+      events
     };
   }
 );
