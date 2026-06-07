@@ -109,6 +109,33 @@ if (events.length > 5) {
     "engaged";
 }
 
+let intent =
+  "unknown";
+
+if (
+  behaviorType ===
+  "exploration"
+) {
+  intent =
+    "research";
+}
+
+if (
+  behaviorType ===
+  "engaged"
+) {
+  intent =
+    "commercial";
+}
+
+if (
+  behaviorType ===
+  "bounce"
+) {
+  intent =
+    "unknown";
+}
+
 return {
   sessionId,
   eventCount: events.length,
@@ -118,7 +145,8 @@ return {
   referrer:
     events[0].referrer,
 
-  behaviorType,
+ behaviorType,
+ intent,
 
   events
 };
