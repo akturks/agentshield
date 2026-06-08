@@ -6,6 +6,11 @@ import {
 } from "./repositories/identityRepository.js";
 
 import {
+  createSession,
+  getSession
+} from "./repositories/sessionRepository.js";
+
+import {
   createEvent,
   getAllEvents,
   getEventsBySession,
@@ -184,6 +189,25 @@ app.post("/v1/evaluate", async (request, reply) => {
       fingerprint,
       identityType: "browser"
     });
+
+let session =
+  getSession(
+    validation.data.sessionId
+  );
+
+if (
+  !session &&
+  validation.data.sessionId
+) {
+  session =
+    createSession({
+      id:
+        validation.data.sessionId,
+
+      identityId:
+        identity.id
+    });
+}
 
   const result =
     evaluateRisk(validation.data);
