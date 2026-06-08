@@ -80,8 +80,13 @@ const TENANTS = {
   "test_key_123": {
     tenantId: "tenant_1",
     name: "Demo Customer",
+
     enforcementMode:
-      "observe"
+      "observe",
+
+    lowTrafficValue: 5,
+    mediumTrafficValue: 25,
+    highTrafficValue: 100
   }
 };
 
@@ -515,8 +520,40 @@ app.get(
             "session_not_found"
         });
     }
+    
+   const tenant =
+  TENANTS["test_key_123"];
 
-    return profile;
+let estimatedValue = 0;
+
+if (
+  profile.trafficTier ===
+  "low"
+) {
+  estimatedValue =
+    tenant.lowTrafficValue;
+}
+
+if (
+  profile.trafficTier ===
+  "medium"
+) {
+  estimatedValue =
+    tenant.mediumTrafficValue;
+}
+
+if (
+  profile.trafficTier ===
+  "high"
+) {
+  estimatedValue =
+    tenant.highTrafficValue;
+}
+
+return {
+  ...profile,
+  estimatedValue
+};
   }
 );
 
