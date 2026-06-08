@@ -188,6 +188,19 @@ if (
   trafficQuality = 90;
 }
 
+let trafficTier =
+  "low";
+
+if (trafficQuality >= 50) {
+  trafficTier =
+    "medium";
+}
+
+if (trafficQuality >= 80) {
+  trafficTier =
+    "high";
+}
+
 return {
   sessionId,
   eventCount: events.length,
@@ -201,6 +214,7 @@ return {
  intent,
  evidence,
  trafficQuality,
+ trafficTier,
 
  events
 };
