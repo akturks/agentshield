@@ -39,6 +39,18 @@ model Identity {
   tenantId      String
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
 
+sessions      Session[]
+events        Event[]
+}
+
+model Session {
+  id            String   @id
+
+  createdAt     DateTime @default(now())
+
+  identityId    String
+  identity      Identity @relation(fields: [identityId], references: [id])
+
   events        Event[]
 }
 
@@ -56,6 +68,8 @@ model Event {
   referrer     String?
 
   sessionId    String?
+
+  session      Session? @relation( fields: [sessionId],references: [id])
 
   riskScore     Int?
 
