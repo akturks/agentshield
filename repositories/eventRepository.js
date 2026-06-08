@@ -136,6 +136,35 @@ if (
     "unknown";
 }
 
+const evidence = [];
+
+if (events.length === 1) {
+  evidence.push(
+    "single_page_visit"
+  );
+}
+
+if (events.length > 1) {
+  evidence.push(
+    "multi_page_navigation"
+  );
+}
+
+if (events[0].referrer) {
+  evidence.push(
+    "external_referrer"
+  );
+}
+
+if (
+  behaviorType ===
+  "engaged"
+) {
+  evidence.push(
+    "high_session_depth"
+  );
+}
+
 return {
   sessionId,
   eventCount: events.length,
@@ -147,8 +176,10 @@ return {
 
  behaviorType,
  intent,
+ evidence,
 
-  events
+
+ events
 };
 
 }
