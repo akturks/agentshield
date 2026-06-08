@@ -1,9 +1,4 @@
-import Database from "better-sqlite3";
-
-const db =
-  new Database(
-    "./agentshield.db"
-  );
+import db from "./db.js";
 
 export function saveAssessment({
   identityId,
@@ -12,19 +7,24 @@ export function saveAssessment({
   intent,
   assessmentTimestamp
 }) {
-  const stmt =
-    db.prepare(`
-      INSERT INTO trust_assessments (
-        identity_id,
-        trust_score,
-        confidence,
-        intent,
-        assessment_timestamp
-      )
-      VALUES (?, ?, ?, ?, ?)
-    `);
 
-  stmt.run(
+const stmt =
+  db.prepare(`
+    INSERT INTO TrustAssessment (
+      id,
+      identityId,
+      trustScore,
+      confidence,
+      intent,
+      assessmentTimestamp
+    )
+    VALUES (?,?, ?, ?, ?, ?)
+  `);
+
+ const id = crypto.randomUUID();
+
+ stmt.run(
+    id,
     identityId,
     trustScore,
     confidence,
@@ -39,12 +39,12 @@ export function getAssessmentsByIdentity(
   const stmt =
     db.prepare(`
       SELECT
-        trust_score,
+        trustScore,
         confidence,
         intent,
-        assessment_timestamp
-      FROM trust_assessments
-      WHERE identity_id = ?
+        assessmentTimestamp
+      FROM TrustAssessments
+      WHERE identIty_id = ?
       ORDER BY id DESC
     `);
 
@@ -72,7 +72,7 @@ return {
 
   currentTrustScore:
     assessments[0]
-      .trust_score,
+      .trustScore,
 
   assessmentCount:
     assessments.length,
@@ -99,12 +99,12 @@ export function calculateTrend(
 
   const newest =
     assessments[0]
-      .trust_score;
+      .trustScore;
 
   const oldest =
     assessments[
       assessments.length - 1
-    ].trust_score;
+    ].trustScore;
 
   if (newest > oldest) {
     return "rising";
@@ -121,17 +121,17 @@ export function getAllIdentityProfiles() {
   const stmt =
     db.prepare(`
       SELECT DISTINCT
-        identity_id
-      FROM trust_assessments
+        identityId
+      FROM trustAssessments
     `);
 
   const identities =
     stmt.all();
 
   return identities.map(
-    ({ identity_id }) =>
+    ({ identityId }) =>
       getIdentityProfile(
-        identity_id
+        identityId
       )
   );
 }

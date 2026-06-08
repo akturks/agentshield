@@ -5,8 +5,7 @@ export function createOutcome({
   source,
   confidence = 1.0,
   identityId,
-  sessionId = null,
-  correlationId = null
+  sessionId = null
 }) {
    if (!identityId) {
   throw new Error(
@@ -24,8 +23,7 @@ export function createOutcome({
       confidence,
       createdAt,
       identityId,
-      sessionId,
-      correlationId
+      sessionId
     )
     VALUES (
       ?,
@@ -34,9 +32,8 @@ export function createOutcome({
       ?,
       datetime('now'),
       ?,
-      ?,
       ?
-     )
+    )
   `);
 
   stmt.run(
@@ -45,8 +42,7 @@ export function createOutcome({
     source,
     confidence,
     identityId,
-    sessionId,
-    correlationId
+    sessionId
   );
 
   return db.prepare(`

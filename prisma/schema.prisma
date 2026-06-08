@@ -79,6 +79,8 @@ model Outcome {
   confidence    Float    @default(1.0)
 
   createdAt     DateTime @default(now())
+  
+  correlationId String?    
 
   identityId    String?
   identity      Identity? @relation(fields: [identityId], references: [id])

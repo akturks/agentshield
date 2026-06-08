@@ -103,7 +103,10 @@ const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
   path: z.string().min(1),
   referrer: z.string().optional(),
-  sessionId: z.string().optional()
+  sessionId: z.string().optional(),
+
+correlationId:
+    z.string().optional()
 });
 
 const OutcomeSchema = z.object({
@@ -118,7 +121,9 @@ const OutcomeSchema = z.object({
 
   identityId: z.string().min(1),  
 
-  sessionId: z.string().optional()
+  sessionId: z.string().optional(),
+
+  correlationId: z.string().optional()
 });
 
 
@@ -212,7 +217,7 @@ app.post("/v1/evaluate", async (request, reply) => {
 let session =
   getSession(
     validation.data.sessionId
-  );
+);
 
 if (
   !session &&
@@ -318,7 +323,27 @@ const trustRepresentation =
     riskScore: result.score,
     decision: result.decision
   });
+ 
+ createOutcome({
+  outcomeType:
+    "evaluation_completed",
 
+  source:
+    "evaluate_api",
+
+  confidence:
+    1.0,
+
+  identityId:
+    identity.id,
+
+  sessionId:
+    validation.data.sessionId,
+
+  correlationId:
+    validation.data.correlationId
+});
+   
   return {
   tenantId: tenant.tenantId,
   tenantName: tenant.name,
@@ -384,7 +409,10 @@ app.post(
           validation.data.identityId,
 
         sessionId:
-          validation.data.sessionId
+          validation.data.sessionId,
+
+          correlationId:
+            validation.data.correlationId
       });
 
     return {
