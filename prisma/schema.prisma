@@ -43,6 +43,7 @@ sessions      Session[]
 events        Event[]
 memories      Memory[]
 outcomes      Outcome[]
+assessments   TrustAssessment[]
 }
 
 model Session {
@@ -51,8 +52,7 @@ model Session {
   createdAt     DateTime @default(now())
 
   identityId    String
-  identity      Identity @relation(fields: [identityId], references: [id])
-
+  identity            Identity @relation(fields: [identityId], references: [id])
   events        Event[]
   outcomes      Outcome[]
 }
@@ -85,6 +85,22 @@ model Outcome {
 
   sessionId     String?
   session       Session? @relation(fields: [sessionId], references: [id])
+}
+
+model TrustAssessment {
+  id                  String   @id @default(cuid())
+
+  trustScore          Int
+
+  confidence          Float
+
+  intent              String
+
+  assessmentTimestamp DateTime
+
+  identityId          String
+  identity            Identity @relation(fields: [identityId], references: [id])
+  
 }
 
 model Event {

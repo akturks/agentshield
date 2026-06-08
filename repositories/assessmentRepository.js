@@ -5,17 +5,6 @@ const db =
     "./agentshield.db"
   );
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS trust_assessments (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  identity_id TEXT NOT NULL,
-  trust_score INTEGER NOT NULL,
-  confidence REAL NOT NULL,
-  intent TEXT NOT NULL,
-  assessment_timestamp TEXT NOT NULL
-)
-`);
-
 export function saveAssessment({
   identityId,
   trustScore,
