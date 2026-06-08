@@ -1,89 +1,86 @@
 # AgentShield Technical Debt Register
 
-This document tracks known architectural, implementation, and design debt.
+This document tracks active architectural, implementation and domain-model debt.
+
+Resolved items are intentionally removed to keep the register focused on active work.
 
 ---
 
-## SESSION-001 — Session Ownership Validation
-
-Priority: Medium
-
-Status: Open
-
-### Problem
-
-A session can be loaded by sessionId without validating ownership.
-
-Current flow:
-
-Identity
-→ Session Lookup
-→ Event Creation
-
-The system verifies that a session exists but does not verify:
-
-session.identityId == identity.id
-
-### Risk
-
-Potential consequences:
-
-* Session ownership violation
-* Event attribution corruption
-* Future reputation contamination
-* Incorrect behavioral evidence
-
-### Future Solution
-
-When an existing session is loaded:
-
-1. Verify session ownership.
-2. If ownership mismatch occurs:
-
-   * reject request, or
-   * generate evidence:
-     session_identity_mismatch
-
-### Notes
-
-This may become a Trust Engine and Fraud Engine signal.
-
----
-
-## MEMORY-001 — Memory Runtime Missing
+## OUTCOME-002 — Outcome Observation & Ingestion
 
 Priority: High
 
-Status: Open
+Status: In Progress
 
 ### Problem
 
-Memory model exists in schema but has no runtime implementation.
+Outcome records can be stored and queried.
+
+However, Outcome generation is not yet integrated into a complete observation pipeline.
 
 Current state:
 
-Memory Model
-✓
+Reality
+→ Event
+→ Outcome
 
-Memory Repository
-✗
+exists
 
-Memory Service
-✗
+but
 
-### Impact
+Outcome observation sources are not yet standardized.
 
-Learning signals are not persisted.
+### Open Questions
+
+* Native outcomes
+* Application outcomes
+* Human outcomes
+* External outcomes
 
 ### Target State
 
-Learning
-→ Memory Record
-→ Identity
+Outcome becomes a first-class Reality Stream.
+
+Reality
+→ Outcome
+→ Archive
 
 ---
 
-## TRUST-001 — Outcome Directly Updates Trust
+## OUTCOME-003 — Outcome Domain Model
+
+Priority: High
+
+Status: In Progress
+
+### Completed
+
+✓ Outcome schema
+
+✓ Outcome persistence
+
+✓ Outcome ingestion endpoint
+
+✓ Outcome ownership validation
+
+### Open Questions
+
+* Outcome attribution strategy
+* Outcome context representation
+* Correlation identifiers
+* Future causality integration
+
+### Notes
+
+Outcome is a Reality Object.
+
+Outcome represents an observed consequence.
+
+Outcome is not an assertion.
+
+---
+
+## ADR-0009 — Causality Representation
 
 Priority: Medium
 
@@ -91,26 +88,123 @@ Status: Open
 
 ### Problem
 
-Current architecture allows:
+The system records:
 
-Outcome
-→ Trust Adjustment
+Events
 
-### Target Architecture
+Outcomes
 
-Outcome
-→ Learning
-→ Memory
-→ Reputation
-→ Trust
+but cannot represent:
 
-### Notes
+Why did an outcome occur?
 
-Trust should be influenced by accumulated reputation rather than individual outcomes.
+### Current Position
+
+Correlation may be introduced before causality.
+
+Correlation is not causality.
+
+### Future Exploration
+
+Potential mechanisms:
+
+* correlationId
+* observationWindowId
+* graph-based attribution
+* causal edges
 
 ---
 
-## REPUTATION-001 — Reputation Engine Missing
+## ADR-0011 — Outcome and Assertion Separation
+
+Priority: High
+
+Status: Proposed
+
+### Question
+
+Should Outcome and Assertion be modeled as separate Reality Objects?
+
+### Candidate Decision
+
+# Outcome
+
+Observed consequence
+
+# Assertion
+
+Observed judgment
+
+### Outcome Examples
+
+purchase_completed
+
+subscription_renewed
+
+chargeback_received
+
+### Assertion Examples
+
+fraud_confirmed
+
+known_bot
+
+high_value_customer
+
+### Rationale
+
+Reality Layer should not mix consequences and judgments.
+
+---
+
+## MEMORY-TAXONOMY
+
+Priority: Medium
+
+Status: Open
+
+### Problem
+
+Memory generation exists conceptually.
+
+Memory categories do not yet exist.
+
+### Examples
+
+persistent_purchase_interest
+
+repeat_buyer
+
+historical_policy_violation
+
+### Goal
+
+Establish a canonical memory vocabulary.
+
+---
+
+## MEMORY-DECAY
+
+Priority: Medium
+
+Status: Open
+
+### Problem
+
+Memory persistence exists conceptually.
+
+Forgetting behavior does not.
+
+### Open Questions
+
+* Time-based decay
+* Confidence decay
+* Reinforcement
+* Memory retirement
+
+---
+
+## REPUTATION-001 — Reputation Engine
 
 Priority: Medium
 
@@ -118,93 +212,53 @@ Status: Planned
 
 ### Problem
 
-Memory records exist conceptually but no reputation layer aggregates them.
+Memory exists.
+
+Reputation aggregation does not.
 
 ### Target State
 
-Memory[]
+Memory
 → Reputation
-→ Trust Assessment
+→ Trust
 
 ---
 
-## MIGRATION-001 — Schema Drift Risk
+## ARCH-001 — Identity and Session as Interpretation Objects
 
 Priority: Low
 
-Status: Monitoring
-
-### Problem
-
-Multiple migration drift incidents occurred during development.
-
-### Future Solution
-
-Introduce migration reconciliation and schema governance process.
-
-## OUTCOME-001 — Outcome Pipeline Not Connected To Evaluation Flow
-
-Priority: High
-
 Status: Open
 
-### Problem
+### Question
 
-The Outcome Engine exists but is not connected to the primary evaluation flow.
+Should Identity and Session remain canonical entities?
 
-Current state:
-
-POST /v1/evaluate
-
-Request
-→ Identity
-→ Session
-→ Trust
-→ Intent
-→ Policy
-→ Enforcement
-→ Assessment
-→ Event
-
-Outcome generation does not occur.
-
-### Observation
-
-Outcome, Feedback and Learning are currently calculated only in analysis endpoints such as:
-
-GET /v1/identities/:identityId/profile
-
-This means:
-
-* outcome is not generated from real execution events
-* learning is not based on actual outcomes
-* memory persistence cannot be safely attached
-
-### Impact
-
-Adaptation Engine cannot operate correctly.
-
-The following pipeline is incomplete:
-
-Outcome
-→ Learning
-→ Memory
-→ Reputation
-
-### Future Solution
-
-Introduce explicit Outcome Events.
-
-Example:
-
-Enforcement
-→ Outcome Event
-→ Learning Signal
-→ Memory Record
-
-Outcome generation should occur in the primary evaluation flow rather than read-only analysis endpoints.
+Or should they become derived interpretation objects built from Reality Streams?
 
 ### Notes
 
-Memory Runtime implementation depends on resolving this architectural gap.
+This investigation depends on future Reality Archive evolution.
+
+---
+
+## Architectural Principles
+
+ADR-0010
+
+Ratified
+
+Reality is the canonical source of truth.
+
+Replayability is a first-class requirement.
+
+Reality is recorded.
+
+Memory is regenerated.
+
+Reputation is interpreted.
+
+Trust is computed.
+
+Risk is derived.
 
