@@ -142,3 +142,69 @@ Multiple migration drift incidents occurred during development.
 
 Introduce migration reconciliation and schema governance process.
 
+## OUTCOME-001 — Outcome Pipeline Not Connected To Evaluation Flow
+
+Priority: High
+
+Status: Open
+
+### Problem
+
+The Outcome Engine exists but is not connected to the primary evaluation flow.
+
+Current state:
+
+POST /v1/evaluate
+
+Request
+→ Identity
+→ Session
+→ Trust
+→ Intent
+→ Policy
+→ Enforcement
+→ Assessment
+→ Event
+
+Outcome generation does not occur.
+
+### Observation
+
+Outcome, Feedback and Learning are currently calculated only in analysis endpoints such as:
+
+GET /v1/identities/:identityId/profile
+
+This means:
+
+* outcome is not generated from real execution events
+* learning is not based on actual outcomes
+* memory persistence cannot be safely attached
+
+### Impact
+
+Adaptation Engine cannot operate correctly.
+
+The following pipeline is incomplete:
+
+Outcome
+→ Learning
+→ Memory
+→ Reputation
+
+### Future Solution
+
+Introduce explicit Outcome Events.
+
+Example:
+
+Enforcement
+→ Outcome Event
+→ Learning Signal
+→ Memory Record
+
+Outcome generation should occur in the primary evaluation flow rather than read-only analysis endpoints.
+
+### Notes
+
+Memory Runtime implementation depends on resolving this architectural gap.
+
