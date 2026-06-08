@@ -41,6 +41,7 @@ model Identity {
 
 sessions      Session[]
 events        Event[]
+memories      Memory[]
 }
 
 model Session {
@@ -52,6 +53,18 @@ model Session {
   identity      Identity @relation(fields: [identityId], references: [id])
 
   events        Event[]
+}
+model Memory {
+  id            String   @id @default(cuid())
+
+  memoryType    String
+
+  confidence    Float
+
+  createdAt     DateTime @default(now())
+
+  identityId    String
+  identity      Identity @relation(fields: [identityId], references: [id])
 }
 
 model Event {
