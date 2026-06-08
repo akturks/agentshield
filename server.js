@@ -228,6 +228,19 @@ if (
     });
 }
 
+if (
+  session &&
+  session.identityId !==
+    identity.id
+) {
+  return reply
+    .status(409)
+    .send({
+      error:
+        "session_identity_mismatch"
+    });
+}
+
   const result =
     evaluateRisk(validation.data);
 
