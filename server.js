@@ -11,6 +11,10 @@ import {
 } from "./repositories/sessionRepository.js";
 
 import {
+  createOutcome
+} from "./repositories/outcomeRepository.js";
+
+import {
   createEvent,
   getAllEvents,
   getEventsBySession,
@@ -99,6 +103,21 @@ const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
   path: z.string().min(1),
   referrer: z.string().optional(),
+  sessionId: z.string().optional()
+});
+
+const OutcomeSchema = z.object({
+  outcomeType: z.string().min(1),
+
+  source: z.string().min(1),
+
+  confidence: z.number()
+    .min(0)
+    .max(1)
+    .optional(),
+
+  identityId: z.string().optional(),
+
   sessionId: z.string().optional()
 });
 
@@ -319,6 +338,48 @@ legacyRisk:
 };
 
 });
+
+app.post(
+  "/v1/outcomes",
+  async (request, reply) => {
+    const validation =
+      OutcomeSchema.safeParse(
+        request.body || {}
+      );
+
+    if (!validation.success) {
+      return reply.status(400).send({
+        error: "validation_failed",
+        details:
+          validation.error.issues
+      });
+    }
+
+    const outcome =
+      createOutcome({
+        outcomeType:
+          validation.data.outcomeType,
+
+        source:
+          validation.data.source,
+
+        confidence:
+          validation.data.confidence ??
+          1.0,
+
+        identityId:
+          validation.data.identityId,
+
+        sessionId:
+          validation.data.sessionId
+      });
+
+    return {
+      status: "recorded",
+      outcome
+    };
+  }
+);
 
 app.get(
   "/v1/identities/:identityId/assessments",
