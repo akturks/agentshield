@@ -116,7 +116,7 @@ const OutcomeSchema = z.object({
     .max(1)
     .optional(),
 
-  identityId: z.string().optional(),
+  identityId: z.string().min(1),  
 
   sessionId: z.string().optional()
 });

@@ -4,9 +4,15 @@ export function createOutcome({
   outcomeType,
   source,
   confidence = 1.0,
-  identityId = null,
+  identityId,
   sessionId = null
 }) {
+   if (!identityId) {
+  throw new Error(
+    "identityId is required"
+  );
+}
+
   const id = crypto.randomUUID();
 
   const stmt = db.prepare(`
