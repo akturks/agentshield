@@ -165,6 +165,29 @@ if (
   );
 }
 
+let trafficQuality = 50;
+
+if (
+  behaviorType ===
+  "bounce"
+) {
+  trafficQuality = 20;
+}
+
+if (
+  behaviorType ===
+  "exploration"
+) {
+  trafficQuality = 60;
+}
+
+if (
+  behaviorType ===
+  "engaged"
+) {
+  trafficQuality = 90;
+}
+
 return {
   sessionId,
   eventCount: events.length,
@@ -177,7 +200,7 @@ return {
  behaviorType,
  intent,
  evidence,
-
+ trafficQuality,
 
  events
 };
