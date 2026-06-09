@@ -12,6 +12,7 @@ import {
 
 import {
   createOutcome,
+  getAllOutcomes,
   getOutcomesByIdentity,
   getOutcomesBySession
 } from "./repositories/outcomeRepository.js";
@@ -617,6 +618,22 @@ app.get(
     return {
       identities:
         highRiskIdentities
+    };
+  }
+);
+
+app.get(
+  "/v1/outcomes",
+  async () => {
+
+    const outcomes =
+      getAllOutcomes();
+
+    return {
+      outcomeCount:
+        outcomes.length,
+
+      outcomes
     };
   }
 );

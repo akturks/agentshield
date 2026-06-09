@@ -77,3 +77,22 @@ export function getOutcomesBySession(
     ORDER BY createdAt DESC
   `).all(sessionId);
 }
+export function getOutcomesByCorrelationId(
+  correlationId
+) {
+  return db.prepare(`
+    SELECT *
+    FROM Outcome
+    WHERE correlationId = ?
+    ORDER BY createdAt ASC
+  `).all(correlationId);
+}
+
+export function getAllOutcomes() {
+  return db.prepare(`
+    SELECT *
+    FROM Outcome
+    ORDER BY createdAt DESC
+    LIMIT 100
+  `).all();
+}
