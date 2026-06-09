@@ -112,6 +112,9 @@ import identityRoutes
 import sessionRoutes
   from "./routes/sessionRoutes.js";
 
+import analyticsRoutes
+  from "./routes/analyticsRoutes.js";
+
 import {
   allocate
 } from "./src/services/allocationEngineService.js";
@@ -160,6 +163,24 @@ app.register(
       app,
       {
         OutcomeSchema
+      }
+    );
+  }
+);
+
+app.register(
+  async function (app) {
+    await analyticsRoutes(
+      app,
+      {
+        classify,
+        evaluatePolicy,
+        allocate,
+        enforce,
+        evaluateOutcome,
+        generateFeedback,
+        evaluateLearning,
+        applyTrustUpdate
       }
     );
   }
@@ -485,188 +506,6 @@ legacyRisk:
 };
 
 });
-
-app.get(
-  "/v1/events",
-  async () => {
-    const events =
-      getAllEvents();
-
-    return {
-      events
-    };
-  }
-);
-
-app.get(
-  "/v1/traffic-quality",
-  async () => {
-    const events =
-      getAllEvents();
-
-    const totalEvents =
-      events.length;
-
-    const blockedEvents =
-      events.filter(
-        event =>
-          event.decision ===
-          "block"
-      ).length;
-
-    const allowedEvents =
-      events.filter(
-        event =>
-          event.decision ===
-          "allow"
-      ).length;
-
-const averageRisk =
-  totalEvents > 0
-    ? events.reduce(
-        (sum, event) =>
-          sum + (event.riskScore || 0),
-        0
-      ) / totalEvents
-    : 0;
-
-const blockRate =
-  totalEvents > 0
-    ? (
-        blockedEvents /
-        totalEvents
-      ) * 100
-    : 0;
-return {
-  totalEvents,
-  blockedEvents,
-  allowedEvents,
-  blockRate,
-  averageRisk
-};
-
-
-  }
-);
-
-app.get(
-  "/v1/risk-queue",
-  async () => {
-    const identities =
-      getAllIdentityProfiles();
-
-    const queue =
-      identities
-        .map(profile => {
-          const risk =
-            classify(profile);
- 
- const policy =
-  evaluatePolicy(risk);
-
-const allocation =
-  allocate(risk);
-
-
-const enforcement =
-  enforce(
-    policy,
-    allocation
-  );
-
-const outcome =
-  evaluateOutcome(
-    enforcement
-  );
-
-const feedback =
-  generateFeedback(
-    outcome
-  );
-
-const learning =
-  evaluateLearning(
-    outcome
-  );
-
-const trustUpdate =
-  applyTrustUpdate(
-    profile.currentTrustScore,
-    feedback
-  );
-            
-          let priority =
-            "normal";
-
-          if (
-            risk.riskLevel ===
-            "critical"
-          ) {
-            priority =
-              "urgent";
-          } else if (
-            risk.riskLevel ===
-            "high"
-          ) {
-            priority =
-              "high";
-          }
-
-          return {
-            identityId:
-              profile.identityId,
-
-            trustScore:
-              profile.currentTrustScore,
-
-            riskScore:
-              risk.riskScore,
-
-            riskLevel:
-              risk.riskLevel,
-
-priority,
-
-policy,
-
-allocation,
-
-enforcement,
-
-outcome,
-
-feedback,
-
-learning,
-
-trustUpdate
-
-          };
-        })
-        .filter(
-          item =>
-            item.riskLevel !==
-            "low"
-        )
-        .sort(
-          (a, b) =>
-            b.riskScore -
-            a.riskScore
-        )
-        .map(
-          (item, index) => ({
-            rank:
-              index + 1,
-
-            ...item
-          })
-        );
-
-    return {
-      items: queue
-    };
-  }
-);
 
 try {
   await app.listen({
