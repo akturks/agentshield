@@ -97,6 +97,9 @@ import {
 import dashboardRoutes
   from "./routes/dashboardRoutes.js";
 
+import investigationRoutes
+  from "./routes/investigationRoutes.js";
+
 import {
   allocate
 } from "./src/services/allocationEngineService.js";
@@ -129,6 +132,10 @@ const app = Fastify();
 
 app.register(
   dashboardRoutes
+);
+
+app.register(
+  investigationRoutes
 );
 
 const TENANTS = {
@@ -443,42 +450,6 @@ app.get(
     };
   }
 );
-
-app.get(
-  "/v1/high-risk-queue",
-  async () => {
-
-    const identities =
-      getAllIdentityProfiles();
-
-    const queue =
-      identities
-        .map(profile => ({
-          identityId:
-            profile.identityId,
-
-          ...classify(profile)
-        }))
-        .filter(item =>
-          item.riskLevel === "high" ||
-          item.riskLevel === "critical"
-        )
-        .sort(
-          (a, b) =>
-            b.riskScore -
-            a.riskScore
-        );
-
-    return {
-      queueSize:
-        queue.length,
-
-      identities:
-        queue
-    };
-  }
-);
-
 
 app.post(
   "/v1/outcomes",
