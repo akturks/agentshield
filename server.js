@@ -15,7 +15,8 @@ import {
   createOutcome,
   getAllOutcomes,
   getOutcomesByIdentity,
-  getOutcomesBySession
+  getOutcomesBySession,
+  getOutcomesByCorrelationId
 } from "./repositories/outcomeRepository.js";
 
 import {
@@ -413,6 +414,27 @@ legacyRisk:
 };
 
 });
+
+app.get(
+  "/v1/correlations/:correlationId",
+  async (request) => {
+
+    const outcomes =
+      getOutcomesByCorrelationId(
+        request.params.correlationId
+      );
+
+    return {
+      correlationId:
+        request.params.correlationId,
+
+      outcomeCount:
+        outcomes.length,
+
+      outcomes
+    };
+  }
+);
 
 app.post(
   "/v1/outcomes",
