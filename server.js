@@ -11,12 +11,15 @@ import {
 } from "./repositories/sessionRepository.js";
 
 import {
-  createOutcome
+  createOutcome,
+  getOutcomesByIdentity,
+  getOutcomesBySession
 } from "./repositories/outcomeRepository.js";
 
 import {
   createEvent,
   getAllEvents,
+  getEventsByIdentity,
   getEventsBySession,
   getSessionProfile
 } from "./repositories/eventRepository.js";
@@ -508,6 +511,74 @@ return {
 );
 
 app.get(
+  "/v1/identities/:identityId/outcomes",
+  async (request) => {
+
+    const outcomes =
+      getOutcomesByIdentity(
+        request.params.identityId
+      );
+
+    return {
+      identityId:
+        request.params.identityId,
+
+      outcomeCount:
+        outcomes.length,
+
+      outcomes
+    };
+  }
+);
+
+app.get(
+  "/v1/identities/:identityId/timeline",
+  async (request) => {
+
+    const events =
+      getEventsByIdentity(
+        request.params.identityId
+      );
+
+    const outcomes =
+      getOutcomesByIdentity(
+        request.params.identityId
+      );
+
+    const timeline = [
+      ...events.map(event => ({
+        type: "event",
+        createdAt:
+          event.createdAt,
+        data: event
+      })),
+
+      ...outcomes.map(outcome => ({
+        type: "outcome",
+        createdAt:
+          outcome.createdAt,
+        data: outcome
+      }))
+    ]
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt) -
+          new Date(b.createdAt)
+      );
+
+    return {
+      identityId:
+        request.params.identityId,
+
+      itemCount:
+        timeline.length,
+
+      timeline
+    };
+  }
+);
+
+app.get(
   "/v1/identities",
   async () => {
     const identities =
@@ -626,6 +697,27 @@ app.get(
         request.params.sessionId,
 
       events
+    };
+  }
+);
+
+app.get(
+  "/v1/sessions/:sessionId/outcomes",
+  async (request) => {
+
+    const outcomes =
+      getOutcomesBySession(
+        request.params.sessionId
+      );
+
+    return {
+      sessionId:
+        request.params.sessionId,
+
+      outcomeCount:
+        outcomes.length,
+
+      outcomes
     };
   }
 );
