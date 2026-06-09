@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { z } from "zod";
+import db from "./repositories/db.js";
 
 import {
   findOrCreateIdentity
@@ -36,6 +37,38 @@ import {
 import {
   makeDecision
 } from "./repositories/policyRepository.js"
+
+const tenantExists =
+  db.prepare(`
+    SELECT id
+    FROM Tenant
+    WHERE id = ?
+    LIMIT 1
+  `).get("tenant_1");
+
+if (!tenantExists) {
+
+  db.prepare(`
+    INSERT INTO Tenant (
+      id,
+      name,
+      createdAt
+    )
+    VALUES (
+      ?,
+      ?,
+      datetime('now')
+    )
+  `).run(
+    "tenant_1",
+    "Demo Customer"
+  );
+
+  console.log(
+    "Bootstrap: Demo tenant created"
+  );
+}
+
 const app = Fastify();
 
 import {
