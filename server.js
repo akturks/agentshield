@@ -143,6 +143,10 @@ import {
   applyTrustUpdate
 } from "./src/services/trustUpdateEngineService.js";
 
+import {
+  evaluatePipeline
+} from "./src/services/evaluatePipelineService.js";
+
 const app = Fastify();
 
 app.register(
