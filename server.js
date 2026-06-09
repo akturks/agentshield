@@ -436,6 +436,44 @@ app.get(
   }
 );
 
+app.get(
+  "/v1/dashboard",
+  async () => {
+
+    const identities =
+      getAllIdentityProfiles();
+
+    const events =
+      getAllEvents();
+
+    const outcomes =
+      getAllOutcomes();
+
+    const highRiskIdentities =
+      identities.filter(
+        profile =>
+          classify(profile)
+            .riskLevel === "high" ||
+          classify(profile)
+            .riskLevel === "critical"
+      );
+
+    return {
+      identities:
+        identities.length,
+
+      events:
+        events.length,
+
+      outcomes:
+        outcomes.length,
+
+      highRiskIdentities:
+        highRiskIdentities.length
+    };
+  }
+);
+
 app.post(
   "/v1/outcomes",
   async (request, reply) => {

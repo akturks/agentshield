@@ -43,8 +43,8 @@ export function getAssessmentsByIdentity(
         confidence,
         intent,
         assessmentTimestamp
-      FROM TrustAssessments
-      WHERE identIty_id = ?
+      FROM TrustAssessment
+      WHERE identityId = ?
       ORDER BY id DESC
     `);
 
@@ -122,7 +122,7 @@ export function getAllIdentityProfiles() {
     db.prepare(`
       SELECT DISTINCT
         identityId
-      FROM trustAssessments
+      FROM trustAssessment
     `);
 
   const identities =
