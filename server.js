@@ -338,39 +338,35 @@ app.post("/v1/evaluate", async (request, reply) => {
     });
   }
 
-  const fingerprint =
-    validation.data.userAgent;
+const pipelineResult =
+  await evaluatePipeline({
+    validation,
+    tenant,
 
-  const identity =
-    findOrCreateIdentity({
-      tenantId: tenant.tenantId,
-      fingerprint,
-      identityType: "browser"
-    });
+    findOrCreateIdentity,
+    getSession,
+    createSession,
 
-let session =
-  getSession(
-    validation.data.sessionId
-);
+    evaluateRisk,
 
-if (
-  !session &&
-  validation.data.sessionId
-) {
-  session =
-    createSession({
-      id:
-        validation.data.sessionId,
+    calculateTrust,
+    deriveIntent,
 
-      identityId:
-        identity.id
-    });
-}
+    makeDecision,
+    determineEnforcement,
+
+    buildTrustAssessment,
+    saveAssessment,
+
+    buildTrustRepresentation,
+
+    createEvent,
+    createOutcome
+  });
 
 if (
-  session &&
-  session.identityId !==
-    identity.id
+  pipelineResult.error ===
+  "session_identity_mismatch"
 ) {
   return reply
     .status(409)
@@ -380,134 +376,7 @@ if (
     });
 }
 
-  const result =
-    evaluateRisk(validation.data);
-
-const trust =
-  calculateTrust(identity.id);
-
-const intent =
-  deriveIntent(
-    trust.signals
-  );
-
-const policyDecision =
-  makeDecision({
-    trustScore:
-      trust.trustScore,
-    intent
-  });
-
-const enforcement =
-  determineEnforcement({
-    policyDecision,
-    enforcementMode:
-      tenant.enforcementMode
-  });
-
-const trustAssessment =
-  buildTrustAssessment({
-    identityId:
-      identity.id,
-
-    trustScore:
-      trust.trustScore,
-
-    signals:
-      trust.signals,
-
-    evidence:
-      trust.evidence,
-
-    intent
-  });
-
-saveAssessment({
-  identityId:
-    identity.id,
-
-  trustScore:
-    trustAssessment.trustScore,
-
-  confidence:
-    trustAssessment.confidence,
-
-  intent:
-    trustAssessment
-      .intentAssessment
-      .intent,
-
-  assessmentTimestamp:
-    trustAssessment
-      .assessmentTimestamp
-});
-
-const trustRepresentation =
-  buildTrustRepresentation(
-    trustAssessment
-  );
-
-  createEvent({
-    identityId: identity.id,
-    eventType: "request",
-    path: validation.data.path,
-    userAgent: validation.data.userAgent,
-    referrer: validation.data.referrer,
-    sessionId: validation.data.sessionId,
-    riskScore: result.score,
-    decision: result.decision
-  });
- 
- createOutcome({
-  outcomeType:
-    "evaluation_completed",
-
-  source:
-    "evaluate_api",
-
-  confidence:
-    1.0,
-
-  identityId:
-    identity.id,
-
-  sessionId:
-    validation.data.sessionId,
-
-  correlationId:
-    validation.data.correlationId
-});
-   
-  return {
-  tenantId: tenant.tenantId,
-  tenantName: tenant.name,
-  identityId: identity.id,
-
-  trustScore:
-    trust.trustScore,
-
-  signals:
-    trust.signals,
-  
-evidence:
-    trust.evidence,
-
-trustAssessment,
-
-trustRepresentation,
-
-intent,
-
-policyDecision,
-
-enforcement,
-
-legacyRisk:
-  result,
-
-  received:
-    validation.data
-};
+return pipelineResult;
 
 });
 
