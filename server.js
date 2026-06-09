@@ -458,19 +458,60 @@ app.get(
             .riskLevel === "critical"
       );
 
-    return {
-      identities:
-        identities.length,
+const averageTrustScore =
+  identities.length > 0
+    ? Math.round(
+        identities.reduce(
+          (sum, profile) =>
+            sum +
+            profile.currentTrustScore,
+          0
+        ) / identities.length
+      )
+    : 0;
 
-      events:
-        events.length,
+const latestOutcome =
+  outcomes.length > 0
+    ? outcomes[0].outcomeType
+    : null;
 
-      outcomes:
-        outcomes.length,
+const latestCorrelationId =
+  outcomes.length > 0
+    ? outcomes[0].correlationId
+    : null;
 
-      highRiskIdentities:
-        highRiskIdentities.length
-    };
+let health =
+  "healthy";
+
+if (
+  highRiskIdentities.length > 0
+) {
+  health =
+    "warning";
+}
+
+return {
+  health,
+
+  identities:
+    identities.length,
+
+  events:
+    events.length,
+
+  outcomes:
+    outcomes.length,
+
+  highRiskIdentities:
+    highRiskIdentities.length,
+
+  averageTrustScore,
+
+  latestOutcome,
+
+  latestCorrelationId
+};
+
   }
 );
 
