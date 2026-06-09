@@ -100,6 +100,9 @@ import dashboardRoutes
 import investigationRoutes
   from "./routes/investigationRoutes.js";
 
+import timelineRoutes
+  from "./routes/timelineRoutes.js";
+
 import {
   allocate
 } from "./src/services/allocationEngineService.js";
@@ -136,6 +139,10 @@ app.register(
 
 app.register(
   investigationRoutes
+);
+
+app.register(
+  timelineRoutes
 );
 
 const TENANTS = {
@@ -598,53 +605,6 @@ app.get(
         outcomes.length,
 
       outcomes
-    };
-  }
-);
-
-app.get(
-  "/v1/identities/:identityId/timeline",
-  async (request) => {
-
-    const events =
-      getEventsByIdentity(
-        request.params.identityId
-      );
-
-    const outcomes =
-      getOutcomesByIdentity(
-        request.params.identityId
-      );
-
-    const timeline = [
-      ...events.map(event => ({
-        type: "event",
-        createdAt:
-          event.createdAt,
-        data: event
-      })),
-
-      ...outcomes.map(outcome => ({
-        type: "outcome",
-        createdAt:
-          outcome.createdAt,
-        data: outcome
-      }))
-    ]
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt) -
-          new Date(b.createdAt)
-      );
-
-    return {
-      identityId:
-        request.params.identityId,
-
-      itemCount:
-        timeline.length,
-
-      timeline
     };
   }
 );
