@@ -148,3 +148,54 @@ export function replayIdentity(
     outcomes
   };
 }
+
+export function replayTimeline(
+  identityId
+) {
+  const replay =
+    replayIdentity(
+      identityId
+    );
+
+  if (!replay) {
+    return null;
+  }
+
+  const timeline = [];
+
+  for (
+    const event of replay.events
+  ) {
+    timeline.push({
+      type: "event",
+      createdAt:
+        event.createdAt,
+      data: event
+    });
+  }
+
+  for (
+    const outcome of replay.outcomes
+  ) {
+    timeline.push({
+      type: "outcome",
+      createdAt:
+        outcome.createdAt,
+      data: outcome
+    });
+  }
+
+  timeline.sort(
+    (a, b) =>
+      a.createdAt.localeCompare(
+        b.createdAt
+      )
+  );
+
+  return {
+    identity:
+      replay.identity,
+
+    timeline
+  };
+}
