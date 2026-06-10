@@ -100,3 +100,48 @@ Version interpretations.
 
 Reproduce reasoning.
 
+ ## Canonical Architecture Documents
+
+Before making architectural or implementation decisions, read:
+
+* docs/ONTOLOGY.md
+* docs/CONSTITUTION.md
+* docs/ENGINEERING_GUIDE.md
+* docs/PROJECT_CONTEXT.md
+
+These documents are canonical.
+
+If implementation, architecture proposals, or historical documentation conflict with these documents:
+
+The canonical documents win.
+
+---
+
+## Continuation Prompt
+
+For new development sessions:
+
+AgentShield continuation.
+
+Read these documents first:
+
+docs/ONTOLOGY.md
+docs/CONSTITUTION.md
+docs/ENGINEERING_GUIDE.md
+docs/PROJECT_CONTEXT.md
+
+These documents are canonical.
+
+Do not propose solutions that violate them.
+
+Current phase:
+
+Replay Infrastructure
+
+Current target:
+
+REPLAY-002
+Unified Historical Timeline
+
+After reading the documents, propose an implementation plan.
+
