@@ -8,10 +8,7 @@ import {
 } from "../repositories/outcomeRepository.js";
 
 export default async function (
-  app,
-  {
-    TENANTS
-  }
+  app
 ) {
 
   app.get(
@@ -71,34 +68,28 @@ export default async function (
           });
       }
 
-      const tenant =
-        TENANTS["test_key_123"];
+let estimatedValue = 0;
 
-      let estimatedValue = 0;
+if (
+  profile.trafficTier ===
+  "low"
+) {
+  estimatedValue = 5;
+}
 
-      if (
-        profile.trafficTier ===
-        "low"
-      ) {
-        estimatedValue =
-          tenant.lowTrafficValue;
-      }
+if (
+  profile.trafficTier ===
+  "medium"
+) {
+  estimatedValue = 25;
+}
 
-      if (
-        profile.trafficTier ===
-        "medium"
-      ) {
-        estimatedValue =
-          tenant.mediumTrafficValue;
-      }
-
-      if (
-        profile.trafficTier ===
-        "high"
-      ) {
-        estimatedValue =
-          tenant.highTrafficValue;
-      }
+if (
+  profile.trafficTier ===
+  "high"
+) {
+  estimatedValue = 100;
+}
 
       return {
         ...profile,

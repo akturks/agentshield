@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import { z } from "zod";
 import db from "./repositories/db.js";
+import {
+  getTenantByApiKey
+} from "./repositories/apiKeyRepository.js";
 
   import {
   findOrCreateIdentity
@@ -210,28 +213,13 @@ app.register(
 
 app.register(
   async function (app) {
-    await sessionRoutes(
-      app,
-      {
-        TENANTS
-      }
-    );
+await sessionRoutes(
+  app
+);
   }
 );
 
-const TENANTS = {
-  "test_key_123": {
-    tenantId: "tenant_1",
-    name: "Demo Customer",
 
-    enforcementMode:
-      "observe",
-
-    lowTrafficValue: 5,
-    mediumTrafficValue: 25,
-    highTrafficValue: 100
-  }
-};
 
 const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
@@ -319,15 +307,18 @@ app.get("/health", async () => {
 app.post("/v1/evaluate", async (request, reply) => {
   const apiKey = request.headers["x-api-key"];
 
-  const tenant = TENANTS[apiKey];
+const tenant =
+  getTenantByApiKey(
+    apiKey
+  );
 
   if (!tenant) {
     return reply.status(401).send({
       error: "unauthorized"
     });
   }
-
-  const validation = EvaluateSchema.safeParse(
+ 
+ const validation = EvaluateSchema.safeParse(
     request.body || {}
   );
 
