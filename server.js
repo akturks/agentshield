@@ -118,6 +118,9 @@ import sessionRoutes
 import analyticsRoutes
   from "./routes/analyticsRoutes.js";
 
+import replayRoutes
+  from "./routes/replayRoutes.js";
+
 import {
   allocate
 } from "./src/services/allocationEngineService.js";
@@ -191,6 +194,10 @@ app.register(
       }
     );
   }
+);
+
+app.register(
+  replayRoutes
 );
 
 app.register(

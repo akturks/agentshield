@@ -59,3 +59,13 @@ export function findOrCreateIdentity({
 
   return identity;
 }
+export function getIdentityById(
+  identityId
+) {
+  return db.prepare(`
+    SELECT *
+    FROM Identity
+    WHERE id = ?
+    LIMIT 1
+  `).get(identityId);
+}

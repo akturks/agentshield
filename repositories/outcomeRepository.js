@@ -96,3 +96,13 @@ export function getAllOutcomes() {
     LIMIT 100
   `).all();
 }
+export function getOutcomeById(
+  outcomeId
+) {
+  return db.prepare(`
+    SELECT *
+    FROM Outcome
+    WHERE id = ?
+    LIMIT 1
+  `).get(outcomeId);
+}
