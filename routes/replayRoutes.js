@@ -1,6 +1,7 @@
 import {
   replayOutcome,
-  replaySession
+  replaySession,
+  replayIdentity
 } from "../repositories/replayRepository.js";
 
 export default async function (
@@ -50,4 +51,26 @@ export default async function (
       return replay;
     }
   );
-}
+
+  app.get(
+    "/v1/replay/identity/:identityId",
+    async (request, reply) => {
+
+      const replay =
+        replayIdentity(
+          request.params.identityId
+        );
+
+      if (!replay) {
+        return reply
+          .status(404)
+          .send({
+            error:
+              "identity_not_found"
+          });
+      }
+
+      return replay;
+    }
+  );
+ }

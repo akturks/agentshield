@@ -1,4 +1,5 @@
-import {
+
+ import {
   getOutcomeById
 } from "./outcomeRepository.js";
 
@@ -7,7 +8,8 @@ import {
 } from "./identityRepository.js";
 
 import {
-  getSession
+  getSession,
+  getSessionsByIdentity
 } from "./sessionRepository.js";
 
 import {
@@ -98,5 +100,51 @@ export function replaySession(
     events,
     outcomes,
     correlationContexts
+  };
+}
+
+export function replayIdentity(
+  identityId
+) {
+  const identity =
+    getIdentityById(
+      identityId
+    );
+
+  if (!identity) {
+    return null;
+  }
+
+  const sessions =
+    getSessionsByIdentity(
+      identityId
+    );
+
+  const outcomes = [];
+
+  const events = [];
+
+  for (
+    const session of sessions
+  ) {
+
+    events.push(
+      ...getEventsBySession(
+        session.id
+      )
+    );
+
+    outcomes.push(
+      ...getOutcomesBySession(
+        session.id
+      )
+    );
+  }
+
+  return {
+    identity,
+    sessions,
+    events,
+    outcomes
   };
 }
