@@ -145,4 +145,71 @@ Signals
 Trust
 
 
+---
+
+## Replay Infrastructure v0
+
+Status: Operational
+
+### Capability
+
+Given an outcome, AgentShield can reconstruct the observed reality that produced it.
+
+Replay reconstruction currently includes:
+
+* Outcome
+* Identity
+* Session
+* Events
+* Correlation Context
+
+### Reconstruction Model
+
+Outcome
+
+↓
+
+Identity
+
+↓
+
+Session
+
+↓
+
+Events
+
+↓
+
+Correlation Context
+
+### Core Principle
+
+Replay Infrastructure reconstructs observed reality.
+
+Replay Infrastructure does not derive interpretations.
+
+### Excluded
+
+The following remain interpretation-layer concerns:
+
+* Trust
+* Risk
+* Intent
+* Attribution
+* Behavior Graphs
+
+### Acceptance Test
+
+Endpoint:
+
+GET /v1/replay/outcome/:outcomeId
+
+Expected Result:
+
+Returns the observed reality associated with the outcome.
+
+### Status
+
+PASSED
 
