@@ -20,6 +20,10 @@ import {
   getOutcomesBySession
 } from "./outcomeRepository.js";
 
+import {
+  getAssessmentsByIdentity
+} from "./assessmentRepository.js";
+
 export function replayOutcome(
   outcomeId
 ) {
@@ -124,6 +128,11 @@ export function replayIdentity(
 
   const events = [];
 
+const assessments =
+  getAssessmentsByIdentity(
+    identityId
+  );
+
   for (
     const session of sessions
   ) {
@@ -141,12 +150,14 @@ export function replayIdentity(
     );
   }
 
-  return {
-    identity,
-    sessions,
-    events,
-    outcomes
-  };
+return {
+  identity,
+  sessions,
+  events,
+  outcomes,
+  assessments
+};
+
 }
 
 export function replayTimeline(
