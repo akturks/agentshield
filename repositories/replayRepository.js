@@ -14,6 +14,10 @@ import {
   getEventsBySession
 } from "./eventRepository.js";
 
+import {
+  getOutcomesBySession
+} from "./outcomeRepository.js";
+
 export function replayOutcome(
   outcomeId
 ) {
@@ -54,5 +58,45 @@ export function replayOutcome(
       correlationId:
         outcome.correlationId
     }
+  };
+}
+
+export function replaySession(
+  sessionId
+) {
+  const session =
+    getSession(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  const events =
+    getEventsBySession(
+      sessionId
+    );
+
+  const outcomes =
+    getOutcomesBySession(
+      sessionId
+    );
+
+  const correlationContexts =
+    [
+      ...new Set(
+        outcomes
+          .map(
+            outcome =>
+              outcome.correlationId
+          )
+          .filter(Boolean)
+      )
+    ];
+
+  return {
+    session,
+    events,
+    outcomes,
+    correlationContexts
   };
 }

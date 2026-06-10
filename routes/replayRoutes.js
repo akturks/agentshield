@@ -1,5 +1,6 @@
 import {
-  replayOutcome
+  replayOutcome,
+  replaySession
 } from "../repositories/replayRepository.js";
 
 export default async function (
@@ -21,6 +22,28 @@ export default async function (
           .send({
             error:
               "outcome_not_found"
+          });
+      }
+
+      return replay;
+    }
+  );
+
+  app.get(
+    "/v1/replay/session/:sessionId",
+    async (request, reply) => {
+
+      const replay =
+        replaySession(
+          request.params.sessionId
+        );
+
+      if (!replay) {
+        return reply
+          .status(404)
+          .send({
+            error:
+              "session_not_found"
           });
       }
 
