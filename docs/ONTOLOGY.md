@@ -1,3 +1,12 @@
+
+
+Historical states are the canonical asset.
+
+Interpretations are derived artifacts.
+
+
+
+
 # AgentShield Ontology v1.0
 
 ## Status

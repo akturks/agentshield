@@ -1,5 +1,31 @@
 # AgentShield
 
+IMPORTANT
+
+This repository contains canonical architectural documents.
+
+Before proposing any implementation or architectural changes, read:
+
+docs/ONTOLOGY.md
+docs/CONSTITUTION.md
+docs/ENGINEERING_GUIDE.md
+docs/PROJECT_CONTEXT.md
+
+These documents are authoritative.
+
+If any older document, conversation, implementation detail or proposal conflicts with them:
+
+The canonical documents win.
+
+Do not begin implementation planning until these documents have been read.
+
+
+
+
+
+
+# AgentShield
+
 AgentShield preserves replayable reality for digital actors.
 
 ## Current Status
@@ -145,3 +171,17 @@ Unified Historical Timeline
 
 After reading the documents, propose an implementation plan.
 
+
+
+Documentation Update Rule
+
+Any architectural milestone that changes
+the understanding of the system must be
+reflected in the canonical documents.
+
+Code may change the system.
+
+Documentation changes the understanding
+of the system.
+
+Both are first-class deliverables.

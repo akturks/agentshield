@@ -179,9 +179,20 @@ export function replayTimeline(
   ) {
     timeline.push({
       type: "event",
-      createdAt:
+      timestamp:
         event.createdAt,
       data: event
+    });
+  }
+
+  for (
+    const assessment of replay.assessments
+  ) {
+    timeline.push({
+      type: "assessment",
+      timestamp:
+        assessment.assessmentTimestamp,
+      data: assessment
     });
   }
 
@@ -190,18 +201,47 @@ export function replayTimeline(
   ) {
     timeline.push({
       type: "outcome",
-      createdAt:
+      timestamp:
         outcome.createdAt,
       data: outcome
     });
   }
 
-  timeline.sort(
-    (a, b) =>
-      a.createdAt.localeCompare(
-        b.createdAt
-      )
-  );
+
+timeline.sort(
+  (a, b) => {
+
+    const aTimestamp =
+      a.timestamp
+        .replace(" ", "T");
+
+    const bTimestamp =
+      b.timestamp
+        .replace(" ", "T");
+
+    const aTime =
+      Date.parse(
+        aTimestamp
+      );
+
+    const bTime =
+      Date.parse(
+        bTimestamp
+      );
+
+    if (
+      aTime !== bTime
+    ) {
+      return (
+        aTime - bTime
+      );
+    }
+
+    return a.type.localeCompare(
+      b.type
+    );
+  }
+);
 
   return {
     identity:

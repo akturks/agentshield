@@ -45,7 +45,7 @@ export function getAssessmentsByIdentity(
         assessmentTimestamp
       FROM TrustAssessment
       WHERE identityId = ?
-      ORDER BY id DESC
+      ORDER BY assessmentTimestamp DESC
     `);
 
   return stmt.all(
