@@ -160,25 +160,25 @@ export async function evaluatePipeline({
       result.decision
   });
 
-  createOutcome({
-    outcomeType:
-      "evaluation_completed",
+createOutcome({
+  outcomeType:
+    policyDecision.toUpperCase(),
 
-    source:
-      "evaluate_api",
+  source:
+    "policy_engine",
 
-    confidence:
-      1.0,
+  confidence:
+    trustAssessment.confidence,
 
-    identityId:
-      identity.id,
+  identityId:
+    identity.id,
 
-    sessionId:
-      validation.data.sessionId,
+  sessionId:
+    validation.data.sessionId,
 
-    correlationId:
-      validation.data.correlationId
-  });
+  correlationId:
+    validation.data.correlationId
+});
 
   return {
     tenantId:
