@@ -153,6 +153,13 @@ import {
   evaluatePipeline
 } from "./src/services/evaluatePipelineService.js";
 
+function sleep(ms) {
+  return new Promise(
+    resolve =>
+      setTimeout(resolve, ms)
+  );
+}
+
 const app = Fastify();
 
 app.register(
@@ -372,6 +379,20 @@ if (
       error:
         "session_identity_mismatch"
     });
+}
+
+if (
+  pipelineResult.policyDecision ===
+  "CHALLENGE"
+) {
+  await sleep(2000);
+}
+
+if (
+  pipelineResult.policyDecision ===
+  "THROTTLE"
+) {
+  await sleep(5000);
 }
 
 return pipelineResult;
