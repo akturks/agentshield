@@ -31,38 +31,6 @@ export function calculateTrust(identityId) {
     trustScore -= 20;
   }
 
-  if (
-    signals.includes(
-      "engaged_reading"
-    )
-  ) {
-    trustScore += 5;
-  }
-
-  if (
-    signals.includes(
-      "deep_scroll"
-    )
-  ) {
-    trustScore += 5;
-  }
-
-  if (
-    signals.includes(
-      "active_mouse"
-    )
-  ) {
-    trustScore += 2;
-  }
-
-  if (
-    signals.includes(
-      "focused_session"
-    )
-  ) {
-    trustScore += 2;
-  }
-
   trustScore = Math.max(
     0,
     Math.min(100, trustScore)
@@ -75,3 +43,5 @@ export function calculateTrust(identityId) {
     eventCount: events.length
   };
 }
+
+

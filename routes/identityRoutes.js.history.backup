@@ -8,10 +8,6 @@ import {
   getBehaviorProfile
 } from "../repositories/behaviorProfileRepository.js";
 
-import {
-  getBehaviorHistory
-} from "../repositories/behaviorHistoryRepository.js";
-
 export default async function (
   app,
   {
@@ -128,28 +124,6 @@ export default async function (
       return {
         identities
       };
-    }
-  );
-
-  app.get(
-    "/v1/identities/:identityId/history",
-    async (request, reply) => {
-
-      const history =
-        getBehaviorHistory(
-          request.params.identityId
-        );
-
-      if (!history) {
-        return reply
-          .status(404)
-          .send({
-            error:
-              "identity_not_found"
-          });
-      }
-
-      return history;
     }
   );
 

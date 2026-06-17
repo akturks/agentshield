@@ -5,32 +5,42 @@ export function saveAssessment({
   trustScore,
   confidence,
   intent,
+  signals,
+  evidence,
   assessmentTimestamp
 }) {
 
 const stmt =
   db.prepare(`
-    INSERT INTO TrustAssessment (
-      id,
-      identityId,
-      trustScore,
-      confidence,
-      intent,
-      assessmentTimestamp
-    )
-    VALUES (?,?, ?, ?, ?, ?)
+INSERT INTO TrustAssessment (
+  id,
+  identityId,
+  trustScore,
+  confidence,
+  intent,
+  signals,
+  evidence,
+  assessmentTimestamp
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
  const id = crypto.randomUUID();
 
- stmt.run(
-    id,
-    identityId,
-    trustScore,
-    confidence,
-    intent,
-    assessmentTimestamp
-  );
+stmt.run(
+  id,
+  identityId,
+  trustScore,
+  confidence,
+  intent,
+  JSON.stringify(
+    signals || []
+  ),
+  JSON.stringify(
+    evidence || {}
+  ),
+  assessmentTimestamp
+);
 }
 
 export function getAssessmentsByIdentity(
@@ -38,19 +48,37 @@ export function getAssessmentsByIdentity(
 ) {
   const stmt =
     db.prepare(`
-      SELECT
-        trustScore,
-        confidence,
-        intent,
-        assessmentTimestamp
+SELECT
+  trustScore,
+  confidence,
+  intent,
+  signals,
+  evidence,
+  assessmentTimestamp
       FROM TrustAssessment
       WHERE identityId = ?
       ORDER BY assessmentTimestamp DESC
     `);
 
-  return stmt.all(
-    identityId
-  );
+return stmt
+  .all(identityId)
+  .map(item => ({
+    ...item,
+
+    signals:
+      item.signals
+        ? JSON.parse(
+            item.signals
+          )
+        : [],
+
+    evidence:
+      item.evidence
+        ? JSON.parse(
+            item.evidence
+          )
+        : {}
+  }));
 }
 
 export function getIdentityProfile(
@@ -134,4 +162,14 @@ export function getAllIdentityProfiles() {
         identityId
       )
   );
+}
+
+export function getAssessmentCount() {
+  const stmt =
+    db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM TrustAssessment
+    `);
+
+  return stmt.get().count;
 }

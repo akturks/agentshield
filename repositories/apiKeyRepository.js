@@ -5,8 +5,9 @@ export function getTenantByApiKey(
 ) {
   return db.prepare(`
     SELECT
-      t.id   AS tenantId,
-      t.name AS name
+      t.id               AS tenantId,
+      t.name             AS name,
+      t.enforcementMode  AS enforcementMode
     FROM ApiKey a
     JOIN Tenant t
       ON a.tenantId = t.id

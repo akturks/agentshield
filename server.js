@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import { z } from "zod";
 import db from "./repositories/db.js";
 import {
@@ -100,6 +101,9 @@ import {
 import dashboardRoutes
   from "./routes/dashboardRoutes.js";
 
+import systemModeRoutes
+  from "./routes/systemModeRoutes.js";
+
 import investigationRoutes
   from "./routes/investigationRoutes.js";
 
@@ -161,6 +165,14 @@ function sleep(ms) {
 }
 
 const app = Fastify();
+
+await app.register(cors, {
+  origin: true
+});
+
+await app.register(
+  systemModeRoutes
+);
 
 app.register(
   dashboardRoutes
@@ -234,16 +246,41 @@ await sessionRoutes(
 );
 
 
-
 const EvaluateSchema = z.object({
   userAgent: z.string().min(1),
+
   path: z.string().min(1),
+
   referrer: z.string().optional(),
+
   sessionId: z.string().optional(),
 
-correlationId:
+  correlationId:
+    z.string().optional(),
+
+  mouseMoves:
+    z.number().optional(),
+
+  scrollDepth:
+    z.number().optional(),
+
+  clickCount:
+    z.number().optional(),
+
+  focusEvents:
+    z.number().optional(),
+
+  readingTime:
+    z.number().optional(),
+
+  deviceFingerprint:
+    z.string().optional(),
+
+  challengeResult:
     z.string().optional()
 });
+
+
 
 const OutcomeSchema = z.object({
   outcomeType: z.string().min(1),
@@ -382,17 +419,23 @@ if (
 }
 
 if (
-  pipelineResult.policyDecision ===
-  "CHALLENGE"
+  tenant.enforcementMode ===
+  "ENFORCE"
 ) {
-  await sleep(2000);
-}
 
-if (
-  pipelineResult.policyDecision ===
-  "THROTTLE"
-) {
-  await sleep(5000);
+  if (
+    pipelineResult.policyDecision ===
+    "CHALLENGE"
+  ) {
+    await sleep(2000);
+  }
+
+  if (
+    pipelineResult.policyDecision ===
+    "THROTTLE"
+  ) {
+    await sleep(5000);
+  }
 }
 
 return pipelineResult;

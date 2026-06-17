@@ -89,6 +89,7 @@ model Outcome {
   session       Session? @relation(fields: [sessionId], references: [id])
 }
 
+
 model TrustAssessment {
   id                  String   @id @default(cuid())
 
@@ -98,11 +99,14 @@ model TrustAssessment {
 
   intent              String
 
+  signals             String?
+
+  evidence            String?
+
   assessmentTimestamp DateTime
 
   identityId          String
   identity            Identity @relation(fields: [identityId], references: [id])
-  
 }
 
 model Event {
@@ -129,5 +133,20 @@ model Event {
   createdAt     DateTime @default(now())
 
   identityId    String
+
+    mouseMoves        Int?
+
+  scrollDepth       Int?
+
+  clickCount        Int?
+
+  focusEvents       Int?
+
+  readingTime       Int?
+
+  deviceFingerprint String?
+
+  challengeResult   String?
+
   identity      Identity @relation(fields: [identityId], references: [id])
 }

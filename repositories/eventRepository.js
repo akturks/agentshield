@@ -9,14 +9,24 @@ export function createEvent({
   referrer = null,
   sessionId = null,
   riskScore = null,
-  decision = null
+  decision = null,
+
+  mouseMoves = null,
+  scrollDepth = null,
+  clickCount = null,
+  focusEvents = null,
+  readingTime = null,
+
+  deviceFingerprint = null,
+  challengeResult = null
 })
 
  {
   const id = crypto.randomUUID();
 
   const stmt = db.prepare(`
-    INSERT INTO Event (
+    
+INSERT INTO Event (
 id,
 eventType,
 path,
@@ -26,17 +36,35 @@ referrer,
 sessionId,
 riskScore,
 decision,
+
+mouseMoves,
+scrollDepth,
+clickCount,
+focusEvents,
+readingTime,
+
+deviceFingerprint,
+challengeResult,
+
 createdAt,
 identityId
-    )
-    VALUES (
+)
+
+VALUES (
 ?, ?, ?, ?, ?, ?, ?, ?, ?,
+
+?, ?, ?, ?, ?,
+
+?, ?,
+
 datetime('now'),
 ?
-    )
+)
+
   `);
 
-  stmt.run(
+
+stmt.run(
 id,
 eventType,
 path,
@@ -46,8 +74,18 @@ referrer,
 sessionId,
 riskScore,
 decision,
+
+mouseMoves,
+scrollDepth,
+clickCount,
+focusEvents,
+readingTime,
+
+deviceFingerprint,
+challengeResult,
+
 identityId
-  );
+);
 
   return db.prepare(`
     SELECT *

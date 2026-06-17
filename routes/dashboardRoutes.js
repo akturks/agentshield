@@ -1,6 +1,11 @@
 import {
-  getAllIdentityProfiles
+  getAllIdentityProfiles,
+  getAssessmentCount
 } from "../repositories/assessmentRepository.js";
+
+import {
+  getSystemMode
+} from "../repositories/systemRepository.js";
 
 import {
   getAllEvents
@@ -28,9 +33,37 @@ export default async function (
       const events =
         getAllEvents();
 
-      const outcomes =
-        getAllOutcomes();
+      const assessments =
+        getAssessmentCount();
 
+       const outcomes =
+       getAllOutcomes();
+
+       const systemMode =
+       getSystemMode(
+       "tenant_1"
+      );
+           
+      const outcomeDistribution = {
+        ALLOW: 0,
+        OBSERVE: 0,
+        CHALLENGE: 0,
+        THROTTLE: 0
+  };
+
+     for (const outcome of outcomes) {
+
+      const type =
+      outcome.outcomeType;
+
+  if (
+    outcomeDistribution[type]
+    !== undefined
+  ) {
+    outcomeDistribution[type]++;
+  }
+} 
+  
       const highRiskIdentities =
         identities.filter(
           profile =>
@@ -75,18 +108,36 @@ export default async function (
 
       return {
         health,
+
+
+      systemMode:
+       systemMode
+       ?.enforcementMode ??
+        "ANALYZE",
+
         identities:
           identities.length,
+
         events:
           events.length,
+
+        assessments,
+
         outcomes:
           outcomes.length,
+
         highRiskIdentities:
           highRiskIdentities.length,
+
         averageTrustScore,
+
         latestOutcome,
-        latestCorrelationId
-      };
+
+        latestCorrelationId,
+      
+        
+        outcomeDistribution    
+     };
     }
   );
 }

@@ -1,40 +1,49 @@
-function evaluateLearning(
-  outcome
+export function learnFromCharacter(
+  characterization
 ) {
-  let learningSignal =
-    "unknown";
+  if (
+    !characterization
+  ) {
+    return null;
+  }
 
-  let confidence =
-    0.1;
+  const {
+    character,
+    confidence
+  } = characterization;
+
+  let learning =
+    "insufficient_data";
 
   if (
-    outcome.outcome ===
-    "traffic_reduced"
+    character ===
+      "Observer" &&
+    confidence >= 0.7
   ) {
-    learningSignal =
-      "possible_positive_effect";
-
-    confidence =
-      0.3;
+    learning =
+      "repeat_observation_detected";
   }
 
   if (
-    outcome.outcome ===
-    "abuse_contained"
+    character ===
+      "Explorer" &&
+    confidence >= 0.8
   ) {
-    learningSignal =
-      "confirmed_positive_effect";
+    learning =
+      "active_exploration_detected";
+  }
 
-    confidence =
-      0.8;
+  if (
+    character ===
+      "Researcher" &&
+    confidence >= 0.8
+  ) {
+    learning =
+      "research_behavior_detected";
   }
 
   return {
-    learningSignal,
+    learning,
     confidence
   };
 }
-
-export {
-  evaluateLearning
-};
