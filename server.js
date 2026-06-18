@@ -126,6 +126,10 @@ import replayRoutes
   from "./routes/replayRoutes.js";
 
 import {
+  archiveRoutes
+} from "./routes/archiveRoutes.js";
+
+import {
   allocate
 } from "./src/services/allocationEngineService.js";
 
@@ -217,6 +221,10 @@ app.register(
 
 app.register(
   replayRoutes
+);
+
+app.register(
+  archiveRoutes
 );
 
 app.register(
