@@ -34,6 +34,10 @@ import {
   generateBehaviorObservations
 } from "../src/services/observationGenerationService.js";
 
+import {
+  discoverBehavior
+} from "../src/services/discoveryService.js";
+
 export async function archiveRoutes(
   fastify
 ) {
@@ -72,6 +76,12 @@ const observations =
       )
   });
 
+const discoveries =
+  discoverBehavior({
+    patterns,
+    characterization
+  });
+
 return {
   identity:
     getIdentityById(
@@ -104,7 +114,10 @@ return {
 
   characterization,
 
-  observations
+observations,
+
+discoveries
+
 };
 
     }
