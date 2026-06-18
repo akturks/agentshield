@@ -30,6 +30,10 @@ import {
   characterizePatterns
 } from "../src/services/characterizationService.js";
 
+import {
+  generateBehaviorObservations
+} from "../src/services/observationGenerationService.js";
+
 export async function archiveRoutes(
   fastify
 ) {
@@ -55,6 +59,18 @@ const characterization =
   characterizePatterns(
     patterns
   );
+
+const observations =
+  generateBehaviorObservations({
+    history,
+    patterns,
+    characterization,
+
+    memories:
+      getMemoriesByIdentity(
+        identityId
+      )
+  });
 
 return {
   identity:
@@ -86,7 +102,9 @@ return {
 
   patterns,
 
-  characterization
+  characterization,
+
+  observations
 };
 
     }

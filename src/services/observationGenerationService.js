@@ -39,3 +39,53 @@ export function generateObservations() {
 
   return observations;
 }
+
+export function generateBehaviorObservations({
+  history,
+  patterns,
+  characterization,
+  memories
+}) {
+
+  const observations = [];
+
+  if (
+    characterization?.character ===
+    "Observer"
+  ) {
+    observations.push({
+      type: "behavior",
+      title:
+        "Repeat Observation Behavior",
+
+      observation:
+        "Identity demonstrates repeated observation activity.",
+
+      confidence:
+        characterization.confidence
+    });
+  }
+
+  const repeatMemory =
+    memories.find(
+      memory =>
+        memory.memoryType ===
+        "repeat_observation_detected"
+    );
+
+  if (repeatMemory) {
+    observations.push({
+      type: "memory",
+      title:
+        "Behavior Memory Present",
+
+      observation:
+        "Historical observation memory exists for this identity.",
+
+      confidence:
+        repeatMemory.confidence
+    });
+  }
+
+  return observations;
+}
