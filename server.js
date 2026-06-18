@@ -126,6 +126,10 @@ import replayRoutes
   from "./routes/replayRoutes.js";
 
 import {
+  discoveryRoutes
+} from "./routes/discoveryRoutes.js";
+
+import {
   archiveRoutes
 } from "./routes/archiveRoutes.js";
 
@@ -221,6 +225,10 @@ app.register(
 
 app.register(
   replayRoutes
+);
+
+app.register(
+  discoveryRoutes
 );
 
 app.register(
