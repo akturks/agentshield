@@ -1,6 +1,10 @@
 import {
-  getAllIdentityProfiles
-} from "../repositories/assessmentRepository.js";
+  getAllIdentities
+} from "../repositories/identityRepository.js";
+
+import {
+  buildPopulationArchive
+} from "../src/services/populationArchiveBuilderService.js";
 
 import {
   discoverPopulationPatterns
@@ -14,26 +18,25 @@ export async function discoveryRoutes(
     "/v1/discoveries",
     async () => {
 
-      const profiles =
-        getAllIdentityProfiles();
+const identities =
+  getAllIdentities();
 
-      const archives =
-        profiles.map(
-          profile => ({
-            characterization: {
-              character:
-                profile.character ||
-                "Unknown"
-            }
-          })
-        );
+const archives =
+  buildPopulationArchive(
+    identities.map(
+      identity =>
+        identity.id
+    )
+  );
 
-      return {
-        discoveries:
-          discoverPopulationPatterns(
-            archives
-          )
-      };
+
+return {
+  discoveries:
+    discoverPopulationPatterns(
+      archives
+    )
+};
+
     }
   );
 }

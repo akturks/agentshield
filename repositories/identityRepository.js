@@ -69,3 +69,11 @@ export function getIdentityById(
     LIMIT 1
   `).get(identityId);
 }
+
+export function getAllIdentities() {
+  return db.prepare(`
+    SELECT *
+    FROM Identity
+    ORDER BY firstSeenAt DESC
+  `).all();
+}
