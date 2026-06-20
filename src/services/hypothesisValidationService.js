@@ -15,45 +15,56 @@ export function validateHypotheses(
 
       if (!correlation) {
 
-        return {
-          hypothesisId:
-            hypothesis.hypothesisId,
 
-          supportLevel:
-            0,
+    return {
+      hypothesisId:
+        hypothesis.hypothesisId,
 
-          contradictionLevel:
-            0,
+      statement:
+        hypothesis.statement,
 
-          evidenceCount:
-            0,
+      supportLevel:
+        0,
 
-          validationStatus:
-            "pending"
-        };
+      contradictionLevel:
+        0,
+
+      evidenceCount:
+        0,
+
+      validationStatus:
+        "pending"
+  
+   };
 
       }
 
-      return {
-        hypothesisId:
-          hypothesis.hypothesisId,
 
-        supportLevel:
-          correlation.strength,
+    return {
+   hypothesisId:
+     hypothesis.hypothesisId,
 
-        contradictionLevel:
-          1 -
-          correlation.strength,
+   statement:
+     hypothesis.statement,
 
-        evidenceCount:
-          1,
+   supportLevel:
+     correlation.strength,
 
-        validationStatus:
-          correlation.strength >=
-          0.7
-            ? "supported"
-            : "pending"
-      };
+   contradictionLevel:
+     1 -
+     correlation.strength,
+
+   evidenceCount:
+     1,
+
+   validationStatus:
+     correlation.strength >=
+     0.7
+       ? "supported"
+       : "pending"
+ 
+ };
+
 
     }
   );
