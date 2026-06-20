@@ -1,27 +1,61 @@
-
 export function validateHypotheses(
-  hypotheses
+  hypotheses,
+  correlations
 ) {
 
   return hypotheses.map(
-    hypothesis => ({
+    hypothesis => {
 
-      hypothesisId:
-        hypothesis.hypothesisId,
+      const correlation =
+        correlations.find(
+          item =>
+            item.relationship ===
+            hypothesis.statement
+        );
 
-      supportLevel:
-        0,
+      if (!correlation) {
 
-      contradictionLevel:
-        0,
+        return {
+          hypothesisId:
+            hypothesis.hypothesisId,
 
-      evidenceCount:
-        0,
+          supportLevel:
+            0,
 
-      validationStatus:
-        "pending"
+          contradictionLevel:
+            0,
 
-    })
+          evidenceCount:
+            0,
+
+          validationStatus:
+            "pending"
+        };
+
+      }
+
+      return {
+        hypothesisId:
+          hypothesis.hypothesisId,
+
+        supportLevel:
+          correlation.strength,
+
+        contradictionLevel:
+          1 -
+          correlation.strength,
+
+        evidenceCount:
+          1,
+
+        validationStatus:
+          correlation.strength >=
+          0.7
+            ? "supported"
+            : "pending"
+      };
+
+    }
   );
 
 }

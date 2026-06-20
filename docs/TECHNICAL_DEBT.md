@@ -242,6 +242,62 @@ This investigation depends on future Reality Archive evolution.
 
 ---
 
+## DISCOVERY-001 — Canonical Relationship Model
+
+Priority: Low
+
+Status: Open
+
+### Problem
+
+Discovery, Hypothesis and Correlation currently rely on string matching.
+
+Current implementation:
+
+```text
+repeat_activity ↔ Observer
+```
+
+Validation currently resolves relationships using:
+
+```javascript
+item.relationship === hypothesis.statement
+```
+
+### Risk
+
+Relationship matching depends on exact text representation.
+
+Future renaming, formatting changes or taxonomy evolution may break matching behavior.
+
+### Target State
+
+Relationships become canonical domain objects.
+
+Example:
+
+```javascript
+{
+  left: "repeat_activity",
+  right: "Observer"
+}
+```
+
+### Expected Benefits
+
+* Deterministic matching
+* Safer refactoring
+* Shared relationship vocabulary
+* Consistent Discovery / Hypothesis / Correlation integration
+
+### Notes
+
+This debt should not be addressed until Validation Engine behavior is proven with real data.
+
+Working behavior takes precedence over normalization.
+
+
+
 ## Architectural Principles
 
 ADR-0010
