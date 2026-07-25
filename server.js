@@ -459,9 +459,11 @@ return pipelineResult;
 });
 
 try {
+  // Loopback only: nearly every route below is unauthenticated (including
+  // POST /v1/system-mode). The public surface is public-site/server.js.
   await app.listen({
     port: 3000,
-    host: "0.0.0.0"
+    host: "127.0.0.1"
   });
 
   console.log(
