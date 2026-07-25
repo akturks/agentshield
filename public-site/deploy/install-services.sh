@@ -74,13 +74,34 @@ cat > "$AGENTS/com.agentshield.cloudflared.plist" <<EOF
 </plist>
 EOF
 
+cat > "$AGENTS/com.agentshield.backup.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.agentshield.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>$REPO/public-site/deploy/backup-reality.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>$REPO</string>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>4</integer><key>Minute</key><integer>17</integer></dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>$LOGS/backup.log</string>
+  <key>StandardErrorPath</key><string>$LOGS/backup.err.log</string>
+</dict>
+</plist>
+EOF
+
 # Any hand-started copies would hold the port that launchd now wants.
 pkill -f "public-site/server.js" 2>/dev/null || true
 pkill -f "public-site/console/server.js" 2>/dev/null || true
 pkill -f "cloudflared tunnel run" 2>/dev/null || true
 sleep 1
 
-for label in com.agentshield.publicsite com.agentshield.console com.agentshield.cloudflared; do
+for label in com.agentshield.publicsite com.agentshield.console com.agentshield.cloudflared com.agentshield.backup; do
   launchctl unload -w "$AGENTS/$label.plist" 2>/dev/null || true
   launchctl load -w "$AGENTS/$label.plist"
   echo "loaded $label"
