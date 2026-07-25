@@ -21,6 +21,13 @@ import {
 const identityId =
   process.argv[2];
 
+if (!identityId) {
+  console.log(
+    "Usage: node test-characterization.js <identityId>"
+  );
+  process.exit(0);
+}
+
 const history =
   getBehaviorHistory(
     identityId

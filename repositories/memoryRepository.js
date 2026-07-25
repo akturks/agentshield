@@ -5,6 +5,12 @@ export function createMemory({
   memoryType,
   confidence
 }) {
+  if (!identityId) {
+    throw new Error(
+      "identityId is required"
+    );
+  }
+
   const id = crypto.randomUUID();
 
   const stmt = db.prepare(`

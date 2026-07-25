@@ -1,6 +1,6 @@
 import {
   deriveIntent
-} from "./repositories/intentRepository.js";
+} from "./src/services/intentDerivationService.js";
 
 const signals = [
   "admin_scanning"

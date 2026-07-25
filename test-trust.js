@@ -4,7 +4,7 @@ import {
 
 import {
   calculateTrust
-} from "./repositories/trustRepository.js";
+} from "./src/services/trustCalculationService.js";
 
 const identity = findOrCreateIdentity({
   tenantId: "tenant_1",

@@ -27,17 +27,16 @@ import {
   createEvent,
   getAllEvents,
   getEventsByIdentity,
-  getEventsBySession,
-  getSessionProfile
+  getEventsBySession
 } from "./repositories/eventRepository.js";
 
 import {
   calculateTrust
-} from "./repositories/trustRepository.js";
+} from "./src/services/trustCalculationService.js";
 
 import {
   deriveIntent
-} from "./repositories/intentRepository.js";
+} from "./src/services/intentDerivationService.js";
 
 import {
   makeDecision
@@ -81,7 +80,7 @@ import {
 
 import {
   buildTrustAssessment
-} from "./repositories/trustAssessmentRepository.js";
+} from "./src/services/trustAssessmentBuilderService.js";
 
 import {
   buildTrustRepresentation
@@ -146,22 +145,6 @@ import {
 } from "./src/services/enforcementEngineService.js";
 
 import {
-  evaluateOutcome
-} from "./src/services/outcomeEngineService.js";
-
-import {
-  generateFeedback
-} from "./src/services/feedbackEngineService.js";
-
-import {
-  evaluateLearning
-} from "./src/services/learningEngineService.js";
-
-import {
-  applyTrustUpdate
-} from "./src/services/trustUpdateEngineService.js";
-
-import {
   evaluatePipeline
 } from "./src/services/evaluatePipelineService.js";
 
@@ -213,11 +196,7 @@ app.register(
         classify,
         evaluatePolicy,
         allocate,
-        enforce,
-        evaluateOutcome,
-        generateFeedback,
-        evaluateLearning,
-        applyTrustUpdate
+        enforce
       }
     );
   }
@@ -243,11 +222,7 @@ app.register(
         classify,
         evaluatePolicy,
         allocate,
-        enforce,
-        evaluateOutcome,
-        generateFeedback,
-        evaluateLearning,
-        applyTrustUpdate
+        enforce
       }
     );
   }

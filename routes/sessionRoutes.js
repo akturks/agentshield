@@ -1,11 +1,14 @@
 import {
-  getEventsBySession,
-  getSessionProfile
+  getEventsBySession
 } from "../repositories/eventRepository.js";
 
 import {
   getOutcomesBySession
 } from "../repositories/outcomeRepository.js";
+
+import {
+  buildSessionProfile
+} from "../src/services/sessionProfileService.js";
 
 export default async function (
   app
@@ -55,7 +58,7 @@ export default async function (
     async (request, reply) => {
 
       const profile =
-        getSessionProfile(
+        buildSessionProfile(
           request.params.sessionId
         );
 
@@ -68,33 +71,7 @@ export default async function (
           });
       }
 
-let estimatedValue = 0;
-
-if (
-  profile.trafficTier ===
-  "low"
-) {
-  estimatedValue = 5;
-}
-
-if (
-  profile.trafficTier ===
-  "medium"
-) {
-  estimatedValue = 25;
-}
-
-if (
-  profile.trafficTier ===
-  "high"
-) {
-  estimatedValue = 100;
-}
-
-      return {
-        ...profile,
-        estimatedValue
-      };
+      return profile;
     }
   );
 }

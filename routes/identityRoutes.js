@@ -18,11 +18,7 @@ export default async function (
     classify,
     evaluatePolicy,
     allocate,
-    enforce,
-    evaluateOutcome,
-    generateFeedback,
-    evaluateLearning,
-    applyTrustUpdate
+    enforce
   }
 ) {
 
@@ -82,38 +78,13 @@ export default async function (
           allocation
         );
 
-      const outcome =
-        evaluateOutcome(
-          enforcement
-        );
-
-      const feedback =
-        generateFeedback(
-          outcome
-        );
-
-      const learning =
-        evaluateLearning(
-          outcome
-        );
-
-      const trustUpdate =
-        applyTrustUpdate(
-          profile.currentTrustScore,
-          feedback
-        );
-
       return {
         ...profile,
         behaviorProfile,
         risk,
         policy,
         allocation,
-        enforcement,
-        outcome,
-        feedback,
-        learning,
-        trustUpdate
+        enforcement
       };
     }
   );

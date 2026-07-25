@@ -6,7 +6,7 @@ import db from "./repositories/db.js";
 
 import {
   deriveSignals
-} from "./repositories/signalRepository.js";
+} from "./src/services/signalDerivationService.js";
 
 const identity = findOrCreateIdentity({
   tenantId: "tenant_1",
@@ -23,4 +23,3 @@ const signals =
   deriveSignals(events);
 
 console.log(signals);
-
