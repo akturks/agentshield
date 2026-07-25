@@ -87,14 +87,35 @@ ${refresh ? `<meta http-equiv="refresh" content="${refresh}">` : ""}
     ([href, label]) =>
       `<a href="${href}" class="${href === path ? "on" : ""}">${label}</a>`
   ).join("")}</nav>
-<span class="clock">${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC &middot; localhost only</span>
+<span class="clock">${clock()} &middot; localhost only</span>
 </header>
 <main>${body}</main>
 </body></html>`;
 }
 
-const time = (iso) => (iso ? escapeHtml(iso.slice(11, 19)) : "—");
-const date = (iso) => (iso ? escapeHtml(iso.slice(0, 10)) : "—");
+// Observations are stored in UTC and stay that way — a record read years from
+// now must not depend on where the reader sits. But this console is one person
+// looking at their own machine, and an unlabelled UTC timestamp beside a wall
+// clock three hours ahead reads as a bug. So the record is UTC, the display is
+// local, and every column that shows a time says which one it is.
+const time = (iso) =>
+  iso
+    ? escapeHtml(
+        new Date(iso).toLocaleTimeString("en-GB", { hour12: false })
+      )
+    : "—";
+const date = (iso) =>
+  iso ? escapeHtml(new Date(iso).toLocaleDateString("en-CA")) : "—";
+
+const TZ = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** Both readings, so the wall clock and the stored record can be reconciled. */
+function clock() {
+  const now = new Date();
+  const local = now.toLocaleString("en-GB", { hour12: false }).replace(",", "");
+  const utc = now.toISOString().slice(11, 19);
+  return escapeHtml(`${local} ${TZ} · ${utc} UTC`);
+}
 
 function trunc(s, n) {
   const v = String(s ?? "");
@@ -188,7 +209,7 @@ ${tile(o.findings.pending ?? 0, "held for review", (o.findings.pending ?? 0) > 0
 ${tile(o.findings.rejected ?? 0, "rejected")}
 </div>
 
-<h2>observing since ${date(o.since)} &middot; last request ${time(o.last)} UTC</h2>
+<h2>observing since ${date(o.since)} &middot; last request ${time(o.last)}</h2>
 
 <h2>latest requests</h2>
 ${requestTable(recent, ownIps)}
@@ -199,7 +220,7 @@ ${requestTable(recent, ownIps)}
 export function requestTable(rows, ownIps) {
   if (rows.length === 0) return `<p class="dim">nothing recorded</p>`;
   return `<div class="scroll"><table>
-<thead><tr><th>time</th><th>st</th><th>path</th><th>cc</th><th>address</th><th>agent</th><th>ms</th></tr></thead>
+<thead><tr><th>time (local)</th><th>st</th><th>path</th><th>cc</th><th>address</th><th>agent</th><th>ms</th></tr></thead>
 <tbody>
 ${rows
   .map(
