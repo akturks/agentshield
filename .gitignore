@@ -2,3 +2,21 @@ node_modules
 
 /generated/prisma
 .DS_Store
+
+# Observed reality — the live record, not source.
+# These are state, not code: they change on every request and cannot be merged.
+reality.db
+reality.db-wal
+reality.db-shm
+agentshield.db
+agentshield.db-wal
+agentshield.db-shm
+public-site/logs/
+
+# Regenerable listings produced while auditing the repo
+files.txt
+repo-files.txt
+repo-core-files.txt
+
+# Local environment
+.env
