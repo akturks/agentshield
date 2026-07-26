@@ -29,7 +29,7 @@ import { escapeHtml } from "../layout.js";
 //   supply the missing verb and quantifier itself. Every counted row therefore
 //   asks "How many ...", which cannot be re-parsed as an instruction or a claim.
 
-export const TEMPLATE_VERSION = "tpl-7";
+export const TEMPLATE_VERSION = "tpl-8";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -73,6 +73,13 @@ ${limits([
     const prompted = c.facts.prompted ?? 0;
     const allOurs = prompted > 0 && prompted === hits;
 
+    // Findings written before det-7 carry no verification at all. They render as
+    // they always did rather than as "0 verified", which would state a result the
+    // check never produced.
+    const v = c.facts.verification ?? null;
+    const checked = v && (v.verified || v.vendorOther || v.unlisted) > 0;
+    const fullyVerified = checked && v.verified === hits;
+
     // The headline is the part that gets indexed, quoted and shared, so the
     // reconciliation with our own trials belongs there and not only in a
     // paragraph further down. "Has been observed" implies nobody asked; when we
@@ -84,13 +91,29 @@ ${limits([
     // "fetched" into "found" and handing the claim back to the crawler. A claim
     // carried by one verb can be reversed by one mistranslation; a claim carried
     // by the subject cannot.
+    //
+    // "Has been observed" was the strongest thing this finding could say while
+    // the identity was only a claim. When the address checks out against the
+    // vendor's own list, the headline can carry that — and it should, because
+    // the headline is what gets indexed and quoted, and the difference between
+    // a claimed crawler and a corroborated one is the whole subject here.
     const title = allOurs
       ? `We asked ${c.facts.agent} to read this page, and it did`
-      : `${c.facts.agent} has been observed on this site`;
+      : fullyVerified
+        ? `${c.facts.agent} fetched this site from an address ${v.vendor} publishes`
+        : v && v.unlisted > 0 && v.verified === 0
+          ? `Requests claiming to be ${c.facts.agent} came from addresses ${v.vendor ?? "the vendor"} does not publish`
+          : `${c.facts.agent} has been observed on this site`;
 
     const summary = allOurs
       ? `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"} on ${day(c.windowStartMs)}. Every one of them arrived inside a window in which we had asked this vendor to read a page here, so this is the result of a trial rather than an unprompted visit.`
-      : `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"}, first seen ${day(c.windowStartMs)}.${prompted ? ` ${prompted} of those requests fall inside a trial we ran.` : ""}`;
+      : `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"}, first seen ${day(c.windowStartMs)}.${
+          fullyVerified
+            ? ` Every request came from an address ${v.vendor} publishes for this crawler, checked against their list as it stood on ${v.snapshot}.`
+            : v && v.unlisted > 0
+              ? ` ${v.unlisted} of those requests came from an address in none of ${v.vendor ?? "the vendor"}'s published ranges.`
+              : ""
+        }${prompted ? ` ${prompted} of those requests fall inside a trial we ran.` : ""}`;
 
     return {
       slug: `ai-agent-arrival-${c.facts.agent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
@@ -106,6 +129,15 @@ ${limits([
 <tr><th>How many different paths it took</th><td>${c.facts.paths}</td></tr>
 <tr><th>How many different addresses it came from</th><td>${c.facts.ips}</td></tr>
 <tr><th>How many of those we caused ourselves, by asking this vendor to read a page</th><td>${prompted} of ${hits}</td></tr>
+${
+  v
+    ? `<tr><th>How many came from an address ${escapeHtml(v.vendor ?? "the vendor")} publishes for this crawler</th><td>${
+        checked
+          ? `${v.verified} of ${hits}${v.unlisted ? ` &middot; ${v.unlisted} from no published address of theirs` : ""}${v.vendorOther ? ` &middot; ${v.vendorOther} from a range they publish for a different crawler` : ""}`
+          : "not checkable — see below"
+      }</td></tr>`
+    : ""
+}
 </tbody>
 </table>
 <h2>What it means</h2>
@@ -119,8 +151,33 @@ ${
       : `<p>Arrival is the entire event. This records that a client presenting this identity reached the site and what it took; it does not establish why it came, whether the content was retained, or whether it will return.</p>
 <p>No registered trial of ours was running when any of this arrived. That is not proof it came unprompted: it means only that if something of ours caused it, the cause was not written down, which is a gap in our record-keeping rather than evidence either way.</p>`
 }
+${
+  !v
+    ? ""
+    : fullyVerified
+      ? `<h2>The declared identity was checked against the vendor's own list</h2>
+<p>${escapeHtml(v.vendor)} publishes the addresses this crawler is allowed to use. Every one of these ${hits} request${hits === 1 ? "" : "s"} came from an address inside that list, as it stood on ${escapeHtml(v.snapshot ?? "the captured date")}.</p>
+<p>This is the one part of the claim the client does not control. A user agent string can say anything; the address a packet arrives from is chosen by whoever routes it, and matching it against a list the vendor published independently is corroboration from a source with no stake in this record. It is not proof of the software: it establishes the network the request came from, not what program sent it.</p>`
+      : v.unlisted > 0
+        ? `<h2>Some of these addresses are not in the vendor's published list</h2>
+<p>${escapeHtml(v.vendor ?? "The vendor")} publishes the addresses this crawler uses. ${v.unlisted} of these ${hits} request${hits === 1 ? "" : "s"} came from an address in none of their published ranges, checked against the list as it stood on ${escapeHtml(v.snapshot ?? "the captured date")}.</p>
+<p><strong>That is a statement about the declaration, not about intent.</strong> It means the claim to be this crawler is unsupported by the only independent source available. It does not establish who sent the request or why, and there are ordinary explanations — a vendor operating from a range it has not published, a proxy, a list we captured before it was updated. What can be said is that the identity in the user agent is not corroborated.</p>`
+        : checked
+          ? `<h2>The declared identity was checked against the vendor's own list</h2>
+<p>Of these ${hits} request${hits === 1 ? "" : "s"}, ${v.verified} came from an address ${escapeHtml(v.vendor ?? "the vendor")} publishes for this crawler and ${v.vendorOther} from a range they publish for a different one of their crawlers, as the lists stood on ${escapeHtml(v.snapshot ?? "the captured date")}. Both are their addresses; the split is recorded rather than smoothed over.</p>`
+          : `<h2>This identity cannot be checked against anything</h2>
+<p>${escapeHtml(v.reason ?? "No published address list exists for this agent.")}</p>
+<p>So the declaration stands unexamined — not contradicted, and not corroborated either. This is a gap in what the vendor publishes rather than anything observed about the client, and it is stated here because the difference between "checked and consistent" and "not checkable" is invisible in a table of counts.</p>`
+}
 ${limits([
-  UA_CLAIM_LIMIT,
+  fullyVerified
+    ? "An address check confirms the network, not the software. The address is one the vendor publishes for this crawler, which is strong corroboration from an independent source; it still establishes where the request came from rather than what program sent it."
+    : UA_CLAIM_LIMIT,
+  ...(v && v.snapshot
+    ? [
+        `Published address lists change. This was checked against the lists as captured on ${v.snapshot}; a vendor that adds a range afterwards makes an older answer stale rather than wrong, which is why the capture date is stated with the result.`
+      ]
+    : []),
   "Fetching is not ingestion. Whether any of this content persists in a model is measured separately, by the coined markers listed on the lab page.",
   "An arrival cannot be shown to be unprompted. Nothing in a request says why it was made, so “nobody asked for this” rests entirely on our own trial log being complete.",
   SINGLE_SITE_LIMIT

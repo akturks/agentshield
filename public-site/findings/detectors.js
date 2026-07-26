@@ -1,5 +1,6 @@
 import db from "../realityDb.js";
 import { notOperator, notDeclaredOperator, probablyOperatorLanguage } from "../stats.js";
+import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
 
 // Deterministic rules over observed reality. A detector never interprets and
 // never writes prose — it returns candidates: a subject, a time window, and the
@@ -10,7 +11,7 @@ import { notOperator, notDeclaredOperator, probablyOperatorLanguage } from "../s
 // returned a number without a query would be asking to be trusted, which is the
 // thing this system does not do.
 
-export const DETECTOR_VERSION = "det-6";
+export const DETECTOR_VERSION = "det-7";
 
 const AI_AGENT_PATTERNS = [
   "GPTBot",
@@ -200,6 +201,43 @@ const CREDIBLE_AGENT_SQL = `siteId = ? AND cfRay IS NOT NULL AND userAgent LIKE 
  * addresses that have not also presented a contradictory identity. Arrival is
  * the whole event; nothing is claimed about why it came.
  */
+/**
+ * What the vendor's own published address list says about requests claiming
+ * this agent, counted by request rather than by address.
+ *
+ * Computed here in JavaScript and never inside a claim's SQL, for the same
+ * reason `promptedCount` is: a claim is re-executed against the record by the
+ * verifier, and this answer depends on a committed snapshot outside it. The
+ * addresses themselves stay verifiable in SQL; what the snapshot says about
+ * them is reproducible because the snapshot is in the repository, dated, and
+ * the matcher that reads it is published alongside.
+ */
+function verifyAgainstVendor(siteId, pattern) {
+  const rows = db
+    .prepare(
+      `SELECT cfConnectingIp AS ip, COUNT(*) AS hits
+       FROM RequestReality WHERE ${CREDIBLE_AGENT_SQL}
+       GROUP BY cfConnectingIp`
+    )
+    .all(siteId, `%${pattern}%`);
+
+  const tally = { verified: 0, vendorOther: 0, unlisted: 0, unverifiable: 0 };
+  const KEY = { verified: "verified", vendor_other: "vendorOther", unlisted: "unlisted" };
+  let vendor = null;
+  let listUrl = null;
+  let reason = null;
+
+  for (const row of rows) {
+    const result = classify(pattern, row.ip);
+    tally[KEY[result.status] ?? "unverifiable"] += row.hits;
+    vendor = vendor ?? result.vendor ?? null;
+    listUrl = listUrl ?? result.url ?? null;
+    reason = reason ?? (result.status === "unverifiable" ? result.reason : null);
+  }
+
+  return { ...tally, vendor, listUrl, reason, snapshot: SNAPSHOT_DATE };
+}
+
 function newAiAgent(siteId) {
   const out = [];
 
@@ -220,6 +258,7 @@ function newAiAgent(siteId) {
       .map((r) => r.ms);
 
     const prompted = promptedCount(siteId, pattern, times);
+    const verification = verifyAgainstVendor(siteId, pattern);
 
     // An arrival we caused is still an observation worth publishing — it is a
     // trial result. What it must not do is wear a headline implying discovery,
@@ -231,8 +270,20 @@ function newAiAgent(siteId) {
       windowEndMs: row.lastMs,
       // A partially prompted arrival is a weaker claim than an unprompted one,
       // so it stops being something the engine publishes on its own.
-      requiresReview: prompted > 0,
-      facts: { agent: pattern, paths: row.paths, ips: row.ips, prompted, hits: row.hits },
+      //
+      // An unlisted address is the stronger reason of the two. Saying that a
+      // client's declared identity is unsupported by the vendor's own list is
+      // the closest this site comes to an accusation, and nothing that reads as
+      // an accusation publishes without a person.
+      requiresReview: prompted > 0 || verification.unlisted > 0,
+      facts: {
+        agent: pattern,
+        paths: row.paths,
+        ips: row.ips,
+        prompted,
+        hits: row.hits,
+        verification
+      },
       claims: [
         claim(
           `requests declaring ${pattern} from addresses with no contradictory identity`,

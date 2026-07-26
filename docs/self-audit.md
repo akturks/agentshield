@@ -2,9 +2,9 @@
 
 # What this repository is, checked against what it says
 
-Repository at `eeccc6d8` with uncommitted changes at scan time, scanned 2026-07-26T19:44:55.898Z. Method version `scan-16/arch-det-19/arch-tpl-14/arch-ver-12`.
+Repository at `6b2b1a3b` with uncommitted changes at scan time, scanned 2026-07-26T20:15:14.376Z. Method version `scan-16/arch-det-19/arch-tpl-14/arch-ver-12`.
 
-This tool read **132 files**, out of 157 JavaScript and TypeScript files in the repository and 228 files in total. The 25 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 132 files.
+This tool read **136 files**, out of 162 JavaScript and TypeScript files in the repository and 234 files in total. The 26 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 136 files.
 
 6 finding(s), each reviewed by a person before it appeared here. Every figure was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it — so a reader who doubts a number does not have to take this document's word for it.
 
