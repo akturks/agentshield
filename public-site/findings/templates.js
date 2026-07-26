@@ -8,7 +8,7 @@ import { escapeHtml } from "../layout.js";
 // generated sentence that cannot invent a figure is worth more here than a
 // fluent one that might.
 
-export const TEMPLATE_VERSION = "tpl-4";
+export const TEMPLATE_VERSION = "tpl-5";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -154,6 +154,50 @@ ${limits([
   "Shared user agent strings are not evidence of a shared operator. A common mobile browser behind carrier NAT can produce many addresses sending one request each, from unrelated people, with no coordination at all.",
   "Country is Cloudflare's geolocation of the connecting address. It describes where the address resolves, not where the client or its operator is.",
   "The thresholds — how many addresses, how few requests each — are chosen parameters. A retrieval spread more thinly still falls below them and is not reported.",
+  SINGLE_SITE_LIMIT
+])}`
+    };
+  },
+
+  arrival_host(c) {
+    const { canonical, hosts, aiOnCanonical, aiElsewhere, otherHostRequests } = c.facts;
+    const aiTotal = aiOnCanonical + aiElsewhere;
+    const allOnCanonical = aiElsewhere === 0 && aiOnCanonical > 0;
+
+    return {
+      slug: `arrival-host-${day(c.windowEndMs)}`,
+      title: allOnCanonical
+        ? `Every declared AI crawler arrived on one of our two hostnames — the one we announced`
+        : `Declared AI crawlers arrived on ${new Set([canonical]).size + (aiElsewhere ? 1 : 0)} of our hostnames`,
+      summary: `This site answers on ${hosts.length} hostnames, both serving every path. Of ${aiTotal} request${aiTotal === 1 ? "" : "s"} from clients declaring a known AI crawler, ${aiOnCanonical} arrived on ${canonical} and ${aiElsewhere} elsewhere — while ${otherHostRequests} other external requests used a non-canonical hostname.`,
+      body: `
+<h2>What was observed</h2>
+<p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC. Both hostnames return <code>200</code> for every path and carry a canonical tag pointing at <code>${escapeHtml(canonical)}</code>; there is no redirect between them.</p>
+<table>
+<thead><tr><th>Hostname</th><th>External requests</th></tr></thead>
+<tbody>
+${hosts.map((h) => `<tr><td><code>${escapeHtml(h.host)}</code>${h.host === canonical ? " (canonical)" : ""}</td><td>${h.n}</td></tr>`).join("\n")}
+</tbody>
+</table>
+<table>
+<tbody>
+<tr><th>AI-crawler requests on ${escapeHtml(canonical)}</th><td>${aiOnCanonical}</td></tr>
+<tr><th>AI-crawler requests on any other hostname</th><td>${aiElsewhere}</td></tr>
+</tbody>
+</table>
+<h2>What it means</h2>
+${
+  allOnCanonical
+    ? `<p>Every client declaring a known AI crawler used the hostname we announced to the indexes, and none used the other one. Other automated traffic did not divide the same way — ${otherHostRequests} external requests arrived on a non-canonical hostname, including a distributed retrieval that used it almost exclusively.</p>
+<p>The obvious reading is that these are two different discovery routes: a crawler that came from an index we submitted to arrives on the name we submitted, and a crawler that found the site some other way — enumerating DNS, reading certificate transparency logs, working from a list — arrives on whichever name that source held. The counts here are consistent with that and do not establish it. ${aiTotal} requests is not enough to establish anything about crawler behaviour in general.</p>`
+    : `<p>Declared AI crawlers used more than one of our hostnames, so arrival hostname does not separate them from other automated traffic here.</p>`
+}
+<p>This is also why the two hostnames were left in place. Serving one canonical host is the ordinary advice, and a redirect was the first thing considered — but no figure published here is computed per hostname, so nothing was being corrupted, and the redirect would have made every future arrival look identical. The untidiness is carrying information, so it stays and is measured instead.</p>
+${limits([
+  UA_CLAIM_LIMIT,
+  `Sample size. ${aiTotal} AI-crawler request${aiTotal === 1 ? "" : "s"} in total. This is a description of what has arrived here, not a result about how crawlers behave.`,
+  "Requests on the non-canonical hostname include traffic that is probably our own — see the note on unresolved operator traffic on the lab page. The AI-crawler figures are unaffected by it, since none of that traffic declares an AI crawler.",
+  "Hostname is the Host header as received. It records the name the client asked for, not how the client learned it; the discovery route is an inference and is not recorded anywhere.",
   SINGLE_SITE_LIMIT
 ])}`
     };

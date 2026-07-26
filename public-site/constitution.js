@@ -110,6 +110,7 @@ export const DETECTOR_ARTICLES = {
   robots_violation: ["I", "IV", "VI"],
   automated_enumeration: ["I", "IV", "VI"],
   distributed_crawl: ["I", "III", "VI", "VII"],
+  arrival_host: ["I", "IV", "VI"],
   identity_inconsistency: ["I", "III", "VI"],
   js_execution: ["I", "III", "VI"],
   format_preference: ["I", "IV", "VI"],

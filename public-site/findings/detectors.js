@@ -10,7 +10,7 @@ import { notOperator, notDeclaredOperator } from "../stats.js";
 // returned a number without a query would be asking to be trusted, which is the
 // thing this system does not do.
 
-export const DETECTOR_VERSION = "det-4";
+export const DETECTOR_VERSION = "det-5";
 
 const AI_AGENT_PATTERNS = [
   "GPTBot",
@@ -382,6 +382,104 @@ function distributedCrawl(siteId, { minIps = 10, minPaths = 10, maxPerIp = 2 } =
 }
 
 /**
+ * Which hostname each kind of client arrived on.
+ *
+ * This site answers on two: the apex and the www subdomain, both returning 200
+ * for every path, with canonical tags on both pointing at the apex. That was
+ * first read as a defect to be closed with a redirect. Measuring it first showed
+ * something better — no published figure here is host-sensitive, so nothing was
+ * being corrupted, and meanwhile the hostname a client arrives on says something
+ * about how it found the site at all.
+ *
+ * The redirect was therefore not added. It would have made every future arrival
+ * look identical and removed the signal along with the untidiness.
+ *
+ * The canonical hostname is read from the Site row rather than inferred from
+ * whichever host happens to be most popular: which name we consider ours is a
+ * declaration, and a detector should not derive it from the traffic it is about
+ * to describe.
+ */
+function arrivalHost(siteId, { minAiRequests = 2 } = {}) {
+  const canonical = one("SELECT hostname FROM Site WHERE id = ?", [siteId]);
+  if (!canonical) return [];
+
+  const SCOPE = `siteId = ? AND cfRay IS NOT NULL AND host IS NOT NULL
+    AND ${ROUTABLE_SQL} AND ${DECLARED_SQL} AND ${PLAIN_CLIENT_SQL}`;
+
+  const aiLike = `(${AI_AGENT_PATTERNS.map(() => "userAgent LIKE ?").join(" OR ")})`;
+  const aiParams = AI_AGENT_PATTERNS.map((p) => `%${p}%`);
+
+  const hosts = db
+    .prepare(`SELECT host, COUNT(*) AS n FROM RequestReality WHERE ${SCOPE} GROUP BY host ORDER BY n DESC`)
+    .all(siteId);
+
+  if (hosts.length < 2) return [];
+
+  const aiOnCanonical = one(
+    `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host = ? AND ${aiLike}`,
+    [siteId, canonical, ...aiParams]
+  );
+
+  const aiElsewhere = one(
+    `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ? AND ${aiLike}`,
+    [siteId, canonical, ...aiParams]
+  );
+
+  if (aiOnCanonical + aiElsewhere < minAiRequests) return [];
+
+  const otherHostRequests = one(
+    `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ?`,
+    [siteId, canonical]
+  );
+
+  const bounds = db
+    .prepare(`SELECT MIN(observedAtMs) a, MAX(observedAtMs) b FROM RequestReality WHERE ${SCOPE}`)
+    .get(siteId);
+
+  return [
+    {
+      detectorId: "arrival_host",
+      subjectKey: "all",
+      windowStartMs: bounds.a,
+      windowEndMs: bounds.b,
+      facts: {
+        canonical,
+        hosts,
+        aiOnCanonical,
+        aiElsewhere,
+        otherHostRequests
+      },
+      claims: [
+        claim(
+          "hostnames that served external traffic",
+          `SELECT COUNT(DISTINCT host) FROM RequestReality WHERE ${SCOPE}`,
+          [siteId],
+          hosts.length
+        ),
+        claim(
+          `requests declaring a known AI agent, on ${canonical}`,
+          `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host = ? AND ${aiLike}`,
+          [siteId, canonical, ...aiParams],
+          aiOnCanonical
+        ),
+        claim(
+          "requests declaring a known AI agent, on any other hostname",
+          `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ? AND ${aiLike}`,
+          [siteId, canonical, ...aiParams],
+          aiElsewhere
+        ),
+        claim(
+          "external requests on hostnames other than the canonical one",
+          `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ?`,
+          [siteId, canonical],
+          otherHostRequests
+        )
+      ]
+    }
+  ];
+}
+
+/**
  * One address presenting contradictory identities — for instance a plain HTTP
  * client and a well-known AI crawler. A user agent is a claim; when the same
  * origin makes incompatible claims, the record says so.
@@ -533,6 +631,7 @@ export const DETECTORS = [
   newAiAgent,
   automatedEnumeration,
   distributedCrawl,
+  arrivalHost,
   identityInconsistency,
   jsExecution,
   formatPreference
