@@ -117,5 +117,7 @@ switch (cmd) {
   }
 
   default:
-    console.log("usage: cli.js run|seed|list|show <id>|approve <id>|reject <id>|recheck");
+    console.log(
+      "usage: cli.js run|seed|list|show <id>|approve <id>|reject <id>|recheck|restate [detectorId]"
+    );
 }
