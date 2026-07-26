@@ -1,6 +1,6 @@
 # What this repository is, checked against what it says
 
-Repository at `ee585440` with uncommitted changes at scan time, scanned 2026-07-26T12:25:17.697Z. Method version `scan-1/arch-det-3/arch-tpl-4/arch-ver-2`.
+Repository at `49627845` with uncommitted changes at scan time, scanned 2026-07-26T12:41:27.024Z. Method version `scan-1/arch-det-4/arch-tpl-5/arch-ver-2`.
 
 2 finding(s), each reviewed by a person before it appeared here. Every figure was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it — so a reader who doubts a number does not have to take this document's word for it.
 
@@ -41,11 +41,28 @@ finds in the working tree.
 | Figure | Value |
 | --- | --- |
 | How many files compare `risk.riskScore` against every one of these 3 value(s) | 2 |
-| ↳ reproduce | `git grep -lE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js'   # text, so a file that only mentions it in a comment appears too` |
 | How many places compare `risk.riskScore` against one of these value(s) | 6 |
-| ↳ reproduce | `git grep -nE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js'   # one line per hit; the table above lists the ones that are code` |
 | The commit where this expression first had a threshold in two files | 17e8f958 |
-| ↳ reproduce | `git log --pickaxe-regex -S'risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format='%h %aI %s' -- src/services/policyEngineService.js | head -1` |
+
+Each figure again, with the command that reproduces it:
+
+**How many files compare `risk.riskScore` against every one of these 3 value(s)**
+
+```
+git grep -nE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+```
+
+**How many places compare `risk.riskScore` against one of these value(s)**
+
+```
+git grep -nE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+```
+
+**The commit where this expression first had a threshold in two files**
+
+```
+git log --pickaxe-regex -S'risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format='%h %aI %s' -- src/services/policyEngineService.js | head -1
+```
 
 ## What this finding does not say
 
@@ -97,11 +114,28 @@ finds in the working tree.
 | Figure | Value |
 | --- | --- |
 | How many files compare `trafficQuality` against every one of these 2 value(s) | 2 |
-| ↳ reproduce | `git grep -lE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js'   # text, so a file that only mentions it in a comment appears too` |
 | How many places compare `trafficQuality` against one of these value(s) | 4 |
-| ↳ reproduce | `git grep -nE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js'   # one line per hit; the table above lists the ones that are code` |
 | The commit where this expression first had a threshold in two files | a18dfb06 |
-| ↳ reproduce | `git log --pickaxe-regex -S'trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format='%h %aI %s' -- src/services/sessionProfileService.js | head -1` |
+
+Each figure again, with the command that reproduces it:
+
+**How many files compare `trafficQuality` against every one of these 2 value(s)**
+
+```
+git grep -nE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+```
+
+**How many places compare `trafficQuality` against one of these value(s)**
+
+```
+git grep -nE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+```
+
+**The commit where this expression first had a threshold in two files**
+
+```
+git log --pickaxe-regex -S'trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format='%h %aI %s' -- src/services/sessionProfileService.js | head -1
+```
 
 ## What this finding does not say
 

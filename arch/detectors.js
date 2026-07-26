@@ -14,7 +14,7 @@ import { comparisonPattern, duplicationBegan, changeHistory, daysSince } from ".
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-3";
+export const DETECTOR_VERSION = "arch-det-4";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -137,17 +137,23 @@ export function duplicateThresholdSet(scanId) {
           // Verified by re-running this, not by trusting the scan that produced the
           // figure. The scanner is a lexer written here; git's regex engine is not.
           // Two mechanisms agreeing is worth more than one repeated.
-          // git grep matches text, so this also lists any file that merely mentions
-          // the comparison in a comment — this file does, further up. The figure
-          // counts code only, and the table of sites in the finding names every one
-          // of them, so the reader can see which hits the figure left out and why.
-          reproduceWith: `git grep -lE '${anyPattern}' -- '*.js'   # text, so a file that only mentions it in a comment appears too`,
+          //
+          // The trailing filter drops hits on lines that open with a comment marker.
+          // Without it these commands print a superset of the figure — a file that
+          // only mentions the comparison in prose appears, and arch/detectors.js and
+          // arch/verifier.js both do, because they quote it as the example that
+          // taught this. A published command whose output disagrees with the
+          // published number is worse than no command, so the command matches. It is
+          // a line-level approximation of what the scan does properly by stripping
+          // comments and strings, which is why the figure is checked that way and
+          // not by parsing this output.
+          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 | sort -u`,
           verify: { kind: "git-grep-files-all", patterns }
         },
         {
           label: `How many places compare \`${subject}\` against one of these value(s)`,
           expected: String(sites.length),
-          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js'   # one line per hit; the table above lists the ones that are code`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)'`,
           verify: { kind: "git-grep-sites-any", patterns }
         },
         ...(began
