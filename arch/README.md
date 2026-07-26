@@ -47,11 +47,26 @@ files.
 The observatory verifies a claim by re-running its SQL against the same table the
 detector read. That catches a stale figure and misses a wrong query.
 
-Here the two paths are separate: the detector counts rows written by the lexer in
-`scan.js`, and the verifier counts matches found by git's own regex engine in the
-working tree. A defect in the lexer surfaces as a disagreement instead of as a
-number that agrees with itself. The observatory should probably adopt this, and
-that is a finding about the observatory, produced by building something else.
+Here the search happens twice by different machinery: the detector counts rows the
+lexer in `scan.js` wrote, and the verifier counts what git's own regex engine finds in
+the working tree. The observatory should probably adopt this, and that is a finding
+about the observatory produced by building something else.
+
+It earned itself on the first run. A doc comment in `arch/detectors.js` quotes
+`risk.riskScore >= 90` as an example; git grep counted it, the scan did not, and the
+finding was refused with `expected 6, observed 7`. Both sides were behaving
+correctly — the question was which one to change.
+
+The answer split the two ideas apart. What counts as *code* now comes from one
+function, `stripCommentsAndStrings`, called by both paths: git finds candidate lines
+and the file is re-read to drop the ones inside comments. Sharing that is deliberate,
+because it is a *definition*, and the observatory learned at the cost of a wrong
+published figure that a definition written twice becomes two definitions. Worth
+having independence in the search; not worth having it in the vocabulary.
+
+The reproduce commands carry the consequence. `git grep -nE '<pattern>'` prints seven
+lines where the finding says six, so each command now says why, and the finding's
+table of sites names every hit the figure counted.
 
 ## What the first run found, and what reading it changed
 

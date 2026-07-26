@@ -14,7 +14,7 @@ import { comparisonPattern, duplicationBegan, changeHistory, daysSince } from ".
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-2";
+export const DETECTOR_VERSION = "arch-det-3";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -137,13 +137,17 @@ export function duplicateThresholdSet(scanId) {
           // Verified by re-running this, not by trusting the scan that produced the
           // figure. The scanner is a lexer written here; git's regex engine is not.
           // Two mechanisms agreeing is worth more than one repeated.
-          reproduceWith: `git grep -lE '${anyPattern}' -- '*.js' | grep -vE '\\.(backup|bak|orig|old)(\\.|$)'`,
+          // git grep matches text, so this also lists any file that merely mentions
+          // the comparison in a comment — this file does, further up. The figure
+          // counts code only, and the table of sites in the finding names every one
+          // of them, so the reader can see which hits the figure left out and why.
+          reproduceWith: `git grep -lE '${anyPattern}' -- '*.js'   # text, so a file that only mentions it in a comment appears too`,
           verify: { kind: "git-grep-files-all", patterns }
         },
         {
           label: `How many places compare \`${subject}\` against one of these value(s)`,
           expected: String(sites.length),
-          reproduceWith: `git grep -cE '${anyPattern}' -- '*.js' | grep -vE '\\.(backup|bak|orig|old)(\\.|$)'`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js'   # one line per hit; the table above lists the ones that are code`,
           verify: { kind: "git-grep-sites-any", patterns }
         },
         ...(began

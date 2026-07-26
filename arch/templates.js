@@ -18,8 +18,13 @@
 //      sites "have moved independently since", which nothing had established. It is
 //      now either a verified statement about edits or it is absent. An unverified
 //      sentence beside three verified figures costs the figures their credibility.
+//   6. State the one limit that changes what to do. This detector cannot tell whether
+//      both sites run, and a duplicated threshold in code nothing calls needs a
+//      different fix — so every finding says so. The alternative was holding such a
+//      finding back until a second detector existed, which stores the doubt in a
+//      queue where no reader ever sees it and pays off once instead of every time.
 
-export const TEMPLATE_VERSION = "arch-tpl-3";
+export const TEMPLATE_VERSION = "arch-tpl-4";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -123,6 +128,13 @@ ${claimTable(claims)}
 Two files agreeing on a boundary can be deliberate. Nothing here establishes that
 the repetition is a defect — only that the numbers exist in more than one place, and
 since when.
+
+Nothing here establishes that both sites run. A boundary duplicated into code that
+nothing calls is a different problem with a different fix, and the reader who
+reconciles two numbers when one of them is unreachable has been sent to the wrong
+work. This paragraph is not a hedge — it is the one limit of this detector that
+changes what to do about a finding, so it is stated on every one of them until a
+detector exists that can settle the question.
 
 The scan reads text rather than syntax. A boundary assembled by arithmetic, or held
 in a variable and compared elsewhere, is invisible to it.

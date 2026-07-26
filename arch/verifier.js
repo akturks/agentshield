@@ -1,25 +1,35 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import db, { ROOT } from "./db.js";
 import { firstAppearance } from "./dating.js";
+import { stripCommentsAndStrings } from "./scan.js";
 
 // Recomputes every figure by a different route than the one that produced it.
 //
 // The observatory's verifier re-runs the claim's SQL against the same table the
-// detector read, which catches a stale figure but not a wrong query. Here the two
-// paths are genuinely separate: the detector counts rows written by the lexer in
-// scan.js, and this counts matches found by git's own regex engine in the working
-// tree. A defect in the lexer shows up as a disagreement rather than as a number
-// that agrees with itself.
+// detector read, which catches a stale figure but not a wrong query. Here the search
+// is done twice by different machinery: the detector counts rows the lexer in scan.js
+// wrote into the database, and this counts what git's own regex engine finds in the
+// working tree. A defect in the lexer surfaces as a disagreement rather than as a
+// number agreeing with itself, and on the first run it did exactly that.
 //
-// This is also the point where the observatory's engine could not be reused. Its
-// verifier takes SQL and calls db.prepare; these claims are shell commands over a
+// One thing is shared on purpose, and it is worth being precise about which. What
+// counts as *code* — everything outside a comment or a string literal — comes from
+// one function, `stripCommentsAndStrings`, used by both paths. That is a definition,
+// and the observatory learned at the cost of a wrong published figure that a
+// definition stated in two places becomes two definitions. Independence is worth
+// having in the search and not in the vocabulary.
+//
+// This is also where the observatory's engine could not be reused. Its verifier takes
+// SQL and calls db.prepare; these claims are shell and filesystem operations over a
 // git repository. The claim/verify *contract* carried over unchanged — a label, an
-// expected value, and an independent way to recompute it — and the implementation
-// did not. That split is the useful finding from building this here rather than
-// guessing at it in a design document.
+// expected value, and an independent way to recompute it — and the implementation did
+// not. That split is the useful finding from building this here rather than guessing
+// at it in a design document.
 
-export const VERIFIER_VERSION = "arch-ver-1";
+export const VERIFIER_VERSION = "arch-ver-2";
 
 const EXCLUDED = /\.(backup|bak|orig|old)(\.|$)/;
 
@@ -38,26 +48,79 @@ function git(args) {
   }
 }
 
+/**
+ * Turns a POSIX pattern from dating.js into its JavaScript equivalent.
+ *
+ * Only the character class differs. git takes `[[:space:]]`, JavaScript takes `\s`,
+ * and the first version of this comparison did not translate — so every check
+ * against a re-read line failed silently and the counting fell back to git's answer.
+ */
+function toJsRegex(pattern) {
+  return new RegExp(pattern.replaceAll("[[:space:]]", "\\s"));
+}
+
+/**
+ * Lines where the pattern appears in code, found by git and confirmed by re-reading.
+ *
+ * git grep matches text, including text inside comments. The scan does not: it
+ * strips comments and string literals before looking, because a threshold written in
+ * a doc comment is documentation and not a branch. So the two disagreed the first
+ * time a comment in `arch/detectors.js` quoted `risk.riskScore >= 90` as an example
+ * — the scan saw 6 sites, git saw 7, and the finding was refused. Which is the
+ * verifier doing its job; the question was only which side to correct.
+ *
+ * git finds the candidates and the file is then re-read to drop the ones inside
+ * comments, using the same `stripCommentsAndStrings` the scanner uses. Sharing that
+ * function is deliberate and is not a loss of independence: what counts as code is a
+ * *definition*, and the observatory learned at some cost that a definition stated
+ * twice becomes two definitions. What stays independent is the part that matters —
+ * git's regex engine searching git's own view of the tree, against a line-by-line
+ * lexer scan. A defect in either still surfaces as a disagreement.
+ */
+function codeMatches(pattern) {
+  const raw = git(["grep", "-n", "--extended-regexp", pattern, "--", "*.js"]);
+  const re = toJsRegex(pattern);
+  const byFile = new Map();
+
+  for (const entry of raw.split("\n")) {
+    if (!entry.trim()) continue;
+    const first = entry.indexOf(":");
+    const second = entry.indexOf(":", first + 1);
+    if (first === -1 || second === -1) continue;
+
+    const path = entry.slice(0, first);
+    const lineNo = Number(entry.slice(first + 1, second));
+    if (EXCLUDED.test(path) || path.includes("node_modules/")) continue;
+    if (!Number.isFinite(lineNo)) continue;
+
+    if (!byFile.has(path)) byFile.set(path, []);
+    byFile.get(path).push(lineNo);
+  }
+
+  const confirmed = new Map();
+
+  for (const [path, lineNumbers] of byFile) {
+    let stripped;
+    try {
+      stripped = stripCommentsAndStrings(readFileSync(join(ROOT, path), "utf8")).split("\n");
+    } catch {
+      continue;
+    }
+    const kept = lineNumbers.filter((n) => re.test(stripped[n - 1] ?? ""));
+    if (kept.length > 0) confirmed.set(path, kept);
+  }
+
+  return confirmed;
+}
+
 function matchingFiles(pattern) {
-  return git(["grep", "-l", "--extended-regexp", pattern, "--", "*.js"])
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((path) => !EXCLUDED.test(path) && !path.includes("node_modules/"));
+  return [...codeMatches(pattern).keys()];
 }
 
 function matchingSites(pattern) {
-  return git(["grep", "-c", "--extended-regexp", pattern, "--", "*.js"])
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .reduce((total, line) => {
-      const cut = line.lastIndexOf(":");
-      const path = line.slice(0, cut);
-      const count = Number(line.slice(cut + 1));
-      if (EXCLUDED.test(path) || path.includes("node_modules/")) return total;
-      return total + (Number.isFinite(count) ? count : 0);
-    }, 0);
+  let total = 0;
+  for (const lines of codeMatches(pattern).values()) total += lines.length;
+  return total;
 }
 
 /** Recomputes one claim independently and returns what it observed. */
