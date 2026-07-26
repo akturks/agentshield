@@ -87,6 +87,10 @@ import {
 } from "./repositories/trustRepresentationRepository.js";
 
 import {
+  saveEventAssessment
+} from "./repositories/eventAssessmentRepository.js";
+
+import {
   saveAssessment,
   getAssessmentsByIdentity,
   getIdentityProfile,
@@ -291,6 +295,11 @@ const OutcomeSchema = z.object({
 });
 
 
+// Bump this whenever the thresholds or the conditions below change. A stored
+// verdict carries it so a later replay can tell whether it is comparing the same
+// rule to the same request, or a new rule to an old one.
+const RISK_RULES_VERSION = "risk-1";
+
 function evaluateRisk(payload) {
   let score = 0;
   const reasons = [];
@@ -334,7 +343,8 @@ if (score >= 70) {
 return {
   score,
   decision,
-  reasons
+  reasons,
+  methodVersion: RISK_RULES_VERSION
 };
 
 }
@@ -394,6 +404,7 @@ const pipelineResult =
     buildTrustRepresentation,
 
     createEvent,
+    saveEventAssessment,
     createOutcome
   });
 

@@ -69,6 +69,32 @@ model Memory {
   identity      Identity @relation(fields: [identityId], references: [id])
 }
 
+// What was concluded about an event, kept off the event itself.
+//
+// riskScore and decision lived on Event until they were moved here. Both inputs
+// the score reads — path and userAgent — stay on the observation, so a verdict
+// plus its event is enough to recompute it, provided the reasons and the version
+// of the rule are recorded too. reasons and methodVersion are nullable only
+// because the 46 rows moved out of Event never had either.
+model EventAssessment {
+  id            String   @id @default(cuid())
+
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id])
+
+  riskScore     Int
+
+  decision      String
+
+  reasons       String?
+
+  methodVersion String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([eventId])
+}
+
 model Outcome {
   id            String   @id @default(cuid())
 
@@ -103,6 +129,13 @@ model TrustAssessment {
 
   evidence            String?
 
+  // What the assessment needs in order to be recomputed: the version of the
+  // method that produced it, and the observation count that method consumed.
+  // Without these a replay applies today's model to yesterday's row.
+  modelVersions       String?
+
+  observedEventCount  Int?
+
   assessmentTimestamp DateTime
 
   identityId          String
@@ -126,10 +159,6 @@ model Event {
 
   session      Session? @relation( fields: [sessionId],references: [id])
 
-  riskScore     Int?
-
-  decision      String?
-
   createdAt     DateTime @default(now())
 
   identityId    String
@@ -149,4 +178,8 @@ model Event {
   challengeResult   String?
 
   identity      Identity @relation(fields: [identityId], references: [id])
+
+  // What was concluded about this event, in its own rows. Nothing on this model
+  // is a judgement; that separation is the Reality Boundary.
+  assessments   EventAssessment[]
 }

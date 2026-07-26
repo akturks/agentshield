@@ -6,6 +6,10 @@ import {
   getAllIdentityProfiles
 } from "../repositories/assessmentRepository.js";
 
+import {
+  verdictTotals
+} from "../repositories/eventAssessmentRepository.js";
+
 export default async function (
   app,
   {
@@ -33,46 +37,40 @@ export default async function (
     "/v1/traffic-quality",
     async () => {
 
-      const events =
-        getAllEvents();
-
+      // Observations and verdicts are counted separately because they are
+      // separate records now, and the difference is worth reporting: an event
+      // with no assessment is one this endpoint must not describe either way.
       const totalEvents =
-        events.length;
+        getAllEvents().length;
+
+      const totals =
+        verdictTotals();
+
+      const assessedEvents =
+        totals.assessed || 0;
 
       const blockedEvents =
-        events.filter(
-          event =>
-            event.decision ===
-            "block"
-        ).length;
+        totals.blocked || 0;
 
       const allowedEvents =
-        events.filter(
-          event =>
-            event.decision ===
-            "allow"
-        ).length;
+        totals.allowed || 0;
 
       const averageRisk =
-        totalEvents > 0
-          ? events.reduce(
-              (sum, event) =>
-                sum +
-                (event.riskScore || 0),
-              0
-            ) / totalEvents
+        assessedEvents > 0
+          ? totals.averageRisk
           : 0;
 
       const blockRate =
-        totalEvents > 0
+        assessedEvents > 0
           ? (
               blockedEvents /
-              totalEvents
+              assessedEvents
             ) * 100
           : 0;
 
       return {
         totalEvents,
+        assessedEvents,
         blockedEvents,
         allowedEvents,
         blockRate,

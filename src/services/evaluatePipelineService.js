@@ -20,6 +20,7 @@ export async function evaluatePipeline({
   buildTrustRepresentation,
 
   createEvent,
+  saveEventAssessment,
   createOutcome
 }) {
 
@@ -134,6 +135,15 @@ export async function evaluatePipeline({
     evidence:
        trustAssessment.evidence,
 
+    // buildTrustAssessment already resolves both of these; they were computed
+    // and then dropped on the floor here, which is why no stored assessment
+    // could be replayed against the method that produced it.
+    modelVersions:
+       trustAssessment.modelVersions,
+
+    observedEventCount:
+       trust.eventCount,
+
     assessmentTimestamp:
       trustAssessment
         .assessmentTimestamp
@@ -145,7 +155,12 @@ export async function evaluatePipeline({
     );
 
 
-  createEvent({
+  // The observation goes in first and carries nothing that was concluded about
+  // it. riskScore and decision used to be passed here, into the same row as the
+  // path and the user agent that produced them, which left no way to revisit the
+  // verdict without the evidence for it having been overwritten by the verdict.
+  const event =
+    createEvent({
     identityId:
       identity.id,
 
@@ -163,12 +178,6 @@ export async function evaluatePipeline({
 
     sessionId:
       validation.data.sessionId,
-
-    riskScore:
-      result.score,
-
-    decision:
-      result.decision,
 
     mouseMoves:
       validation.data.mouseMoves,
@@ -190,6 +199,27 @@ export async function evaluatePipeline({
 
     challengeResult:
       validation.data.challengeResult
+  });
+
+  // And the conclusion goes beside it, in its own row, with the reasons it was
+  // built from and the version of the rule that built it. Both inputs the score
+  // reads — path and user agent — are on the event above, so this pair can be
+  // recomputed; the previous arrangement stored the answer and lost the question.
+  saveEventAssessment({
+    eventId:
+      event.id,
+
+    riskScore:
+      result.score,
+
+    decision:
+      result.decision,
+
+    reasons:
+      result.reasons,
+
+    methodVersion:
+      result.methodVersion
   });
 
 createOutcome({

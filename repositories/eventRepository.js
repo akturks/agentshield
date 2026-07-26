@@ -8,9 +8,6 @@ export function createEvent({
   userAgent = null,
   referrer = null,
   sessionId = null,
-  riskScore = null,
-  decision = null,
-
   mouseMoves = null,
   scrollDepth = null,
   clickCount = null,
@@ -34,8 +31,6 @@ ip,
 userAgent,
 referrer,
 sessionId,
-riskScore,
-decision,
 
 mouseMoves,
 scrollDepth,
@@ -51,7 +46,7 @@ identityId
 )
 
 VALUES (
-?, ?, ?, ?, ?, ?, ?, ?, ?,
+?, ?, ?, ?, ?, ?, ?,
 
 ?, ?, ?, ?, ?,
 
@@ -72,8 +67,6 @@ ip,
 userAgent,
 referrer,
 sessionId,
-riskScore,
-decision,
 
 mouseMoves,
 scrollDepth,
