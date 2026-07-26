@@ -356,3 +356,75 @@ deliberate, which is why a person reads it before it is published.
 
 The negative result is recorded because it will occur to somebody again, and next time the
 measurement is already done.
+
+## The rules this pipeline publishes under
+
+`pnpm run arch:check` — eight articles, executable.
+
+The engine already refuses a great deal without being asked, and that was measured rather
+than assumed. A candidate with no figures is refused. A figure with no way to check it is
+refused. A figure that does not reproduce by a second route is refused. A detector written
+next year cannot escape any of those, which is the part of the methodology that was
+genuinely shared.
+
+What the engine did not touch was everything a *reader* uses. The reproduce command beside
+each figure was written to the database, printed, and published — and executed nowhere in
+the pipeline, ever. The seven rules about how a finding may be worded were comments. So the
+strongest sentence this tool can say, **do not believe me, run the command**, rested
+entirely on somebody remembering to try it by hand.
+
+Somebody did, three times. The first time, four of sixteen commands were fake.
+
+| | |
+| --- | --- |
+| I | Every published figure reproduces — each command run as published, output compared |
+| II | No figure published without a second opinion |
+| III | Everything published was checked by the method now in force |
+| IV | Every finding can be rebuilt from the observations |
+| V | No finding counts this tool's own output as documentation |
+| VI | Every figure is labelled with a question |
+| VII | The report states facts and issues no instruction |
+| VIII | The report says how much of the repository it read |
+
+Articles VI and VII make two of the template rules executable. VII is an approximation and
+says so: it reads sentences rather than meaning, and it distinguishes *"nothing here says
+they should be deleted"* — a refusal to advise — from the tool speaking in the imperative.
+
+### What the first run found
+
+**4/8.** Three defects in the pipeline and one article that was simply wrong.
+
+- Two published commands printed a hash, a date and a subject line beside a figure that is
+  eight characters of hash. The command and the figure had disagreed about what was being
+  asked for as long as the claim had existed.
+- One figure was labelled *"The commit where this expression first had a threshold in two
+  files"* — a fragment, not a question, in breach of a rule written three days earlier.
+- The report was stale by one file, because a file had been added since it was generated.
+- And Article III demanded that publication come after verification, which failed on all
+  six findings. The pipeline was right: `restate` re-verifies a published finding under a
+  newer method and keeps its publication date on purpose. An article forbidding that
+  forbids the correction loop the whole tool is built on.
+
+Rewriting a failing article is the dangerous move — it is how a check gets tuned until it
+agrees with the code and enforces nothing. The distinction that makes it legitimate here is
+whether the article asserted something the pipeline ever promised. That one did not; it
+invented a guarantee about timestamps nothing had ever claimed. It now asks what a reader
+actually depends on: not "this was checked at some point" but "this was checked by the code
+you can go and read".
+
+### And one the check caused
+
+Article IV needed to know which detector ids exist, so it wrote its own list of two
+strings — becoming the third copy of a definition, inside the file whose entire purpose is
+refusing to let that happen. It passed, because both copies were right that day.
+
+The registry is now a map from id to detector and the id is stamped onto each candidate
+from it. That is the eighth time a duplicated definition has been found in this tool, and
+the second time inside a change made to prevent one.
+
+### Proof that the articles can fail
+
+A check that cannot come back red is decoration. Three defects were injected into a copy of
+the database — a reproduce command replaced with `echo 999`, a claim marked not-ok, and the
+sentence *"You should delete these files"* appended to a published body — and articles I,
+II and VII caught one each. 5/8.

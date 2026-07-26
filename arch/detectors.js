@@ -25,7 +25,7 @@ import { NOT_PROGRAM_PATTERN, SOURCE_PATHSPEC } from "./scan.js";
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-17";
+export const DETECTOR_VERSION = "arch-det-19";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -141,7 +141,6 @@ export function duplicateThresholdSet(scanId) {
       .join("|")})`;
 
     candidates.push({
-      detectorId: "duplicate_threshold_set",
       subjectKey: `${subject} ${operator} [${perValue.map((v) => v.value).join(",")}] @ ${files.join(",")}`,
       // A repeated threshold can be deliberate — two engines may be meant to agree
       // on a boundary. The counts cannot settle that, so a person reads it.
@@ -187,9 +186,16 @@ export function duplicateThresholdSet(scanId) {
         ...(began
           ? [
               {
-                label: "The commit where this expression first had a threshold in two files",
+                // A question, like every other label, because rule 3 says a figure's label
+                // can only be read one way and "The commit where ..." was read as a
+                // heading. Caught by Article VI rather than by anyone rereading the file.
+                label: "Which commit first put this threshold into a second file",
                 expected: began.sha.slice(0, 8),
-                reproduceWith: `git log --pickaxe-regex -S'${comparisonPattern({ subject, operator, value: dated.find((v) => v.began.sha === began.sha).value })}' --reverse --format='%h %aI %s' -- ${began.filePath} | head -1`,
+                // `%h` and `%aI %s` printed a commit, a date and a subject line beside a
+                // figure that is eight characters of hash. The command and the figure
+                // disagreed on what was being asked, and both were published that way for
+                // as long as this claim has existed. Article I found it on its first run.
+                reproduceWith: `git log --pickaxe-regex -S'${comparisonPattern({ subject, operator, value: dated.find((v) => v.began.sha === began.sha).value })}' --reverse --format=%H -- ${began.filePath} | head -1 | cut -c1-8`,
                 verify: {
                   kind: "first-appearance",
                   filePath: began.filePath,
@@ -348,7 +354,6 @@ export function unimportedModule(scanId) {
       .replaceAll("__B__", "$b");
 
     candidates.push({
-      detectorId: "unimported_module",
       subjectKey: directory,
       requiresReview: true,
       facts: {
@@ -416,8 +421,25 @@ export function unimportedModule(scanId) {
   return candidates;
 }
 
-export const DETECTORS = [duplicateThresholdSet, unimportedModule];
+/**
+ * Every detector, by the id its findings are filed under.
+ *
+ * A map rather than a list, and the id is stamped onto each candidate here rather than
+ * written inside the detector that produced it. It was written inside: the constitution
+ * check then needed to know which ids exist, wrote its own list of two strings, and became
+ * the third copy of a definition — inside the file whose whole purpose is refusing to let
+ * that happen. Article IV failed to notice because both copies were right on the day.
+ */
+export const DETECTORS = {
+  duplicate_threshold_set: duplicateThresholdSet,
+  unimported_module: unimportedModule
+};
+
+/** The ids findings are filed under, for anything that has to recognise one. */
+export const DETECTOR_IDS = new Set(Object.keys(DETECTORS));
 
 export function detectAll(scanId) {
-  return DETECTORS.flatMap((detector) => detector(scanId));
+  return Object.entries(DETECTORS).flatMap(([detectorId, detect]) =>
+    detect(scanId).map((candidate) => ({ ...candidate, detectorId }))
+  );
 }

@@ -2,9 +2,9 @@
 
 # What this repository is, checked against what it says
 
-Repository at `d1070e50` with uncommitted changes at scan time, scanned 2026-07-26T18:44:51.132Z. Method version `scan-16/arch-det-17/arch-tpl-14/arch-ver-12`.
+Repository at `dc9f9671` with uncommitted changes at scan time, scanned 2026-07-26T19:14:25.733Z. Method version `scan-16/arch-det-19/arch-tpl-14/arch-ver-12`.
 
-This tool read **131 files**, out of 155 JavaScript and TypeScript files in the repository and 225 files in total. The 24 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 131 files.
+This tool read **131 files**, out of 156 JavaScript and TypeScript files in the repository and 227 files in total. The 25 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 131 files.
 
 6 finding(s), each reviewed by a person before it appeared here. Every figure was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it — so a reader who doubts a number does not have to take this document's word for it.
 
@@ -397,7 +397,7 @@ finds in the working tree.
 | --- | --- |
 | How many files compare `trafficQuality` against every one of these 2 value(s) | 2 |
 | How many places compare `trafficQuality` against one of these value(s) | 4 |
-| The commit where this expression first had a threshold in two files | a18dfb06 |
+| Which commit first put this threshold into a second file | a18dfb06 |
 
 Each figure again, with the command that reproduces it:
 
@@ -413,10 +413,10 @@ git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)
 git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
-**The commit where this expression first had a threshold in two files**
+**Which commit first put this threshold into a second file**
 
 ```
-git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format='%h %aI %s' -- src/services/sessionProfileService.js | head -1
+git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format=%H -- src/services/sessionProfileService.js | head -1 | cut -c1-8
 ```
 
 ## What this finding does not say
@@ -485,7 +485,7 @@ finds in the working tree.
 | --- | --- |
 | How many files compare `risk.riskScore` against every one of these 3 value(s) | 2 |
 | How many places compare `risk.riskScore` against one of these value(s) | 6 |
-| The commit where this expression first had a threshold in two files | 17e8f958 |
+| Which commit first put this threshold into a second file | 17e8f958 |
 
 Each figure again, with the command that reproduces it:
 
@@ -501,10 +501,10 @@ git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70
 git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
-**The commit where this expression first had a threshold in two files**
+**Which commit first put this threshold into a second file**
 
 ```
-git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format='%h %aI %s' -- src/services/policyEngineService.js | head -1
+git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format=%H -- src/services/policyEngineService.js | head -1 | cut -c1-8
 ```
 
 ## What this finding does not say
