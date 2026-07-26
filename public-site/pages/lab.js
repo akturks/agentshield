@@ -89,7 +89,11 @@ export function lab(canary, published) {
 
 <p class="lede">Everything below is computed from requests observed by this server. Nothing here comes from asking a model what it knows.</p>
 
-<p>Figures count <strong>external traffic only</strong>: requests that arrived over the public internet from addresses that have not also driven this site from a command line. Building and testing the instrument generated ${escapeHtml(String(headline().instrument))} further requests, which are kept in the record, excluded here, and never deleted.</p>
+<p>Figures count <strong>external traffic only</strong>: requests that arrived over the public internet from an address this project does not operate from. Building and testing the instrument generated ${escapeHtml(String(headline().instrument))} further requests, which are kept in the record, excluded here, and never deleted.</p>
+
+<p>Two rules do that excluding, and they are reported separately because one of them is a judgement call. ${escapeHtml(String(headline().excludedByHeuristic))} requests are excluded because they came from an address that has also driven this site from a command line — an inference from the record itself. A further ${escapeHtml(String(headline().excludedByDeclaration))} are excluded because they came from an address <strong>declared</strong> as ours: ${headline().declaredAddresses.map((a) => `<code>${escapeHtml(a)}</code>`).join(", ")}.</p>
+
+<p>The second rule is the only mechanism on this site that can remove genuine observations from a published figure, so its effect is printed above rather than described. It exists because the inference is not enough: a phone that never runs <code>curl</code> is invisible to it, and this machine's IPv6 address rotates daily, which made the same laptop look like a new visitor 13 times on 25 July 2026. The declared list lives in versioned source, not in the database, so every change to it is in the history.</p>
 
 ${statBlock([
   ["External requests", total.toLocaleString("en-US")],

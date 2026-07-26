@@ -1,5 +1,5 @@
 import db from "../realityDb.js";
-import { notOperator } from "../stats.js";
+import { notOperator, notDeclaredOperator } from "../stats.js";
 
 // Deterministic rules over observed reality. A detector never interprets and
 // never writes prose — it returns candidates: a subject, a time window, and the
@@ -10,7 +10,7 @@ import { notOperator } from "../stats.js";
 // returned a number without a query would be asking to be trusted, which is the
 // thing this system does not do.
 
-export const DETECTOR_VERSION = "det-1";
+export const DETECTOR_VERSION = "det-4";
 
 const AI_AGENT_PATTERNS = [
   "GPTBot",
@@ -35,6 +35,64 @@ const AI_AGENT_PATTERNS = [
 ];
 
 const DISALLOWED_PREFIXES = ["/internal/", "/no-crawl/", "/private-preview/"];
+
+// Which declared trial vendors could explain an arrival by a given agent.
+//
+// An arrival finding says a client reached this site. It cannot say why, and
+// there is one reason it might have come that the observation record can never
+// contain: we asked it to. Asking an assistant to read a page is an action under
+// Article "Action", and an action that produced an arrival must be disclosed
+// beside that arrival or the finding reads as discovery.
+//
+// This map is consulted at detection time, in JavaScript, never inside a claim's
+// SQL — a published figure may not derive from the action layer, and it does not:
+// the figures stay pure counts over reality. The trial is used only to weaken or
+// withhold a conclusion, which is the opposite of citing it as evidence.
+const AGENT_VENDORS = {
+  GPTBot: ["openai", "chatgpt", "gpt"],
+  "OAI-SearchBot": ["openai", "chatgpt", "gpt"],
+  "ChatGPT-User": ["openai", "chatgpt", "gpt"],
+  ClaudeBot: ["anthropic", "claude"],
+  "Claude-User": ["anthropic", "claude"],
+  "Claude-SearchBot": ["anthropic", "claude"],
+  "anthropic-ai": ["anthropic", "claude"],
+  PerplexityBot: ["perplexity"],
+  "Perplexity-User": ["perplexity"],
+  "Google-Extended": ["google", "gemini", "bard"],
+  "Applebot-Extended": ["apple"],
+  Amazonbot: ["amazon", "alexa"],
+  "meta-externalagent": ["meta", "llama"],
+  Bytespider: ["bytedance", "doubao"],
+  YouBot: ["you.com"],
+  "cohere-ai": ["cohere"]
+};
+
+const allTrials = db.prepare(
+  "SELECT vendor, startedAtMs, windowMs FROM Trial WHERE siteId = ?"
+);
+
+/**
+ * How many requests matching this agent arrived inside a registered trial
+ * window for a vendor the agent could belong to.
+ *
+ * A count greater than zero does not prove the trial caused the arrival — that
+ * is correlation over a time window, the same inference the trials module makes
+ * and refuses to store. It is enough to stop the finding claiming discovery.
+ */
+function promptedCount(siteId, pattern, requestTimesMs) {
+  const aliases = AGENT_VENDORS[pattern];
+  if (!aliases) return 0;
+
+  const windows = allTrials
+    .all(siteId)
+    .filter((t) => aliases.some((a) => t.vendor.toLowerCase().includes(a)))
+    .map((t) => [t.startedAtMs, t.startedAtMs + t.windowMs]);
+
+  if (windows.length === 0) return 0;
+
+  return requestTimesMs.filter((ms) => windows.some(([a, b]) => ms >= a && ms <= b))
+    .length;
+}
 
 /** A figure plus the query that reproduces it. */
 function claim(label, sql, params, expected) {
@@ -63,6 +121,7 @@ function robotsViolation(siteId) {
        FROM RequestReality r
        WHERE r.siteId = ? AND (${disallowedWhere})
          AND r.cfConnectingIp IS NOT NULL
+         AND ${notDeclaredOperator("r")}
          AND EXISTS (
            SELECT 1 FROM RequestReality p
            WHERE p.siteId = r.siteId AND p.cfConnectingIp = r.cfConnectingIp
@@ -128,7 +187,13 @@ const ROUTABLE_SQL = `
   AND cfConnectingIp NOT LIKE 'fc%'
   AND cfConnectingIp NOT LIKE 'fd%'`;
 
-const CREDIBLE_AGENT_SQL = `siteId = ? AND cfRay IS NOT NULL AND userAgent LIKE ? AND ${ROUTABLE_SQL} AND ${PLAIN_CLIENT_SQL}`;
+// Addresses this project operates from, declared in stats.js. Imported rather
+// than restated: the heuristic below catches an address only once it has sent
+// curl, which misses a phone that never will and misses this machine every time
+// its IPv6 address rotates.
+const DECLARED_SQL = notDeclaredOperator();
+
+const CREDIBLE_AGENT_SQL = `siteId = ? AND cfRay IS NOT NULL AND userAgent LIKE ? AND ${ROUTABLE_SQL} AND ${DECLARED_SQL} AND ${PLAIN_CLIENT_SQL}`;
 
 /**
  * A declared AI crawler seen on this site, counting only requests from
@@ -149,12 +214,25 @@ function newAiAgent(siteId) {
 
     if (!row || row.hits === 0) continue;
 
+    const times = db
+      .prepare(`SELECT observedAtMs AS ms FROM RequestReality WHERE ${CREDIBLE_AGENT_SQL}`)
+      .all(siteId, `%${pattern}%`)
+      .map((r) => r.ms);
+
+    const prompted = promptedCount(siteId, pattern, times);
+
+    // An arrival we caused is still an observation worth publishing — it is a
+    // trial result. What it must not do is wear a headline implying discovery,
+    // so the template changes the title rather than this rule dropping the row.
     out.push({
       detectorId: "ai_agent_arrival",
       subjectKey: pattern,
       windowStartMs: row.firstMs,
       windowEndMs: row.lastMs,
-      facts: { agent: pattern, paths: row.paths, ips: row.ips },
+      // A partially prompted arrival is a weaker claim than an unprompted one,
+      // so it stops being something the engine publishes on its own.
+      requiresReview: prompted > 0,
+      facts: { agent: pattern, paths: row.paths, ips: row.ips, prompted, hits: row.hits },
       claims: [
         claim(
           `requests declaring ${pattern} from addresses with no contradictory identity`,
@@ -183,7 +261,7 @@ function automatedEnumeration(siteId, { windowMs = 60000, minPaths = 20 } = {}) 
               COUNT(DISTINCT path) AS paths, COUNT(*) AS hits,
               MIN(observedAtMs) AS firstMs, MAX(observedAtMs) AS lastMs
        FROM RequestReality
-       WHERE siteId = ? AND cfConnectingIp IS NOT NULL
+       WHERE siteId = ? AND cfConnectingIp IS NOT NULL AND ${DECLARED_SQL}
        GROUP BY cfConnectingIp
        HAVING paths >= ? AND (lastMs - firstMs) <= ?`
     )
@@ -211,6 +289,99 @@ function automatedEnumeration(siteId, { windowMs = 60000, minPaths = 20 } = {}) 
 }
 
 /**
+ * One declared identity arriving from many addresses, each of which fetches
+ * almost nothing. This is the inverse of automatedEnumeration: that rule groups
+ * by address and finds the client that took many paths quickly, so a retrieval
+ * spread one-request-per-address is exactly what it cannot see.
+ *
+ * The shape is fan-out. A byte-identical user agent appears from dozens of
+ * distinct addresses across several countries; nearly every address is used
+ * once and discarded; between them they walk a large part of the site. No
+ * single request looks unusual, which is the point of arranging them that way.
+ *
+ * The figures below are counts of what arrived. Whether one operator drove
+ * them is not established here and the template does not assert it — a common
+ * mobile user agent behind carrier NAT can produce the same shape from
+ * unrelated people, which is why this detector does not publish itself.
+ */
+function distributedCrawl(siteId, { minIps = 10, minPaths = 10, maxPerIp = 2 } = {}) {
+  const FANOUT = `siteId = ? AND cfRay IS NOT NULL AND userAgent IS NOT NULL
+    AND ${ROUTABLE_SQL} AND ${DECLARED_SQL} AND ${PLAIN_CLIENT_SQL}`;
+
+  const rows = db
+    .prepare(
+      `SELECT userAgent AS ua,
+              COUNT(DISTINCT cfConnectingIp) AS ips,
+              COUNT(DISTINCT path) AS paths,
+              COUNT(DISTINCT cfIpCountry) AS countries,
+              COUNT(*) AS hits,
+              MIN(observedAtMs) AS firstMs, MAX(observedAtMs) AS lastMs
+       FROM RequestReality
+       WHERE ${FANOUT}
+       GROUP BY userAgent
+       HAVING ips >= ? AND paths >= ? AND CAST(hits AS REAL) / ips <= ?`
+    )
+    .all(siteId, minIps, minPaths, maxPerIp);
+
+  return rows.map((r) => {
+    // How many of those addresses were used exactly once. A high share is the
+    // part that distinguishes rotation from a handful of busy clients.
+    const singles = one(
+      `SELECT COUNT(*) FROM (
+         SELECT cfConnectingIp FROM RequestReality
+         WHERE ${FANOUT} AND userAgent = ?
+         GROUP BY cfConnectingIp HAVING COUNT(*) = 1)`,
+      [siteId, r.ua]
+    );
+
+    return {
+      detectorId: "distributed_crawl",
+      subjectKey: r.ua,
+      windowStartMs: r.firstMs,
+      windowEndMs: r.lastMs,
+      facts: {
+        ua: r.ua,
+        ips: r.ips,
+        paths: r.paths,
+        countries: r.countries,
+        hits: r.hits,
+        singles,
+        hours: Math.max(1, Math.round((r.lastMs - r.firstMs) / 3600000))
+      },
+      claims: [
+        claim(
+          "distinct addresses presenting this exact user agent",
+          `SELECT COUNT(DISTINCT cfConnectingIp) FROM RequestReality WHERE ${FANOUT} AND userAgent = ?`,
+          [siteId, r.ua],
+          r.ips
+        ),
+        claim(
+          "distinct paths fetched by them in aggregate",
+          `SELECT COUNT(DISTINCT path) FROM RequestReality WHERE ${FANOUT} AND userAgent = ?`,
+          [siteId, r.ua],
+          r.paths
+        ),
+        claim(
+          "addresses that sent exactly one request",
+          `SELECT COUNT(*) FROM (
+             SELECT cfConnectingIp FROM RequestReality
+             WHERE ${FANOUT} AND userAgent = ?
+             GROUP BY cfConnectingIp HAVING COUNT(*) = 1)`,
+          [siteId, r.ua],
+          singles
+        ),
+        claim(
+          "distinct countries these addresses resolved to",
+          `SELECT COUNT(DISTINCT cfIpCountry) FROM RequestReality WHERE ${FANOUT} AND userAgent = ?`,
+          [siteId, r.ua],
+          r.countries
+        )
+      ]
+    };
+  });
+}
+
+/**
  * One address presenting contradictory identities — for instance a plain HTTP
  * client and a well-known AI crawler. A user agent is a claim; when the same
  * origin makes incompatible claims, the record says so.
@@ -228,7 +399,7 @@ function identityInconsistency(siteId) {
               COUNT(DISTINCT userAgent) AS identities,
               MIN(observedAtMs) AS firstMs, MAX(observedAtMs) AS lastMs
        FROM RequestReality
-       WHERE siteId = ? AND cfConnectingIp IS NOT NULL
+       WHERE siteId = ? AND cfConnectingIp IS NOT NULL AND ${DECLARED_SQL}
          AND EXISTS (SELECT 1 FROM RequestReality a
                      WHERE a.siteId = RequestReality.siteId
                        AND a.cfConnectingIp = RequestReality.cfConnectingIp
@@ -312,7 +483,7 @@ function jsExecution(siteId) {
  * limiter minutes earlier.
  */
 function formatPreference(siteId, { minTotal = 40 } = {}) {
-  const PROBE = `siteId = ? AND cfRay IS NOT NULL AND routeVariant LIKE 'probe_%' AND ${ROUTABLE_SQL} AND ${PLAIN_CLIENT_SQL}`;
+  const PROBE = `siteId = ? AND cfRay IS NOT NULL AND routeVariant LIKE 'probe_%' AND ${ROUTABLE_SQL} AND ${DECLARED_SQL} AND ${PLAIN_CLIENT_SQL}`;
 
   const total = one(`SELECT COUNT(*) FROM RequestReality WHERE ${PROBE}`, [siteId]);
 
@@ -361,6 +532,7 @@ export const DETECTORS = [
   robotsViolation,
   newAiAgent,
   automatedEnumeration,
+  distributedCrawl,
   identityInconsistency,
   jsExecution,
   formatPreference

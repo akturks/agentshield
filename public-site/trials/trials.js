@@ -39,6 +39,42 @@ export function startTrial({ vendor, prompt, targetPath, windowMs = DEFAULT_WIND
   return { id, startedAt: at.toISOString() };
 }
 
+/**
+ * Records a trial that was run without being logged at the time.
+ *
+ * Trials exist so that an arrival we caused can be told apart from one we did
+ * not, and that only works if the asking is written down before the asking. When
+ * it was not, there are two options: leave the record silent, and let a finding
+ * imply discovery that never happened; or write the action down late and say so.
+ * The second is better, but only if the lateness is part of the entry — hence the
+ * mandatory reason, and hence the note this stamps on every such row.
+ *
+ * This is deliberately not a `startedAt` parameter on startTrial. An action log
+ * that accepts any timestamp for any reason records nothing in particular; this
+ * one makes backdating a named, justified and visible act.
+ */
+export function recordPastTrial({ vendor, prompt, targetPath, startedAt, windowMs = DEFAULT_WINDOW_MS, reason }) {
+  if (!reason) throw new Error("recordPastTrial requires a reason: why was this not logged when it was run?");
+
+  const at = new Date(startedAt);
+  if (Number.isNaN(at.getTime())) throw new Error(`recordPastTrial: unusable startedAt "${startedAt}"`);
+
+  const id = randomUUID();
+  insertTrial.run({
+    id,
+    siteId: SITE_ID,
+    vendor,
+    prompt,
+    targetPath,
+    startedAt: at.toISOString(),
+    startedAtMs: at.getTime(),
+    windowMs,
+    reply: null,
+    note: `RECORDED AFTER THE FACT on ${new Date().toISOString()}. ${reason}`
+  });
+  return { id, startedAt: at.toISOString() };
+}
+
 export function recordReply(id, reply) {
   return db.prepare("UPDATE Trial SET reply = ? WHERE id = ?").run(reply, id).changes > 0;
 }

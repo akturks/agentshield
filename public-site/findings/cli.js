@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runOnce, published, pending, approve, reject } from "./engine.js";
+import { runOnce, restate, published, pending, approve, reject } from "./engine.js";
 import { claimsFor, recheck } from "./verifier.js";
 import { seedHumanFindings } from "./seed.js";
 
@@ -11,6 +11,10 @@ import { seedHumanFindings } from "./seed.js";
 //   node public-site/findings/cli.js approve <id>
 //   node public-site/findings/cli.js reject <id> [reason]
 //   node public-site/findings/cli.js recheck   do published figures still hold
+//   node public-site/findings/cli.js restate [detectorId]
+//                                             re-render findings under the
+//                                             current method version, keeping
+//                                             their URLs and publication dates
 //   node public-site/findings/cli.js seed      load the hand-written findings
 
 const [, , cmd, ...args] = process.argv;
@@ -25,6 +29,15 @@ switch (cmd) {
     console.log(
       `\ndetected ${r.detected} · published ${r.published} · held ${r.pending} · rejected ${r.rejected} · already known ${r.skipped}`
     );
+    break;
+  }
+
+  case "restate": {
+    const r = restate({ detectorId: args[0] ?? null, verbose: true });
+    console.log(
+      `\nconsidered ${r.considered} · restated ${r.restated} · no current candidate ${r.unmatched} · failed verification ${r.failed.length}`
+    );
+    for (const f of r.failed) console.log(`  FAILED ${f.slug}: ${f.reason}`);
     break;
   }
 

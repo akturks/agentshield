@@ -8,7 +8,7 @@ import { escapeHtml } from "../layout.js";
 // generated sentence that cannot invent a figure is worth more here than a
 // fluent one that might.
 
-export const TEMPLATE_VERSION = "tpl-1";
+export const TEMPLATE_VERSION = "tpl-4";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -27,7 +27,10 @@ const TEMPLATES = {
     const ua = c.facts.ua ?? "an undeclared client";
     return {
       slug: `robots-violation-${day(c.windowStartMs)}-${c.subjectKey.slice(0, 8).replace(/[^a-z0-9]/gi, "")}`,
-      title: `A client fetched disallowed paths after reading robots.txt`,
+      // The claim is the ordering: rules first, then the paths they forbade.
+      // "After reading robots.txt" carries that in a preposition, which is the
+      // first thing a translator loosens. Two clauses in sequence survive it.
+      title: `This client read our robots.txt first, then took ${c.facts.hits} path${c.facts.hits === 1 ? "" : "s"} it forbids`,
       summary: `A client declaring ${ua} requested /robots.txt and subsequently fetched ${c.facts.hits} path${c.facts.hits === 1 ? "" : "s"} listed under Disallow. The rules were retrieved before the paths were taken.`,
       body: `
 <h2>What was observed</h2>
@@ -45,26 +48,60 @@ ${limits([
   },
 
   ai_agent_arrival(c) {
+    const hits = c.facts.hits ?? Number(c.claims[0].expected);
+    const prompted = c.facts.prompted ?? 0;
+    const allOurs = prompted > 0 && prompted === hits;
+
+    // The headline is the part that gets indexed, quoted and shared, so the
+    // reconciliation with our own trials belongs there and not only in a
+    // paragraph further down. "Has been observed" implies nobody asked; when we
+    // did ask, the title says so.
+    //
+    // We are the subject of that sentence on purpose. An earlier version read
+    // "<agent> fetched this site inside a trial we ran", which put our own part
+    // in a subordinate clause — and machine translation duly dropped it, turning
+    // "fetched" into "found" and handing the claim back to the crawler. A claim
+    // carried by one verb can be reversed by one mistranslation; a claim carried
+    // by the subject cannot.
+    const title = allOurs
+      ? `We asked ${c.facts.agent} to read this page, and it did`
+      : `${c.facts.agent} has been observed on this site`;
+
+    const summary = allOurs
+      ? `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"} on ${day(c.windowStartMs)}. Every one of them arrived inside a window in which we had asked this vendor to read a page here, so this is the result of a trial rather than an unprompted visit.`
+      : `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"}, first seen ${day(c.windowStartMs)}.${prompted ? ` ${prompted} of those requests fall inside a trial we ran.` : ""}`;
+
     return {
       slug: `ai-agent-arrival-${c.facts.agent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-      title: `${c.facts.agent} has been observed on this site`,
-      summary: `A client declaring ${c.facts.agent} made ${c.claims[0].expected} request${c.claims[0].expected === "1" ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"}, first seen ${day(c.windowStartMs)}.`,
+      title,
+      summary,
       body: `
 <h2>What was observed</h2>
 <p>First request ${fmt(c.windowStartMs)} UTC, most recent ${fmt(c.windowEndMs)} UTC.</p>
 <table>
 <tbody>
 <tr><th>Declared agent</th><td><code>${escapeHtml(c.facts.agent)}</code></td></tr>
-<tr><th>Requests</th><td>${c.claims[0].expected}</td></tr>
+<tr><th>Requests</th><td>${hits}</td></tr>
 <tr><th>Distinct paths</th><td>${c.facts.paths}</td></tr>
 <tr><th>Distinct addresses</th><td>${c.facts.ips}</td></tr>
+<tr><th>Inside a trial we ran</th><td>${prompted} of ${hits}</td></tr>
 </tbody>
 </table>
 <h2>What it means</h2>
-<p>Arrival is the entire event. This records that a client presenting this identity reached the site and what it took; it does not establish why it came, whether the content was retained, or whether it will return.</p>
+${
+  allOurs
+    ? `<p><strong>We caused this.</strong> All ${hits} requests arrived inside a window in which we had asked this vendor to read a page here, so nothing on this page describes a client finding the site on its own. What it does describe is what that vendor's fetcher actually did once asked — which paths it took, whether it read robots.txt first, whether it ran the script — and that is worth recording even though we started it.</p>
+<p>Strictly, arriving inside the window is correlation and not proof of cause; an unrelated visit could land in the same ten minutes. Here the correlation is not the reason for the claim — we know we asked, and the trial log says so.</p>`
+    : prompted
+      ? `<p>Arrival is the entire event. This records that a client presenting this identity reached the site and what it took; it does not establish why it came, whether the content was retained, or whether it will return.</p>
+<p><strong>Part of this traffic may be our own doing.</strong> ${prompted} of these ${hits} requests arrived inside a window in which we had asked this vendor to read a page here. That is a correlation over time, not a proven cause, but it is the one explanation the observation record can never contain — so it is stated here rather than left for a reader to wonder about.</p>`
+      : `<p>Arrival is the entire event. This records that a client presenting this identity reached the site and what it took; it does not establish why it came, whether the content was retained, or whether it will return.</p>
+<p>No registered trial of ours was running when any of this arrived. That is not proof it came unprompted: it means only that if something of ours caused it, the cause was not written down, which is a gap in our record-keeping rather than evidence either way.</p>`
+}
 ${limits([
   UA_CLAIM_LIMIT,
   "Fetching is not ingestion. Whether any of this content persists in a model is measured separately, by the coined markers listed on the lab page.",
+  "An arrival cannot be shown to be unprompted. Nothing in a request says why it was made, so “nobody asked for this” rests entirely on our own trial log being complete.",
   SINGLE_SITE_LIMIT
 ])}`
     };
@@ -84,6 +121,39 @@ ${limits([
 ${limits([
   UA_CLAIM_LIMIT,
   "The threshold is a chosen parameter, not a natural boundary. A slower client doing the same thing falls below it.",
+  SINGLE_SITE_LIMIT
+])}`
+    };
+  },
+
+  distributed_crawl(c) {
+    const share = Math.round((c.facts.singles / c.facts.ips) * 100);
+    return {
+      slug: `distributed-crawl-${day(c.windowStartMs)}-${c.facts.ua.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 32)}`,
+      title: `One user agent, ${c.facts.ips} addresses, ${c.facts.paths} paths — a retrieval spread thin enough to look like nothing`,
+      summary: `A single user agent string arrived from ${c.facts.ips} distinct addresses in ${c.facts.countries} countries over ${c.facts.hours} hours. ${c.facts.singles} of those addresses sent exactly one request. Between them they fetched ${c.facts.paths} distinct paths.`,
+      body: `
+<h2>What was observed</h2>
+<p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC:</p>
+<table>
+<tbody>
+<tr><th>Declared agent</th><td><code>${escapeHtml(c.facts.ua)}</code></td></tr>
+<tr><th>Distinct addresses</th><td>${c.facts.ips}</td></tr>
+<tr><th>Addresses used exactly once</th><td>${c.facts.singles} (${share}%)</td></tr>
+<tr><th>Distinct paths fetched</th><td>${c.facts.paths}</td></tr>
+<tr><th>Countries</th><td>${c.facts.countries}</td></tr>
+<tr><th>Total requests</th><td>${c.facts.hits}</td></tr>
+</tbody>
+</table>
+<h2>What it means</h2>
+<p>Every request here is unremarkable on its own. One address, one page, an ordinary browser string — nothing that any rate limit or per-address rule would react to. The pattern only exists when the requests are grouped by what they claimed to be rather than where they came from.</p>
+<p>This is the blind spot in the other rule on this site. <a href="/findings">Automated enumeration</a> groups by address and asks which client took many paths quickly; a retrieval arranged one request per address is precisely what that question cannot see. The two rules fail in opposite directions, and neither is a substitute for the other.</p>
+<p>What the counts establish is coverage without concentration: a large share of this site's pages was fetched, and almost no address fetched more than one of them. What they do not establish is that one party arranged it. That inference is the obvious one, and it is still an inference.</p>
+${limits([
+  UA_CLAIM_LIMIT,
+  "Shared user agent strings are not evidence of a shared operator. A common mobile browser behind carrier NAT can produce many addresses sending one request each, from unrelated people, with no coordination at all.",
+  "Country is Cloudflare's geolocation of the connecting address. It describes where the address resolves, not where the client or its operator is.",
+  "The thresholds — how many addresses, how few requests each — are chosen parameters. A retrieval spread more thinly still falls below them and is not reported.",
   SINGLE_SITE_LIMIT
 ])}`
     };

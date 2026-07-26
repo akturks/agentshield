@@ -26,6 +26,12 @@ const AUTO_PUBLISH = new Set([
 // unflattering about a named actor, and a false one would be worse than a
 // missing one.
 //
+// distributed_crawl stays manual for the same reason in a weaker form. Its
+// figures are counts, but the shape they describe is only interesting if one
+// party arranged it, and that is not something the counts can settle — the same
+// fan-out arrives from unrelated people sharing a common mobile user agent. The
+// template says so, and a person confirms the reading before it publishes.
+//
 // js_execution is manual for a different reason. Reaching the beacon proves a
 // script ran, but it attributes that to a declared user agent, and a user agent
 // is unverifiable — anyone may fetch the probe under any name and have the
@@ -128,7 +134,11 @@ export function runOnce({ siteId = SITE_ID, verbose = false } = {}) {
       continue;
     }
 
-    if (AUTO_PUBLISH.has(candidate.detectorId)) {
+    // A detector may withdraw its own publication right for one candidate. An
+    // arrival that overlaps a trial we ran is the case this exists for: the rule
+    // publishes itself in general, but not when part of what it counted may be
+    // something we caused.
+    if (AUTO_PUBLISH.has(candidate.detectorId) && !candidate.requiresReview) {
       markVerified.run("published", verdict.checkedAt, now, null, id);
       recordPublication({ slug, title: drafted.title, detectorId: candidate.detectorId }, { automatic: true });
       announce(`/findings/${slug}`);
@@ -139,6 +149,84 @@ export function runOnce({ siteId = SITE_ID, verbose = false } = {}) {
       result.pending += 1;
       if (verbose) console.log(`[findings] held for review ${slug}`);
     }
+  }
+
+  return result;
+}
+
+const restateFinding = db.prepare(
+  `UPDATE Finding SET title = @title, summary = @summary, bodyHtml = @bodyHtml,
+          detectorVersion = @detectorVersion, verifiedAt = @verifiedAt
+   WHERE id = @id`
+);
+
+/**
+ * Re-renders existing findings under the current detector and template versions,
+ * keeping each one's id, slug, status and publication date.
+ *
+ * Article II says interpretation is versioned; that is only true if a published
+ * conclusion can actually be rebuilt when the method improves. Without this, a
+ * correction to a template reaches new findings only, and everything already
+ * published silently keeps the reasoning of the day it was written.
+ *
+ * Reality is untouched. Claims are recomputed from scratch, and a finding whose
+ * figures no longer verify is reported rather than quietly rewritten — a restate
+ * that had to discard a check is a finding that needs a person, not a new
+ * paragraph.
+ */
+export function restate({ siteId = SITE_ID, detectorId = null, verbose = false } = {}) {
+  const candidates = detectAll(siteId);
+  const result = { considered: 0, restated: 0, unmatched: 0, failed: [] };
+
+  const existing = db
+    .prepare(
+      `SELECT id, slug, status, detectorId, subjectKey, windowStartMs
+       FROM Finding WHERE siteId = ? AND origin = 'detector'
+         AND (? IS NULL OR detectorId = ?)`
+    )
+    .all(siteId, detectorId, detectorId);
+
+  for (const f of existing) {
+    result.considered += 1;
+
+    // Match on what the finding is about, not on its window: the window moves as
+    // more arrives, and a restatement should follow the subject.
+    const candidate = candidates.find(
+      (c) => c.detectorId === f.detectorId && (c.subjectKey ?? null) === f.subjectKey
+    );
+
+    if (!candidate) {
+      result.unmatched += 1;
+      if (verbose) console.log(`[restate] no current candidate for ${f.slug}`);
+      continue;
+    }
+
+    const drafted = render(candidate);
+    if (!drafted) {
+      result.unmatched += 1;
+      continue;
+    }
+
+    dropClaims.run(f.id);
+    const verdict = verifyFinding(f.id, candidate.claims ?? []);
+
+    if (!verdict.ok) {
+      result.failed.push({ slug: f.slug, reason: verdict.reason });
+      if (verbose) console.log(`[restate] FAILED ${f.slug}: ${verdict.reason}`);
+      continue;
+    }
+
+    restateFinding.run({
+      id: f.id,
+      title: drafted.title,
+      summary: drafted.summary,
+      bodyHtml: drafted.body,
+      detectorVersion: DETECTOR_VERSION,
+      verifiedAt: verdict.checkedAt
+    });
+
+    result.restated += 1;
+    if (verbose) console.log(`[restate] ${f.slug} -> ${DETECTOR_VERSION}`);
   }
 
   return result;
