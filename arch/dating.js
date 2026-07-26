@@ -33,11 +33,49 @@ function escapePosix(text) {
  * nothing in half the files here.
  */
 export function comparisonPattern({ subject, operator, value }) {
-  return `${escapePosix(subject)}[[:space:]]*${escapePosix(operator)}[[:space:]]*${value}`;
+  // Anchored on the left, or the pattern silently widens its own subject. Running
+  // this against fastify, `statusCode >= 400` also matched `err.statusCode >= 400`
+  // and `error.statusCode >= 400` — three different expressions, which the scan had
+  // correctly kept apart. The verifier counted 3 files where the scan said 2 and the
+  // finding was refused; the scan was right. `[^_$.[:alnum:]]` keeps a match from
+  // being preceded by a word character or a dot, and `(^|...)` allows the start of
+  // a line.
+  return `(^|[^_$.[:alnum:]])${escapePosix(subject)}[[:space:]]*${escapePosix(operator)}[[:space:]]*${value}`;
 }
 
 function git(args) {
   return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+}
+
+/**
+ * Whether this repository's history has been truncated.
+ *
+ * Dating is the one thing here a reader cannot easily check for themselves, so it is
+ * the one place a confident wrong answer does the most damage — and a shallow clone
+ * produces exactly that. Run against a `--depth 400` clone of fastify, the tool
+ * reported `statusCode >= 400` as first appearing in `51933de5`, "test: replace
+ * removed request properties", on 2025-05-11. That commit is the shallow boundary:
+ * the oldest one present, not the one that introduced anything. The pickaxe cannot
+ * see past it and does not say so.
+ *
+ * CI checkouts are shallow by default, so this is the common case rather than the
+ * exotic one. When the history is truncated nothing is dated at all: every date the
+ * pickaxe could return is a lower bound of unknown distance from the truth, and
+ * "unknown" is the only honest answer available.
+ */
+let shallowCache = null;
+export function historyIsTruncated() {
+  if (shallowCache !== null) return shallowCache;
+  try {
+    shallowCache =
+      execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+        cwd: ROOT,
+        encoding: "utf8"
+      }).trim() === "true";
+  } catch {
+    shallowCache = false;
+  }
+  return shallowCache;
 }
 
 /**
@@ -49,6 +87,7 @@ function git(args) {
  * at, and a finding says which of its sites could not be dated.
  */
 export function firstAppearance({ filePath, subject, operator, value }) {
+  if (historyIsTruncated()) return null;
   const pattern = comparisonPattern({ subject, operator, value });
   let out;
   try {
@@ -112,6 +151,7 @@ export function duplicationBegan(sites) {
  * distrust the figures.
  */
 export function changeHistory({ filePath, subject, operator, value }) {
+  if (historyIsTruncated()) return [];
   const pattern = comparisonPattern({ subject, operator, value });
   let out;
   try {

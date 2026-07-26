@@ -1,6 +1,6 @@
 # What this repository is, checked against what it says
 
-Repository at `49627845` with uncommitted changes at scan time, scanned 2026-07-26T12:41:27.024Z. Method version `scan-1/arch-det-4/arch-tpl-5/arch-ver-2`.
+Repository at `79712c46` with uncommitted changes at scan time, scanned 2026-07-26T14:16:04.876Z. Method version `scan-2/arch-det-5/arch-tpl-6/arch-ver-4`.
 
 2 finding(s), each reviewed by a person before it appeared here. Every figure was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it — so a reader who doubts a number does not have to take this document's word for it.
 
@@ -9,7 +9,7 @@ Repository at `49627845` with uncommitted changes at scan time, scanned 2026-07-
 
 ## `risk.riskScore` is compared against the same 3 boundaries in 2 separate files
 
-Two engines branch on `risk.riskScore` at the same boundaries: `90`, `70`, `50`. The comparison exists at 6 places across 2 files, and the earliest of them had a twin from 17e8f958 onward — 49 days ago.
+2 files decide something by comparing `risk.riskScore` against the same boundaries: `90`, `70`, `50`. The comparison exists at 6 places across 2 files, and the earliest of them had a twin from 17e8f958 onward — 49 days ago.
 
 ## Where it is
 
@@ -49,19 +49,19 @@ Each figure again, with the command that reproduces it:
 **How many files compare `risk.riskScore` against every one of these 3 value(s)**
 
 ```
-git grep -nE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
 ```
 
 **How many places compare `risk.riskScore` against one of these value(s)**
 
 ```
-git grep -nE 'risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
 **The commit where this expression first had a threshold in two files**
 
 ```
-git log --pickaxe-regex -S'risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format='%h %aI %s' -- src/services/policyEngineService.js | head -1
+git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*90' --reverse --format='%h %aI %s' -- src/services/policyEngineService.js | head -1
 ```
 
 ## What this finding does not say
@@ -85,7 +85,7 @@ in a variable and compared elsewhere, is invisible to it.
 
 ## `trafficQuality` is compared against the same 2 boundaries in 2 separate files
 
-Two engines branch on `trafficQuality` at the same boundaries: `80`, `50`. The comparison exists at 4 places across 2 files, and the earliest of them had a twin from a18dfb06 onward — today.
+2 files decide something by comparing `trafficQuality` against the same boundaries: `80`, `50`. The comparison exists at 4 places across 2 files, and the earliest of them had a twin from a18dfb06 onward — today.
 
 ## Where it is
 
@@ -122,19 +122,19 @@ Each figure again, with the command that reproduces it:
 **How many files compare `trafficQuality` against every one of these 2 value(s)**
 
 ```
-git grep -nE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
 ```
 
 **How many places compare `trafficQuality` against one of these value(s)**
 
 ```
-git grep -nE 'trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
 **The commit where this expression first had a threshold in two files**
 
 ```
-git log --pickaxe-regex -S'trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format='%h %aI %s' -- src/services/sessionProfileService.js | head -1
+git log --pickaxe-regex -S'(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*80' --reverse --format='%h %aI %s' -- src/services/sessionProfileService.js | head -1
 ```
 
 ## What this finding does not say

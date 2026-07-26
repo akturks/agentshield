@@ -14,7 +14,7 @@ import { comparisonPattern, duplicationBegan, changeHistory, daysSince } from ".
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-4";
+export const DETECTOR_VERSION = "arch-det-5";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -147,13 +147,13 @@ export function duplicateThresholdSet(scanId) {
           // a line-level approximation of what the scan does properly by stripping
           // comments and strings, which is why the figure is checked that way and
           // not by parsing this output.
-          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 | sort -u`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 | sort -u`,
           verify: { kind: "git-grep-files-all", patterns }
         },
         {
           label: `How many places compare \`${subject}\` against one of these value(s)`,
           expected: String(sites.length),
-          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)'`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)'`,
           verify: { kind: "git-grep-sites-any", patterns }
         },
         ...(began

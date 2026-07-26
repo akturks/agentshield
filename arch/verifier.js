@@ -29,7 +29,7 @@ import { stripCommentsAndStrings } from "./scan.js";
 // not. That split is the useful finding from building this here rather than guessing
 // at it in a design document.
 
-export const VERIFIER_VERSION = "arch-ver-2";
+export const VERIFIER_VERSION = "arch-ver-4";
 
 const EXCLUDED = /\.(backup|bak|orig|old)(\.|$)/;
 
@@ -51,12 +51,34 @@ function git(args) {
 /**
  * Turns a POSIX pattern from dating.js into its JavaScript equivalent.
  *
- * Only the character class differs. git takes `[[:space:]]`, JavaScript takes `\s`,
- * and the first version of this comparison did not translate — so every check
- * against a re-read line failed silently and the counting fell back to git's answer.
+ * JavaScript has no POSIX character classes, and getting this wrong fails silently
+ * in both directions. `[[:space:]]` left untranslated matches a literal 's' and
+ * everything stops matching. Worse, `[^_$.[:alnum:]]` is not merely unsupported: JS
+ * closes the class at the first `]` it sees, so it parses as "not one of `_$.[:alnum`"
+ * followed by a literal `]` — a pattern demanding a bracket before the subject, which
+ * nothing has. That is how the anchored version of fastify's `statusCode >= 400`
+ * came back as `observed 0` when git had correctly found 2.
+ *
+ * Order matters: `[[:space:]]` contains `[:space:]`, so the wider form goes first.
+ * Anything left containing `[:` afterwards is a class this function does not know,
+ * and it throws rather than building a regex whose meaning it cannot vouch for.
  */
 function toJsRegex(pattern) {
-  return new RegExp(pattern.replaceAll("[[:space:]]", "\\s"));
+  const translated = pattern
+    .replaceAll("[[:space:]]", "\\s")
+    .replaceAll("[:space:]", "\\s")
+    .replaceAll("[:alnum:]", "a-zA-Z0-9")
+    .replaceAll("[:digit:]", "0-9")
+    .replaceAll("[:alpha:]", "a-zA-Z");
+
+  if (translated.includes("[:")) {
+    throw new Error(
+      `toJsRegex: unhandled POSIX character class in "${pattern}" — a verifier that ` +
+        `guesses at a pattern it cannot read is worse than one that stops`
+    );
+  }
+
+  return new RegExp(translated);
 }
 
 /**
@@ -78,7 +100,21 @@ function toJsRegex(pattern) {
  * lexer scan. A defect in either still surfaces as a disagreement.
  */
 function codeMatches(pattern) {
-  const raw = git(["grep", "-n", "--extended-regexp", pattern, "--", "*.js"]);
+  // Every extension the scanner reads, not just *.js. Running against axios, the
+  // scan found `NODE_VERSION < 18` in two `.cjs` files and this grep found none —
+  // `-- '*.js'` does not match `.cjs`, so the verifier reported zero and refused a
+  // candidate for the wrong reason. A pathspec narrower than the scan's turns every
+  // finding outside it into a false refusal.
+  const raw = git([
+    "grep",
+    "-n",
+    "--extended-regexp",
+    pattern,
+    "--",
+    "*.js",
+    "*.mjs",
+    "*.cjs"
+  ]);
   const re = toJsRegex(pattern);
   const byFile = new Map();
 

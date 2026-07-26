@@ -24,7 +24,9 @@
 //      finding back until a second detector existed, which stores the doubt in a
 //      queue where no reader ever sees it and pays off once instead of every time.
 
-export const TEMPLATE_VERSION = "arch-tpl-5";
+import { historyIsTruncated } from "./dating.js";
+
+export const TEMPLATE_VERSION = "arch-tpl-6";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -95,14 +97,20 @@ function duplicateThresholdSet({ facts, claims }) {
   const title =
     `\`${subject}\` is compared against the same ${values.length} ${plural} in ${files.length} separate files`;
 
+  // Not "two engines". The word was written for this repository, where the two files
+  // genuinely are a policy engine and an allocation engine — and it followed the
+  // template into fastify, where the two files are `error-handler.js` and
+  // `error-status.js` and calling them engines is an invention. A template may not
+  // name what it has not observed; `files.length` it has.
   const summary =
-    `Two engines branch on \`${subject}\` at the same ${plural}: ${valueList}. ` +
+    `${files.length} files decide something by comparing \`${subject}\` against the same ${plural}: ${valueList}. ` +
     `The comparison exists at ${sites.length} places across ${files.length} files` +
     (began
       ? `, and the earliest of them had a twin from ${short(began.sha)} onward — ${ago(standingDays)}.`
       : `. When the boundaries came to exist in two files at once is not recoverable from the history.`);
 
   const gap = began && firstSeen ? interval(firstSeen.at, began.at) : null;
+  const truncated = historyIsTruncated();
 
   const history = began
     ? `## When this started
@@ -122,10 +130,19 @@ ${values
   )
   .join("\n")}
 `
-    : `## When this started
+    : truncated
+      ? `## When this started
 
-Unknown. The history does not show these sites being added, which happens when a
-file arrived in a squashed import or was reformatted so the text never appears as an
+**Not determined.** This repository's history is truncated — a shallow clone, as CI
+checkouts are by default — so every date git could return here is a lower bound at an
+unknown distance from the truth. Nothing is dated rather than something dated wrongly.
+
+Run again against a full clone (\`git fetch --unshallow\`) and this section fills in.
+`
+      : `## When this started
+
+Unknown. The history does not show these sites being added, which happens when a file
+arrived in a squashed import or was reformatted so the text never appears as an
 addition. Reported as unknown rather than estimated.
 `;
 

@@ -22,7 +22,7 @@ import db, { ROOT } from "./db.js";
 // A parser is the upgrade path, and the reason to take it will be a false
 // positive this cannot avoid rather than a preference for parsers.
 
-export const SCANNER_VERSION = "scan-1";
+export const SCANNER_VERSION = "scan-2";
 
 // Values that carry no design decision. 0 and 1 are structural, 100 is almost
 // always a percentage ceiling, and -1 is a sentinel. A threshold repeated across
@@ -108,6 +108,32 @@ export function stripCommentsAndStrings(source) {
   return out;
 }
 
+/**
+ * Whether a match sits inside the header of a `for` loop.
+ *
+ * Walks back to the nearest `for` on the line and forward to the paren that closes
+ * it, so `for (let i = 0; i < 20; i++) if (x > 5)` skips the first comparison and
+ * keeps the second. A line-local test, which is enough: a for-header split across
+ * lines is rare, and treating a whole line as loop context because it mentions
+ * `for` anywhere would hide real thresholds.
+ */
+function inLoopHeader(line, index) {
+  const before = line.slice(0, index);
+  const forAt = before.search(/\bfor\s*\($/) >= 0 ? before.search(/\bfor\s*\($/) : before.lastIndexOf("for");
+  if (forAt === -1 || !/\bfor\s*\(/.test(before.slice(forAt))) return false;
+
+  let depth = 0;
+  for (let i = before.indexOf("(", forAt); i > -1 && i < line.length; i += 1) {
+    if (line[i] === "(") depth += 1;
+    else if (line[i] === ")") {
+      depth -= 1;
+      if (depth === 0) return index < i;
+    }
+  }
+  // Unclosed on this line: the match is still inside the header.
+  return true;
+}
+
 /** Files git tracks, filtered to the source this scanner understands. */
 function trackedSourceFiles() {
   const listed = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
@@ -127,6 +153,15 @@ function trackedSourceFiles() {
     // True as text, false as a claim about the program.
     if (/\.(backup|bak|orig|old)(\.|$)/.test(p)) return false;
     if (/(^|\/)(dist|build|vendor)\//.test(p)) return false;
+    // Tests, excluded after the first run against code this tool did not grow up
+    // in. Four of the five candidates it produced across express and axios lived
+    // entirely in test files: `for (var i = 0; i < 6000; i++)` repeated across four
+    // of express's router tests, and `bytesReceived <= 1024` across two of axios's
+    // adapter tests. Every one is a fixture size or an assertion bound, and none is
+    // a decision the program makes. A threshold repeated between two tests is not
+    // drift, and a report that says otherwise trains its reader to skim.
+    if (/(^|\/)(test|tests|__tests__|spec|e2e|benchmark|benchmarks)\//.test(p)) return false;
+    if (/\.(test|spec|smoke)\./.test(p)) return false;
     return true;
   });
 }
@@ -187,6 +222,13 @@ export function scanRepository({ verbose = false } = {}) {
       while ((match = COMPARISON.exec(lines[n])) !== null) {
         const [, subject, operator, value] = match;
         if (UNINTERESTING.has(value)) continue;
+        // A loop bound is not a threshold. `for (var i = 0; i < 6000; i++)` says how
+        // many times to go round, not what the program decides at 6000, and express
+        // repeats that exact line in four files. Skipped by position rather than by
+        // subject name, because the problem is the construct and not the variable —
+        // a real threshold can be called `i` and a loop counter can be called
+        // `retryAttempt`.
+        if (inLoopHeader(lines[n], match.index)) continue;
         rows.push({
           id: randomUUID(),
           scanId,
