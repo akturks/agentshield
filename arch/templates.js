@@ -26,7 +26,7 @@
 
 import { historyIsTruncated } from "./dating.js";
 
-export const TEMPLATE_VERSION = "arch-tpl-9";
+export const TEMPLATE_VERSION = "arch-tpl-10";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -189,17 +189,18 @@ in a variable and compared elsewhere, is invisible to it.
 function unimportedModule({ facts, claims }) {
   const { directory, modules, count, documented, neverReferenced, earliest, standingDays } = facts;
 
-  const title = `${count} files in \`${directory}\` are reached by no import in the running program`;
+  const title = `${count} files in \`${directory}\` are named nowhere in the running program`;
 
   const summary =
-    `No import or require statement in the program resolves to any of ${count} files in ` +
-    `\`${directory}\`. ${documented.length} of them are described by name in the documentation. ` +
+    `Nothing in the program names any of ${count} files in \`${directory}\` — not an ` +
+    `import, not a require, and not a path handed to something that loads a file. ` +
+    `${documented.length} of them are described by name in the documentation. ` +
     (earliest
       ? `The oldest arrived in ${short(earliest.sha)}, "${earliest.subject}", ${ago(standingDays)}.`
       : `When they arrived is not recoverable from the history available here.`);
 
   const table = [
-    `| File | Added | Documented in | Ever imported |`,
+    `| File | Added | Documented in | Ever named |`,
     `| --- | --- | --- | --- |`,
     ...modules.map(
       (m) =>
@@ -220,13 +221,13 @@ ${documented
   .join("\n")}
 
 A reader of those documents would take these modules for part of the running system. A
-reader of the import graph would not find them at all. Which of the two is wrong is not
+reader of the code would not find them named anywhere. Which of the two is wrong is not
 something this finding decides.
 `
     : "";
 
   const neverSection = neverReferenced.length
-    ? `## Never imported, at any point in the history
+    ? `## Never named, at any point in the history
 
 ${neverReferenced.map((m) => `- \`${m.path}\``).join("\n")}
 
@@ -246,26 +247,26 @@ ${documentedSection}${neverSection}
 ## Verified figures
 
 Each was recomputed by a different route than the one that produced it: the scan resolves
-import specifiers with its own parser, and the check below asks git whether the name
-appears in any import or require in the tree.
+paths through its own index of the tree, and the check below asks git's regex engine
+whether the name appears in any string literal in the code.
 
 ${claimBlocks(claims)}
 
 ## What this finding does not say
 
-Nothing here says these files are unused. A module can be loaded without being imported
-— from a service manager, a container command, a \`<script>\` tag, a plugin loader that
-builds a path at runtime. Files named by any non-JavaScript file in the repository are
+Nothing here says these files are unused. A module can be loaded without any code naming
+it — from a service manager unit, a container command, a \`<script>\` tag, a path assembled
+piece by piece at runtime. Files named by any non-JavaScript file in the repository are
 already excluded for that reason, but a loader living outside the repository leaves no
 trace inside it.
 
 Nothing here says they should be deleted either. A module written ahead of the pipeline
 that will use it looks exactly like one left behind by a pipeline that changed.
 
-This is not reachability analysis, and deliberately so: this codebase passes its
-collaborators as arguments, so an import graph would report most of \`src/services\` as
-dead. The question asked here is narrower and checkable — whether any import statement
-resolves to the file.
+This is not reachability analysis, and deliberately so. A codebase that passes its
+collaborators in as arguments has modules an import graph cannot see are alive, and
+reporting those as dead would be worse than saying nothing. The question asked here is
+narrower and checkable: does any line of the program write this file's name down.
 `;
 
   return {

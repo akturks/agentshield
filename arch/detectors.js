@@ -6,8 +6,11 @@ import {
   duplicationBegan,
   changeHistory,
   moduleHistory,
+  namedPattern,
   daysSince
 } from "./dating.js";
+import { isGeneratedDoc, GENERATED_MARKER } from "./generated.js";
+import { NOT_PROGRAM_PATTERN } from "./scan.js";
 
 // What the scan means, kept apart from what the scan saw.
 //
@@ -22,7 +25,7 @@ import {
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-7";
+export const DETECTOR_VERSION = "arch-det-12";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -187,13 +190,20 @@ export function duplicateThresholdSet(scanId) {
   return candidates;
 }
 
+// Both ways a file can be reached, in one NOT EXISTS. An `import` row is a resolved
+// specifier; a `path_literal` row is the program writing the file's name down somewhere
+// else — a `fork`, a `spawn`, a worker, a table of plugin paths. Asking only about
+// imports called all four of pm2's process containers dead, and every one of them is
+// launched by name from `lib/God.js`.
 const unimportedModules = db.prepare(`
   SELECT m.value AS path
   FROM RepoReality m
   WHERE m.scanId = ? AND m.kind = 'module' AND m.subject = 'module'
     AND NOT EXISTS (
-      SELECT 1 FROM RepoReality i
-      WHERE i.scanId = m.scanId AND i.kind = 'import' AND i.resolvesTo = m.value
+      SELECT 1 FROM RepoReality r
+      WHERE r.scanId = m.scanId
+        AND r.kind IN ('import', 'path_literal')
+        AND r.resolvesTo = m.value
     )
   ORDER BY m.value
 `);
@@ -226,7 +236,14 @@ function namedOutsideJavaScript(relPath) {
   }
 }
 
-/** How many Markdown files mention this module by name. */
+/**
+ * Which Markdown files written by the project mention this module by name.
+ *
+ * This tool's own reports are excluded, and the reason is not tidiness. The report lists
+ * every module it reports, so the first published one turned `src/services` from 2
+ * documented into 9 — nine modules "described in the documentation" by the document
+ * saying nothing describes them. See `arch/generated.js`.
+ */
 function documentedIn(relPath) {
   const base = relPath.split("/").pop();
   try {
@@ -234,7 +251,7 @@ function documentedIn(relPath) {
       cwd: ROOT,
       encoding: "utf8"
     });
-    return out.split("\n").filter(Boolean);
+    return out.split("\n").filter(Boolean).filter((path) => !isGeneratedDoc(path));
   } catch (err) {
     if (err.status === 1) return [];
     throw err;
@@ -294,6 +311,18 @@ export function unimportedModule(scanId) {
     const documented = modules.filter((m) => m.documentedIn.length > 0);
     const neverReferenced = modules.filter((m) => m.everReferenced === false);
     const dated = modules.filter((m) => m.added).sort((a, b) => a.added.at.localeCompare(b.added.at));
+    const paths = modules.map((m) => m.path).join(" ");
+
+    // The pattern the published commands search with, derived from the one the verifier
+    // uses rather than written out again beside it. Both commands below held their own
+    // copy until this line existed, and one of the copies had already drifted — it was
+    // missing the whitespace exclusion, so the command a reader runs was asking a wider
+    // question than the figure beside it answered. `__B__` stands in for the shell
+    // variable so the pattern can be built by the same function and then substituted.
+    const shellPattern = namedPattern("__B__")
+      .replaceAll('"', '\\"')
+      .replaceAll("`", "\\`")
+      .replaceAll("__B__", "$b");
 
     candidates.push({
       detectorId: "unimported_module",
@@ -311,28 +340,50 @@ export function unimportedModule(scanId) {
       },
       claims: [
         {
-          label: `How many files in \`${directory}\` are reached by no import in the program, tests aside`,
+          label: `How many files in \`${directory}\` the program never names, tests aside`,
           expected: String(modules.length),
+          // Four stages, and each one is a rule the figure above also applies. The
+          // pathspec is every extension the scan reads; the first filter drops matches
+          // on lines that open a comment, because a name written in prose is not the
+          // program naming a file; the second drops files the scan does not treat as
+          // part of the program, via the same list; the third drops the file's own
+          // definition of itself.
           reproduceWith:
-            `for f in ${modules.map((m) => m.path).join(" ")}; do ` +
-            `b=$(basename "$f" .js); ` +
-            `git grep -qE "(from|require\\()[^\\\"']*[\\\"'][^\\\"']*\\$b(\\.js)?[\\\"']" -- "*.js" || echo "$f"; ` +
-            `done | wc -l`,
+            `for f in ${paths}; do b=$(basename "$f" .js); ` +
+            `git grep -nE "${shellPattern}" -- '*.js' '*.mjs' '*.cjs' ` +
+            `| grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 ` +
+            `| grep -vE '${NOT_PROGRAM_PATTERN}' | grep -vxF "$f" ` +
+            `| grep -q . || echo "$f"; done | wc -l`,
           verify: { kind: "unimported-count", paths: modules.map((m) => m.path) }
         },
         {
           label: `How many of those the documentation describes by name`,
           expected: String(documented.length),
+          // The first line excludes this tool's own reports, which is the difference
+          // between 2 and 9 here. The report names every module it reports, so counting
+          // it as documentation makes the figure describe the report instead of the
+          // project — and a published command that prints 9 beside a published 2 costs
+          // the reader more trust than the figure was ever worth.
           reproduceWith:
-            `for f in ${modules.map((m) => m.path).join(" ")}; do ` +
-            `git grep -l -F "$(basename "$f")" -- "*.md" >/dev/null && echo "$f"; done | wc -l`,
+            `gen=$(git grep -l -F '${GENERATED_MARKER}' -- '*.md')\n` +
+            `for f in ${paths}; do ` +
+            `git grep -l -F "$(basename "$f")" -- '*.md' | grep -vxF "$gen" >/dev/null && echo "$f"; ` +
+            `done | wc -l`,
           verify: { kind: "documented-count", paths: modules.map((m) => m.path) }
         },
         {
-          label: `How many were never imported by any commit in the history`,
+          label: `How many the program has never named, in any commit in the history`,
           expected: String(neverReferenced.length),
+          // Runnable, which it was not. This was published as a sketch carrying a
+          // `<basename>` placeholder — a line that reads like a command, prints nothing
+          // when pasted, and leaves the one figure a reader cannot check by eye
+          // unverifiable by exactly the reader most likely to try.
           reproduceWith:
-            `# per file: git log --pickaxe-regex -S'(from|require)[^\\n]*<basename>' -- '*.js' | wc -l`,
+            `n=0\n` +
+            `for f in ${paths}; do b=$(basename "$f" .js); ` +
+            `git log --pickaxe-regex -S"${shellPattern}" --format=%H -- '*.js' '*.mjs' '*.cjs' ` +
+            `| grep -q . || n=$((n+1)); done\n` +
+            `echo "$n"`,
           verify: { kind: "never-referenced-count", paths: modules.map((m) => m.path) }
         }
       ]

@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import db, { ROOT } from "./db.js";
-import { firstAppearance, importPattern } from "./dating.js";
-import { stripCommentsAndStrings, isProgramFile } from "./scan.js";
+import { firstAppearance, namedPattern } from "./dating.js";
+import { stripCommentsAndStrings, stripComments, isProgramFile } from "./scan.js";
+import { isGeneratedDoc } from "./generated.js";
 
 // Recomputes every figure by a different route than the one that produced it.
 //
@@ -29,7 +30,7 @@ import { stripCommentsAndStrings, isProgramFile } from "./scan.js";
 // not. That split is the useful finding from building this here rather than guessing
 // at it in a design document.
 
-export const VERIFIER_VERSION = "arch-ver-8";
+export const VERIFIER_VERSION = "arch-ver-10";
 
 const EXCLUDED = /\.(backup|bak|orig|old)(\.|$)/;
 
@@ -153,6 +154,44 @@ function matchingFiles(pattern) {
   return [...codeMatches(pattern).keys()];
 }
 
+/**
+ * Program files whose code writes this module's name down, by any means.
+ *
+ * Confirmed by re-reading with comments removed and strings kept, which is the only part
+ * of this that needs care: `git grep` finds the name in prose as readily as in a `fork`
+ * call, and a module whose *documentation* mentions it would then count as reached — the
+ * quietest possible false negative, since it makes the tool report nothing.
+ */
+function namingFiles(path) {
+  const pattern = namedPattern(path.split("/").pop());
+  const re = toJsRegex(pattern);
+  const raw = git([
+    "grep",
+    "-l",
+    "--extended-regexp",
+    pattern,
+    "--",
+    "*.js",
+    "*.mjs",
+    "*.cjs"
+  ]);
+
+  return raw
+    .split("\n")
+    .map((l) => l.trim())
+    // Same scope the scan uses, via the same predicate. Test scripts import some of
+    // these modules and the scan does not read test scripts, so counting their imports
+    // here would refuse a finding that is correct about the program.
+    .filter((l) => l && l !== path && isProgramFile(l))
+    .filter((candidate) => {
+      try {
+        return re.test(stripComments(readFileSync(join(ROOT, candidate), "utf8")));
+      } catch {
+        return false;
+      }
+    });
+}
+
 function matchingSites(pattern) {
   let total = 0;
   for (const lines of codeMatches(pattern).values()) total += lines.length;
@@ -181,41 +220,31 @@ export function observe(claim) {
   if (spec.kind === "git-grep-sites-any") {
     return String(spec.patterns.reduce((total, p) => total + matchingSites(p), 0));
   }
-  // Recomputed from git's view of the tree, not from the scan's import rows. The scan
-  // parses imports with a regex over stripped lines; this asks git whether the module's
-  // name appears in any import or require anywhere. The two disagree when the scan's
-  // resolution is wrong — which is the whole reason the claim is checked this way.
+  // Recomputed from git's view of the tree, not from the scan's rows. The scan resolves
+  // path literals through its own tail-matching index; this asks git's regex engine
+  // whether the module's name appears in any string literal in the tree. The two
+  // disagree when the scan's resolution is wrong — which is why the claim is checked
+  // this way rather than by re-running the query that produced it.
   if (spec.kind === "unimported-count") {
-    let unimported = 0;
+    let unreached = 0;
     for (const path of spec.paths) {
-      const hits = git([
-        "grep",
-        "-l",
-        "--extended-regexp",
-        importPattern(path.split("/").pop()),
-        "--",
-        "*.js",
-        "*.mjs",
-        "*.cjs"
-      ])
-        .split("\n")
-        .map((l) => l.trim())
-        // Same scope the scan uses, via the same predicate. Test scripts import some
-        // of these modules and the scan does not read test scripts, so counting their
-        // imports here would refuse a finding that is correct about the program.
-        .filter((l) => l && l !== path && isProgramFile(l));
-      if (hits.length === 0) unimported += 1;
+      if (namingFiles(path).length === 0) unreached += 1;
     }
-    return String(unimported);
+    return String(unreached);
   }
 
   if (spec.kind === "documented-count") {
     let documented = 0;
     for (const path of spec.paths) {
       const base = path.split("/").pop();
+      // This tool's own reports do not count as the project documenting anything, via
+      // the same predicate the detector uses. Two definitions of "documentation" here
+      // would be the seventh time, and this one would make both paths agree on a figure
+      // the report had manufactured about itself.
       const hits = git(["grep", "-l", "-F", base, "--", "*.md"])
         .split("\n")
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter((hit) => !isGeneratedDoc(hit));
       if (hits.length > 0) documented += 1;
     }
     return String(documented);
@@ -227,7 +256,7 @@ export function observe(claim) {
       const out = git([
         "log",
         "--pickaxe-regex",
-        `-S${importPattern(path.split("/").pop())}`,
+        `-S${namedPattern(path.split("/").pop())}`,
         "--format=%H",
         "--",
         "*.js",

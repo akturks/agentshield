@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { runOnce, restate, pending, published, approve, reject, ENGINE_VERSION } from "./engine.js";
 import { claimsFor } from "./verifier.js";
-import { scanRepository, latestScan } from "./scan.js";
+import { GENERATED_MARKER } from "./generated.js";
+import { scanRepository, latestScan, coverage } from "./scan.js";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -86,11 +87,33 @@ switch (cmd) {
     const scan = latestScan();
     const lines = [];
 
+    // The report says, in the file, that a tool wrote it. Not a courtesy: one of this
+    // tool's own figures counts how many Markdown files describe a module by name, and
+    // this document names every module it reports. Writing it therefore raised its own
+    // "documented in" count from 2 to 9 on the next run — the tool citing its output as
+    // evidence about the project. The marker is how both the detector and the verifier
+    // recognise their own output and leave it out, whatever path it was written to.
+    lines.push(`${GENERATED_MARKER}\n`);
     lines.push(`# What this repository is, checked against what it says\n`);
     lines.push(
       `Repository at \`${scan?.commitSha?.slice(0, 8) ?? "unknown"}\`${
         scan?.dirty ? " with uncommitted changes at scan time" : ""
       }, scanned ${scan?.scannedAt ?? "never"}. Method version \`${ENGINE_VERSION}\`.\n`
+    );
+    // Beside the finding count, never below it. A reader who sees "0 findings" without
+    // this cannot tell a clean repository from one written in a language this tool does
+    // not read, and the second is the common case in a working Node codebase.
+    const seen = coverage();
+    lines.push(
+      `Read ${seen.read} of the ${seen.read + seen.excludedSource} JavaScript files here ` +
+        `— the other ${seen.excludedSource} are tests, examples or generated output — out ` +
+        `of ${seen.tracked} files in the repository.` +
+        (seen.typescript > 0
+          ? ` **${seen.typescript} TypeScript file${seen.typescript === 1 ? "" : "s"} ` +
+            `w${seen.typescript === 1 ? "as" : "ere"} not read**, and nothing below is a ` +
+            `statement about ${seen.typescript === 1 ? "it" : "them"}.`
+          : "") +
+        `\n`
     );
     lines.push(
       `${live.length} finding(s), each reviewed by a person before it appeared here. ` +

@@ -71,6 +71,16 @@ export function renderMarkdown(source) {
       continue;
     }
 
+    // A line that is only an HTML comment is dropped, not rendered and not passed
+    // through. `docs/self-audit.md` opens with `<!-- generated-by: arch -->`, which the
+    // arch pipeline uses to recognise its own output, and this subset escapes everything
+    // it does not understand — so the marker appeared on the published page as visible
+    // text. Dropping it keeps that escaping intact: nothing here ever emits raw HTML.
+    if (trimmed.startsWith("<!--") && trimmed.endsWith("-->")) {
+      i += 1;
+      continue;
+    }
+
     if (trimmed === "---") {
       out.push("<hr>");
       i += 1;

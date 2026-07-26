@@ -22,7 +22,7 @@ import db, { ROOT } from "./db.js";
 // A parser is the upgrade path, and the reason to take it will be a false
 // positive this cannot avoid rather than a preference for parsers.
 
-export const SCANNER_VERSION = "scan-7";
+export const SCANNER_VERSION = "scan-10";
 
 // Values that carry no design decision. 0 and 1 are structural, 100 is almost
 // always a percentage ceiling, and -1 is a sentinel. A threshold repeated across
@@ -32,18 +32,26 @@ const UNINTERESTING = new Set(["0", "1", "-1", "100"]);
 const COMPARISON = /([A-Za-z_$][\w$.[\]'"]*)\s*(>=|<=|===|!==|==|!=|>|<)\s*(\d+(?:\.\d+)?)\b/g;
 
 /**
- * Removes comments and string literals, preserving line structure.
+ * Removes comments, and optionally string literals, preserving line structure.
  *
  * Line count must survive exactly, because a finding that cites the wrong line
  * costs more than one that cites no line: the reader looks, sees something else,
  * and stops trusting the rest of the report.
+ *
+ * Two callers want two different things from the same walk, and the option exists
+ * rather than a second function because "what is a comment" must have exactly one
+ * definition here. A threshold inside a comment is documentation; a *path* inside a
+ * string is the program naming a file. One of those questions needs strings gone and
+ * the other needs them kept, and neither needs its own idea of where a comment ends.
  */
-export function stripCommentsAndStrings(source) {
+function strip(source, { keepStrings }) {
   let out = "";
   let i = 0;
   const n = source.length;
   let state = "code";
   let quote = "";
+  let inClass = false;
+  let previous = null;
 
   while (i < n) {
     const c = source[i];
@@ -60,13 +68,56 @@ export function stripCommentsAndStrings(source) {
         i += 2;
         continue;
       }
+      if (c === "/" && regexCanStartAfter(previous)) {
+        state = "regex";
+        inClass = false;
+        i += 1;
+        continue;
+      }
       if (c === '"' || c === "'" || c === "`") {
         state = "string";
         quote = c;
+        if (keepStrings) out += c;
         i += 1;
         continue;
       }
       out += c;
+      if (!/\s/.test(c)) previous = c;
+      i += 1;
+      continue;
+    }
+
+    // regex literal. Skipped like a string, and for the same reason: it is data, not a
+    // branch and not a path. Handling it at all was forced by this file — line 32 holds
+    // `/([A-Za-z_$][\w$.[\]'"]*)\s*.../g`, whose character class contains a lone
+    // apostrophe. Without this branch the walker read that as the start of a string and
+    // stayed in it for a hundred and thirty lines, so every comment below it came back
+    // as code. That is how a doc comment mentioning `Evidence.js` made this tool report
+    // one of its own modules as reached, and it had been true of the threshold scan from
+    // the beginning without ever producing a visible wrong answer.
+    if (state === "regex") {
+      if (c === "\\") {
+        i += 2;
+        continue;
+      }
+      // A regex literal cannot contain an unescaped newline. Reaching one means the `/`
+      // was division after all, so the walker returns to code rather than swallowing the
+      // rest of the file — a wrong guess costs one line instead of everything after it.
+      if (c === "\n") {
+        state = "code";
+        out += "\n";
+        i += 1;
+        continue;
+      }
+      if (c === "[") inClass = true;
+      else if (c === "]") inClass = false;
+      else if (c === "/" && !inClass) {
+        state = "code";
+        previous = "/";
+        i += 1;
+        while (i < n && /[a-z]/.test(source[i])) i += 1;
+        continue;
+      }
       i += 1;
       continue;
     }
@@ -93,19 +144,47 @@ export function stripCommentsAndStrings(source) {
 
     // string
     if (c === "\\") {
+      if (keepStrings) out += source.slice(i, i + 2);
       i += 2;
       continue;
     }
     if (c === quote) {
       state = "code";
+      if (keepStrings) out += c;
       i += 1;
       continue;
     }
-    if (c === "\n") out += "\n";
+    if (c === "\n" || keepStrings) out += c;
     i += 1;
   }
 
   return out;
+}
+
+/**
+ * Whether a `/` at this point opens a regex literal rather than dividing.
+ *
+ * Decided from the last significant character, which is what a JavaScript lexer without a
+ * parser has to go on. After `=`, `(`, `,`, `[` and the operators, a `/` can only begin a
+ * regex; after an identifier, a digit, `)` or `]` it is division.
+ *
+ * `return /x/.test(s)` is judged wrong by this — the `n` of `return` reads as an
+ * identifier — and that is the acceptable direction to be wrong in. Guessing "division"
+ * leaves the regex body treated as code, which is what this file did everywhere before
+ * this function existed; guessing "regex" wrongly would skip real code.
+ */
+function regexCanStartAfter(previous) {
+  return previous === null || /[=(,[!&|?{};:+\-*~^%<>]/.test(previous);
+}
+
+/** Code with comments and string literals gone. What a threshold must be found in. */
+export function stripCommentsAndStrings(source) {
+  return strip(source, { keepStrings: false });
+}
+
+/** Code with comments gone and strings intact. What a file path must be found in. */
+export function stripComments(source) {
+  return strip(source, { keepStrings: true });
 }
 
 /**
@@ -147,21 +226,44 @@ function inLoopHeader(line, index) {
  * Independence belongs in the search, never in the vocabulary. One definition, two
  * mechanisms.
  */
+export const SOURCE_EXTENSION = "\\.(js|mjs|cjs)$";
+
+/**
+ * Everything a source file can be that is not part of the program.
+ *
+ * Written in the subset of regular-expression syntax that means the same thing to
+ * JavaScript and to POSIX extended regular expressions, so the shell commands published
+ * inside a finding can filter by the identical rules instead of restating them. That is
+ * not a stylistic preference. The published command carried its own hand-written version
+ * of these exclusions, it did not know about test files, and it printed 8 next to a
+ * published 9 — a reader checking the report would have concluded the report was wrong.
+ */
+export const NOT_PROGRAM = [
+  "node_modules/",
+  "\\.(backup|bak|orig|old)(\\.|$)",
+  "(^|/)(dist|build|vendor)/",
+  "(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/",
+  "\\.(test|spec|smoke)\\.",
+  "(^|/)(test|prisma|seed)-[^/]*\\.(js|mjs|cjs)$",
+  // Illustrative rather than part of the program. fastify ships 8 files in
+  // `examples/` and winston 25, and every one is standalone by design — an example
+  // nothing imports is an example working as intended. Reporting them as dead code
+  // is the same error as reporting a test's fixture size as a threshold.
+  "(^|/)(examples?|demos?|samples?|fixtures?)/",
+  // Files copied into somebody else's project rather than run in this one. sequelize
+  // keeps four in `packages/cli/static/skeletons`, and nothing imports a skeleton for
+  // the same reason nothing imports an example.
+  "(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/"
+];
+
+/** The same exclusions as one alternation, for `grep -vE` in a published command. */
+export const NOT_PROGRAM_PATTERN = NOT_PROGRAM.join("|");
+
+const sourceRe = new RegExp(SOURCE_EXTENSION);
+const notProgramRe = new RegExp(NOT_PROGRAM_PATTERN);
+
 export function isProgramFile(p) {
-  return (
-    /\.(js|mjs|cjs)$/.test(p) &&
-    !/node_modules\//.test(p) &&
-    !/\.(backup|bak|orig|old)(\.|$)/.test(p) &&
-    !/(^|\/)(dist|build|vendor)\//.test(p) &&
-    !/(^|\/)(test|tests|__tests__|spec|e2e|benchmark|benchmarks)\//.test(p) &&
-    !/\.(test|spec|smoke)\./.test(p) &&
-    !/(^|\/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$/.test(p) &&
-    // Illustrative rather than part of the program. fastify ships 8 files in
-    // `examples/` and winston 25, and every one is standalone by design — an example
-    // nothing imports is an example working as intended. Reporting them as dead code
-    // is the same error as reporting a test's fixture size as a threshold.
-    !/(^|\/)(examples?|demos?|samples?|fixtures?)\//.test(p)
-  );
+  return sourceRe.test(p) && !notProgramRe.test(p);
 }
 
 /**
@@ -190,17 +292,41 @@ function trackedSourceFiles() {
  * agentshield named 50 files, and a third of them were command-line tools, config
  * files and one-off scripts: nothing imports a CLI, and saying so is true and useless.
  *
- * Three signals, all of them declarations rather than guesses. A shebang is a file
+ * Five signals, all of them declarations rather than guesses. A shebang is a file
  * saying "run me". An appearance in package.json scripts is the project saying it.
- * A `*.config.js` name is the ecosystem's convention, read by tools that require the
- * file themselves. Anything relying on a hunch about the filename stays out.
+ * A `*.config.js` or `.somethingrc.js` name is the ecosystem's convention, read by tools
+ * that require the file themselves. And a file at the root whose name is a declared
+ * dependency belongs to that dependency: sequelize keeps `typedoc.js` beside a
+ * `typedoc` devDependency, and the tool reported it and `.eslintrc.js` as dead code.
+ *
+ * Note what the last signal is not. It is not "this filename looks like a config" — it
+ * is the project's own package.json saying the name refers to a tool it installed.
+ * Anything relying on a hunch about the filename stays out.
  */
+/** Every package name this project declares it depends on, of any kind. */
+function declaredDependencies() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    return new Set(
+      ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]
+        .flatMap((field) => Object.keys(pkg[field] ?? {}))
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 function entryPoints(files) {
   const entries = new Set();
+  const declared = declaredDependencies();
 
   for (const rel of files) {
     if (/(^|\/)bin\//.test(rel)) entries.add(rel);
     if (/\.config\.(js|mjs|cjs)$/.test(rel)) entries.add(rel);
+    if (/^\.[\w.-]*rc\.(js|mjs|cjs)$/.test(rel)) entries.add(rel);
+    // Root level only. Deeper down, a file sharing a package's name is far more likely
+    // to be a module about that package than the package's own configuration.
+    if (!rel.includes("/") && declared.has(rel.replace(/\.(js|mjs|cjs)$/, ""))) entries.add(rel);
     try {
       const fd = openSync(join(ROOT, rel), "r");
       const head = Buffer.alloc(2);
@@ -282,6 +408,78 @@ function resolveSpecifier(fromRel, specifier, fileSet) {
   return null;
 }
 
+// Any quoted string. Read from code with comments removed and strings intact, so a
+// path mentioned in prose above the function does not count as the program naming it.
+const STRING_LITERAL = /["'`]([^"'`\n]*)["'`]/g;
+
+// A path segment with nothing computed in it. `${dir}` is not one; `ProcessContainer.js`
+// is. Used to find the plain tail of a literal — see `filesNamedBy`.
+const PLAIN_SEGMENT = /^[\w.@-]+$/;
+
+/**
+ * Which tracked files a string literal could be naming.
+ *
+ * `resolveSpecifier` answers where an import points, and it is the wrong tool for this
+ * question. pm2 starts four of its own modules with
+ * `path.resolve(path.dirname(module.filename), 'ProcessContainer.js')` and hands the
+ * result to `child_process.fork`. There is no import keyword, the specifier is a bare
+ * basename that resolves relative to nothing, and all four files came back as reached by
+ * nothing — a false positive on every one, in the most-downloaded process manager in the
+ * ecosystem.
+ *
+ * So the question asked here is deliberately weaker and answerable: does the program
+ * write this file's name down anywhere. `fork`, `spawn`, `new Worker`, an `execArgv`, a
+ * plugin table of paths — all of them name the file, and none of them import it.
+ *
+ * The literal's longest *plain* trailing run of segments is matched against the end of
+ * each tracked path at a segment boundary. `` `${root}/lib/x.js` `` therefore matches
+ * `lib/x.js`, `'./x.js'` matches any `x.js`, and `'src/a/b.js'` must match that whole
+ * tail rather than any `b.js`. Ambiguity resolves outward: a literal naming `index.js`
+ * marks every `index.js` as named. That direction is chosen on purpose — the cost of
+ * being too generous is a dead module this tool stays quiet about, and the cost of being
+ * too strict is telling somebody their running code is dead.
+ */
+function filesNamedBy(literal, filesByTail) {
+  // A path has no spaces in it. A command does. `tools/repo-analyst.js` contains the
+  // string "git log -- src/services/outcomeEngineService.js", and counting that as the
+  // program loading the file silenced a genuine finding — the module documented in
+  // SYSTEM_OF_RECORD.md that nothing runs. Naming a file *to* a subprocess as an argument
+  // is the opposite of loading it, and the whitespace tells the two apart at no cost.
+  if (/\s/.test(literal)) return [];
+
+  const segments = literal.trim().split("/");
+  const tail = [];
+  for (let i = segments.length - 1; i >= 0; i -= 1) {
+    if (!PLAIN_SEGMENT.test(segments[i])) break;
+    tail.unshift(segments[i]);
+  }
+  if (tail.length === 0) return [];
+  if (!/\.(js|mjs|cjs)$/.test(tail[tail.length - 1])) return [];
+
+  // Longest tail first: the literal claims as much of the path as it plainly states,
+  // and a shorter match would widen a specific reference into a vague one.
+  for (let start = 0; start < tail.length; start += 1) {
+    const key = tail.slice(start).join("/");
+    const hit = filesByTail.get(key);
+    if (hit) return hit;
+  }
+  return [];
+}
+
+/** Every tracked file indexed by each of its path suffixes, at segment boundaries. */
+function indexByTail(files) {
+  const index = new Map();
+  for (const rel of files) {
+    const segments = rel.split("/");
+    for (let start = 0; start < segments.length; start += 1) {
+      const key = segments.slice(start).join("/");
+      if (!index.has(key)) index.set(key, []);
+      index.get(key).push(rel);
+    }
+  }
+  return index;
+}
+
 function head() {
   const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim();
   const at = execFileSync("git", ["log", "-1", "--format=%aI", sha], {
@@ -317,6 +515,7 @@ export function scanRepository({ verbose = false } = {}) {
   const { sha, at, dirty } = head();
   const files = trackedSourceFiles();
   const fileSet = new Set(files);
+  const filesByTail = indexByTail(files);
   const entries = entryPoints(files);
   const scanId = randomUUID();
   const now = new Date();
@@ -354,6 +553,11 @@ export function scanRepository({ verbose = false } = {}) {
     const cleaned = stripCommentsAndStrings(source);
     const originalLines = source.split("\n");
     const lines = cleaned.split("\n");
+    // Comments gone, strings kept. Everything below that looks for a path looks here,
+    // which replaced a gate that tested the stripped line for an import keyword and then
+    // read the original: that let a commented-out `require('./x')` count whenever it
+    // shared a line with live code.
+    const codeLines = stripComments(source).split("\n");
 
     for (let n = 0; n < lines.length; n += 1) {
       COMPARISON.lastIndex = 0;
@@ -382,17 +586,15 @@ export function scanRepository({ verbose = false } = {}) {
         });
       }
 
-      // Read from the original line, not the stripped one. An import specifier *is*
+      // Read from the comment-free line, not the stripped one. An import specifier *is*
       // a string literal, so `stripCommentsAndStrings` deletes exactly the thing this
       // is looking for — the first version of this recorded zero imports in a repo
-      // with hundreds. The stripped line is still consulted, for whether the keyword
-      // survived it: a line whose `import` sits inside a comment has no keyword left,
-      // so this reads the original only where the stripped version proves it is code.
-      if (!/\b(import|require|from)\b/.test(lines[n])) continue;
+      // with hundreds.
+      const codeLine = codeLines[n] ?? "";
 
       IMPORT.lastIndex = 0;
       let imp;
-      while ((imp = IMPORT.exec(originalLines[n] ?? "")) !== null) {
+      while ((imp = IMPORT.exec(codeLine)) !== null) {
         const specifier = imp[1];
         rows.push({
           id: randomUUID(),
@@ -406,6 +608,30 @@ export function scanRepository({ verbose = false } = {}) {
           sourceLine: (originalLines[n] ?? "").trim().slice(0, 300),
           resolvesTo: resolveSpecifier(relPath, specifier, fileSet)
         });
+      }
+
+      // Every file this line names, however it names it. Separate from the import rows
+      // on purpose: "an import points here" and "the program writes this name down" are
+      // different facts, and a detector that needs the second one must not have to
+      // pretend it found the first.
+      STRING_LITERAL.lastIndex = 0;
+      let lit;
+      while ((lit = STRING_LITERAL.exec(codeLine)) !== null) {
+        for (const named of filesNamedBy(lit[1], filesByTail)) {
+          if (named === relPath) continue;
+          rows.push({
+            id: randomUUID(),
+            scanId,
+            kind: "path_literal",
+            filePath: relPath,
+            line: n + 1,
+            subject: lit[1],
+            operator: null,
+            value: lit[1],
+            sourceLine: (originalLines[n] ?? "").trim().slice(0, 300),
+            resolvesTo: named
+          });
+        }
       }
     }
   }
@@ -448,4 +674,33 @@ export function latestScan() {
   return db
     .prepare("SELECT * FROM RepoScan ORDER BY scannedAtMs DESC LIMIT 1")
     .get();
+}
+
+/**
+ * What share of the repository this tool is able to read.
+ *
+ * A report of "0 findings" is the most dangerous output this tool can produce, because it
+ * reads as a clean bill of health and is indistinguishable from a tool that was not
+ * looking. Run against etherpad-lite it read 16 files of 555 — 41 JavaScript files beside
+ * 514 TypeScript ones — and reported nothing, truthfully.
+ *
+ * So every report states this. Not a caveat in a footer: the numerator and denominator,
+ * where the reader sees the finding count, so a zero can be read for what it is.
+ */
+export function coverage() {
+  const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean);
+
+  const read = tracked.filter(isProgramFile);
+  // Counted separately because it is the specific reason a large repository can come back
+  // almost empty, and naming it is more use to a reader than a bare percentage.
+  const typescript = tracked.filter((p) => /\.(ts|tsx|mts|cts)$/.test(p));
+
+  return {
+    read: read.length,
+    tracked: tracked.length,
+    typescript: typescript.length,
+    excludedSource: tracked.filter((p) => sourceRe.test(p)).length - read.length
+  };
 }

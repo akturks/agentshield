@@ -31,7 +31,7 @@ import { ROOT } from "./db.js";
  * The rule that keeps emerging: independence belongs in the search, never in the
  * vocabulary. Two mechanisms, one definition.
  */
-export function importPattern(basename) {
+export function namedPattern(basename) {
   const stem = escapePosix(basename.replace(/\.(js|mjs|cjs)$/, ""));
   // The basename must sit at a path boundary — right after the opening quote, or after a
   // slash. Without that, `system.js` matches `require('./filesystem-provider')`, because
@@ -39,7 +39,30 @@ export function importPattern(basename) {
   // `src/ollama/prompt/system.js` as imported when nothing imports it. Same shape as the
   // `statusCode` / `err.statusCode` widening in comparisonPattern, and the same fix:
   // a pattern with no left boundary silently answers a wider question than it was asked.
-  return `(from|require)[^'\"]*['\"]([^'\"]*/)?${stem}(\\.(js|mjs|cjs))?['\"]`;
+  // The prefix must end in a slash or be absent entirely. Anything looser reopens the
+  // `filesystem` / `system` widening one character at a time: `[^'"`]*/?` lets the
+  // prefix swallow `./file` and match the `system` inside `filesystem`.
+  //
+  // And it must contain no whitespace, because a quoted path is not a quoted command.
+  // Without that, `"git log -- src/services/outcomeEngineService.js"` matches, and this
+  // said the module was named while the scan — which had the rule — said it was not.
+  // Same word, two definitions, one refused finding: the sixth time in this tool.
+  return `['\"\`]([^'\"\`[:space:]]*/)?${stem}(\\.(js|mjs|cjs))?['\"\`]`;
+}
+
+/**
+ * A pattern matching any string literal that names a module with this basename.
+ *
+ * Note what this does *not* require: an import keyword. pm2 starts four of its own
+ * modules by writing their names into `child_process.fork`, and the earlier version of
+ * this insisted on `from` or `require` before the quote. All four came back as reached by
+ * nothing, and the verifier agreed, because both paths were reading the same too-narrow
+ * definition — which is the exact limit of sharing one: independence in the *search*
+ * catches a broken lexer, and never catches a definition that is wrong in both places.
+ * Only pointing the tool at code it did not write catches that.
+ */
+export function importPattern(basename) {
+  return `(from|require)[^'\"]*${namedPattern(basename)}`;
 }
 
 /** Escapes a string for use inside a POSIX basic regular expression. */
@@ -208,17 +231,17 @@ export function daysSince(iso) {
 }
 
 /**
- * When a file was added, and whether anything ever imported it.
+ * When a file was added, and whether the program ever named it.
  *
- * "Nothing imports this" is a fact about now. The question a reader actually has is
+ * "Nothing reaches this" is a fact about now. The question a reader actually has is
  * whether it was ever wired up — a module written for a pipeline that never shipped is
  * a different story from one that was connected and then orphaned, and only the second
  * has a commit where somebody removed the last caller.
  *
- * The pickaxe is asked about the module's own basename across all source. Its own
- * creation shows up as one of those commits, so a module never imported produces a
- * count of one, and anything above one means a reference to the name existed elsewhere
- * at some point.
+ * The pickaxe is asked with `namedPattern` and not `importPattern`, so a module launched
+ * by path rather than imported counts as referenced. It has to be the same question the
+ * detector asks about the present, or the report says "never imported" of a file that a
+ * `fork` call has been starting since 2013.
  */
 export function moduleHistory(relPath) {
   if (historyIsTruncated()) return { added: null, referenceCommits: [], everReferenced: null };
@@ -248,7 +271,7 @@ export function moduleHistory(relPath) {
     const out = git([
       "log",
       "--pickaxe-regex",
-      `-S${importPattern(relPath.split("/").pop())}`,
+      `-S${namedPattern(relPath.split("/").pop())}`,
       "--format=%H%x09%aI%x09%s",
       "--",
       "*.js",
