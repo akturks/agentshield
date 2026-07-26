@@ -19,9 +19,12 @@ Architectural decisions must not violate this document.
 
 # Core Thesis
 
-AgentShield is a Historical State Preservation System for Digital Actors.
+AgentShield is an independent behavioural trust and evidence platform.
 
-The system preserves historical reality and enables historical state restoration.
+It reaches that purpose by preserving historical state for digital actors: the
+system preserves historical reality and enables historical state restoration.
+Preservation is the mechanism, not the identity — the identity is fixed by the
+*Purpose* article of `CONSTITUTION.md` and stated identically everywhere.
 
 Trust, Risk, Reputation, Memory and other interpretations are derived from this foundation.
 
@@ -299,3 +302,51 @@ Historical states must remain restorable.
 
 Historical reality must not depend on any specific interpretation model.
 
+
+---
+
+# Knowledge Formation — Target Architecture
+
+How an observation becomes knowledge. This chain is the project's most distinctive
+claim, and it is recorded here as a **target**, not as a description of the
+running system.
+
+It is deliberately *not* in `CONSTITUTION.md`. The Constitution states what must
+be true; five of the seven stages below are not true yet. Writing them into it
+would make most of the document unfalsifiable, which is the exact mechanism that
+produced three mutually incompatible "canonical" pipelines across these documents
+in the first place. A stage graduates to the Constitution when two conditions
+hold: it is reachable from the live request path, and there is a check that fails
+when it is bypassed.
+
+Status measured 2026-07-26 by tracing imports from `server.js`.
+
+| Stage | Intended role | Implementation | Status |
+|---|---|---|---|
+| Observation | Receive and store what happened | `observationGenerationService.js` | **unwired** — zero imports |
+| Discovery | Find structure across observations | `discoveryService.js`, `populationDiscoveryService.js` | **unwired** — zero imports |
+| | | `patternDiscoveryService.js` | **unreachable** — only imported by `populationArchiveBuilderService.js`, itself unwired |
+| Independent Evidence | Derive evidence that did not come from the conclusion | `evidenceDerivationService.js` | **live, but partial** — reached via `trustCalculationService` as a trust input, not as independent evidence |
+| Calibration | Establish how much a signal is worth | — | **absent** — no implementation exists |
+| Audit | Re-derive a conclusion from the record | — | **absent** — no implementation exists |
+| Assessment | State what may be concluded | `trustAssessmentBuilderService.js` | **live** — imported by `server.js` |
+| Knowledge | Promote a repeatedly confirmed assessment | `knowledgePromotionService.js` | **unwired** — zero imports |
+
+Two stages live, three written but unreachable, two never written.
+
+The gap between this table and the prose elsewhere in `docs/` is the honest state
+of the project. Do not close it by editing the table.
+
+## What the absent stages would have to do
+
+**Calibration** and **Audit** are the two that carry the weight, and neither
+exists. Without calibration, a signal's contribution to a trust score is a
+constant someone chose. Without audit, an assessment cannot be re-derived from the
+record, which means it cannot be shown to be wrong — and `pnpm run constitution`
+already reports that 17 of 36 stored assessments kept no signals or evidence at
+all, so for those the audit stage has nothing to work from even in principle.
+
+Build these two before extending the chain further. Discovery and Knowledge are
+the more interesting stages, but promoting an assessment to knowledge without an
+audit step is promotion on trust, which the Purpose article says this platform
+does not produce.
