@@ -7,8 +7,29 @@ import { escapeHtml } from "../layout.js";
 // The writing is plainer than a person would produce. That is the trade — a
 // generated sentence that cannot invent a figure is worth more here than a
 // fluent one that might.
+//
+// It is also written to survive machine translation, because most readers of a
+// site like this one will not read it in English. Three rules, each learned by
+// getting it wrong:
+//
+//   Put the claim in the subject, not in a single verb. "<agent> fetched this
+//   site inside a trial we ran" came back from Turkish as "<agent> found this
+//   site", handing the claim to the crawler.
+//
+//   Do not open a sentence with a plural noun that is also a verb. A title
+//   beginning "73 requests asked for..." was read as an invitation to make
+//   requests of us; the operator asked whether the site needed a contact form.
+//
+//   Never label a figure with a sentence fragment. Table headings like
+//   "Requests on www.example.com", "of those, inside a trial we ran" and
+//   "AI-crawler requests on any other hostname" came back as "you may make
+//   requests from www.example.com", "some of those..." — replacing an exact
+//   count with a vague quantifier — and as a statement that the crawler does
+//   this, on a row whose value was zero. A translator handed a fragment will
+//   supply the missing verb and quantifier itself. Every counted row therefore
+//   asks "How many ...", which cannot be re-parsed as an instruction or a claim.
 
-export const TEMPLATE_VERSION = "tpl-6";
+export const TEMPLATE_VERSION = "tpl-7";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -81,10 +102,10 @@ ${limits([
 <table>
 <tbody>
 <tr><th>Declared agent</th><td><code>${escapeHtml(c.facts.agent)}</code></td></tr>
-<tr><th>Requests</th><td>${hits}</td></tr>
-<tr><th>Distinct paths</th><td>${c.facts.paths}</td></tr>
-<tr><th>Distinct addresses</th><td>${c.facts.ips}</td></tr>
-<tr><th>Inside a trial we ran</th><td>${prompted} of ${hits}</td></tr>
+<tr><th>How many fetches it made</th><td>${hits}</td></tr>
+<tr><th>How many different paths it took</th><td>${c.facts.paths}</td></tr>
+<tr><th>How many different addresses it came from</th><td>${c.facts.ips}</td></tr>
+<tr><th>How many of those we caused ourselves, by asking this vendor to read a page</th><td>${prompted} of ${hits}</td></tr>
 </tbody>
 </table>
 <h2>What it means</h2>
@@ -138,11 +159,11 @@ ${limits([
 <table>
 <tbody>
 <tr><th>Declared agent</th><td><code>${escapeHtml(c.facts.ua)}</code></td></tr>
-<tr><th>Distinct addresses</th><td>${c.facts.ips}</td></tr>
-<tr><th>Addresses used exactly once</th><td>${c.facts.singles} (${share}%)</td></tr>
-<tr><th>Distinct paths fetched</th><td>${c.facts.paths}</td></tr>
-<tr><th>Countries</th><td>${c.facts.countries}</td></tr>
-<tr><th>Total requests</th><td>${c.facts.hits}</td></tr>
+<tr><th>How many different addresses</th><td>${c.facts.ips}</td></tr>
+<tr><th>How many of those addresses sent exactly one fetch</th><td>${c.facts.singles} (${share}%)</td></tr>
+<tr><th>How many different paths were fetched</th><td>${c.facts.paths}</td></tr>
+<tr><th>How many countries those addresses resolved to</th><td>${c.facts.countries}</td></tr>
+<tr><th>How many fetches in total</th><td>${c.facts.hits}</td></tr>
 </tbody>
 </table>
 <h2>What it means</h2>
@@ -182,26 +203,33 @@ ${limits([
     // no other name, so a crawler working from any of them could not have arrived
     // anywhere else. The finding was pointed at its own control group. What needs
     // explaining is the traffic that asked for a name appearing in none of it.
+    //
+    // The second version led with "73 requests asked for a hostname…", and the
+    // operator read it as people making requests of us and asked whether the site
+    // needed a contact form. "Request" carries its HTTP sense only to readers who
+    // already have it; translated, it becomes a demand someone is making. The
+    // lesson from the title rewrites applies to nouns as well as verbs — the
+    // subject here is machines, and the verb is fetching.
     return {
       slug: `arrival-host-${day(c.windowEndMs)}`,
-      title: `${otherHostNotOurs} requests asked for a hostname we have never published anywhere`,
-      summary: `Everything this site publishes — robots.txt, the sitemap, llms.txt, the feed, every canonical tag — names ${canonical} and nothing else. ${otherHostRequests} external requests nonetheless arrived on ${others.join(", ")}, ${otherHostNotOurs} of them from clients that do not share our own browser language profile. Whatever told them that name, we did not.`,
+      title: `Machines are fetching this site through a second hostname of ours that we never published`,
+      summary: `Our server answers to two names. Everything this site publishes — robots.txt, the sitemap, llms.txt, the feed, every canonical tag — uses ${canonical} and never ${others.join(" or ")}. Even so, ${otherHostRequests} fetches arrived asking for ${others.join(", ")}, ${otherHostNotOurs} of them from machines that do not share our own browser language settings. They did not learn that name from us.`,
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC. Both hostnames return <code>200</code> for every path and carry a canonical tag pointing at <code>${escapeHtml(canonical)}</code>; there is no redirect between them.</p>
 <table>
-<thead><tr><th>Hostname</th><th>External requests</th></tr></thead>
+<thead><tr><th>Hostname</th><th>How many fetches</th></tr></thead>
 <tbody>
 ${hosts.map((h) => `<tr><td><code>${escapeHtml(h.host)}</code>${h.host === canonical ? " (canonical)" : ""}</td><td>${h.n}</td></tr>`).join("\n")}
 </tbody>
 </table>
 <table>
 <tbody>
-<tr><th>Requests on ${escapeHtml(others.join(", "))}</th><td>${otherHostRequests}</td></tr>
-<tr><th>&nbsp;&nbsp;of those, from clients not sharing our browser language</th><td>${otherHostNotOurs}</td></tr>
-<tr><th>AI-crawler requests on ${escapeHtml(canonical)}</th><td>${aiOnCanonical}</td></tr>
-<tr><th>&nbsp;&nbsp;of those, inside a trial we ran ourselves</th><td>${promptedOnCanonical}</td></tr>
-<tr><th>AI-crawler requests on any other hostname</th><td>${aiElsewhere}</td></tr>
+<tr><th>How many fetches asked for ${escapeHtml(others.join(", "))}</th><td>${otherHostRequests}</td></tr>
+<tr><th>How many of those came from a machine that does not share our browser language settings</th><td>${otherHostNotOurs}</td></tr>
+<tr><th>How many fetches by a declared AI crawler asked for ${escapeHtml(canonical)}</th><td>${aiOnCanonical}</td></tr>
+<tr><th>How many of those we caused ourselves, by asking a vendor to read a page</th><td>${promptedOnCanonical}</td></tr>
+<tr><th>How many fetches by a declared AI crawler asked for any other hostname</th><td>${aiElsewhere}</td></tr>
 </tbody>
 </table>
 <h2>What it means</h2>
@@ -277,7 +305,7 @@ ${limits([
 <h2>What was observed</h2>
 <p>The same statement is published as HTML, JSON, Markdown, plain text and RSS, each linked equally and listed in the sitemap. Fetches between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC:</p>
 <table>
-<thead><tr><th>Variant</th><th>Fetches</th></tr></thead>
+<thead><tr><th>Variant</th><th>How many fetches</th></tr></thead>
 <tbody>
 ${rows.map((r) => `<tr><td><code>${escapeHtml(r.variant)}</code></td><td>${r.hits}</td></tr>`).join("\n")}
 </tbody>
