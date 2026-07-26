@@ -44,7 +44,13 @@ CREATE TABLE IF NOT EXISTS RepoReality (
   subject       TEXT,                  -- the expression compared, verbatim
   operator      TEXT,                  -- '>=', '>', '<=', '<', '===' ...
   value         TEXT    NOT NULL,      -- the literal, as written
-  sourceLine    TEXT    NOT NULL       -- the whole line, trimmed, for the reader
+  sourceLine    TEXT    NOT NULL,      -- the whole line, trimmed, for the reader
+  -- Where an import points, for kind='import'. NULL means the specifier resolves to
+  -- no file in this repository, which is the normal case for a package: `fastify` is
+  -- a dependency and not a module here. Kept apart from `value` because the specifier
+  -- as written and the file it reaches are different facts, and a detector asking
+  -- "does anything import this file" needs the second one without losing the first.
+  resolvesTo    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS RepoReality_scan_idx  ON RepoReality(scanId);

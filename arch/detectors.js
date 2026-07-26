@@ -1,5 +1,13 @@
 import db from "./db.js";
-import { comparisonPattern, duplicationBegan, changeHistory, daysSince } from "./dating.js";
+import { execFileSync } from "node:child_process";
+import { ROOT } from "./db.js";
+import {
+  comparisonPattern,
+  duplicationBegan,
+  changeHistory,
+  moduleHistory,
+  daysSince
+} from "./dating.js";
 
 // What the scan means, kept apart from what the scan saw.
 //
@@ -14,7 +22,7 @@ import { comparisonPattern, duplicationBegan, changeHistory, daysSince } from ".
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-5";
+export const DETECTOR_VERSION = "arch-det-7";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -179,7 +187,162 @@ export function duplicateThresholdSet(scanId) {
   return candidates;
 }
 
-export const DETECTORS = [duplicateThresholdSet];
+const unimportedModules = db.prepare(`
+  SELECT m.value AS path
+  FROM RepoReality m
+  WHERE m.scanId = ? AND m.kind = 'module' AND m.subject = 'module'
+    AND NOT EXISTS (
+      SELECT 1 FROM RepoReality i
+      WHERE i.scanId = m.scanId AND i.kind = 'import' AND i.resolvesTo = m.value
+    )
+  ORDER BY m.value
+`);
+
+/**
+ * Whether anything outside the JavaScript names this file.
+ *
+ * A module can be loaded without being imported: a `<script src>` tag, a Dockerfile
+ * command, a CI step, a service manager unit. Those are declarations, and looking for
+ * them beats guessing from the filename — `public-site/server.js` and `browser-sdk.js`
+ * both came out of the first measurement as unimported, and both are started from
+ * outside the module graph.
+ *
+ * Markdown is excluded on purpose. Prose describing a module is not prose loading it,
+ * and the case worth reporting most is exactly a module the documentation presents as
+ * part of the system while nothing runs it.
+ */
+function namedOutsideJavaScript(relPath) {
+  const base = relPath.split("/").pop();
+  try {
+    const out = execFileSync(
+      "git",
+      ["grep", "-l", "-F", base, "--", ":!*.js", ":!*.mjs", ":!*.cjs", ":!*.md"],
+      { cwd: ROOT, encoding: "utf8" }
+    );
+    return out.split("\n").filter(Boolean).length;
+  } catch (err) {
+    if (err.status === 1) return 0;
+    throw err;
+  }
+}
+
+/** How many Markdown files mention this module by name. */
+function documentedIn(relPath) {
+  const base = relPath.split("/").pop();
+  try {
+    const out = execFileSync("git", ["grep", "-l", "-F", base, "--", "*.md"], {
+      cwd: ROOT,
+      encoding: "utf8"
+    });
+    return out.split("\n").filter(Boolean);
+  } catch (err) {
+    if (err.status === 1) return [];
+    throw err;
+  }
+}
+
+/**
+ * Modules nothing imports, grouped by the directory they sit in.
+ *
+ * This is the detector the first one should have been. `duplicate_threshold_set` found
+ * two findings in this repository and one across four mature open-source projects, and
+ * the one it found was true and trivial. What this repository actually suffers from is
+ * different in kind: services and repositories written for a pipeline that was never
+ * wired, several of them described in the documentation as though they run.
+ *
+ * Grouped per directory rather than per file, for the reason that turned five threshold
+ * findings into two: seven unimported repositories in `repositories/` is one fact about
+ * this codebase, and seven findings about it would teach the reader to skim.
+ *
+ * Not reachability analysis, which stays out of this tool for a good reason —
+ * `evaluatePipeline` receives every collaborator as an argument, and an import graph
+ * would call most of `src/services` dead. This asks something far weaker and checkable:
+ * does any import statement anywhere resolve to this file. Dependency injection still
+ * imports what it injects, at the injection site.
+ */
+export function unimportedModule(scanId) {
+  const dead = [];
+
+  for (const { path } of unimportedModules.all(scanId)) {
+    if (namedOutsideJavaScript(path) > 0) continue;
+    const docs = documentedIn(path);
+    const history = moduleHistory(path);
+    dead.push({
+      path,
+      directory: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ".",
+      documentedIn: docs,
+      added: history.added,
+      everReferenced: history.everReferenced,
+      referenceCommits: history.referenceCommits
+    });
+  }
+
+  const byDirectory = new Map();
+  for (const entry of dead) {
+    if (!byDirectory.has(entry.directory)) byDirectory.set(entry.directory, []);
+    byDirectory.get(entry.directory).push(entry);
+  }
+
+  const candidates = [];
+
+  for (const [directory, modules] of byDirectory) {
+    // A single unimported file in a directory is a normal thing in a working repo — a
+    // script, something half-written, something about to be wired. A cluster is a
+    // different claim, and the one worth a person's attention.
+    if (modules.length < 2) continue;
+
+    const documented = modules.filter((m) => m.documentedIn.length > 0);
+    const neverReferenced = modules.filter((m) => m.everReferenced === false);
+    const dated = modules.filter((m) => m.added).sort((a, b) => a.added.at.localeCompare(b.added.at));
+
+    candidates.push({
+      detectorId: "unimported_module",
+      subjectKey: directory,
+      requiresReview: true,
+      facts: {
+        directory,
+        modules: modules.sort((a, b) => a.path.localeCompare(b.path)),
+        count: modules.length,
+        documented,
+        neverReferenced,
+        earliest: dated[0]?.added ?? null,
+        latest: dated[dated.length - 1]?.added ?? null,
+        standingDays: dated[0]?.added ? daysSince(dated[0].added.at) : null
+      },
+      claims: [
+        {
+          label: `How many files in \`${directory}\` are reached by no import in the program, tests aside`,
+          expected: String(modules.length),
+          reproduceWith:
+            `for f in ${modules.map((m) => m.path).join(" ")}; do ` +
+            `b=$(basename "$f" .js); ` +
+            `git grep -qE "(from|require\\()[^\\\"']*[\\\"'][^\\\"']*\\$b(\\.js)?[\\\"']" -- "*.js" || echo "$f"; ` +
+            `done | wc -l`,
+          verify: { kind: "unimported-count", paths: modules.map((m) => m.path) }
+        },
+        {
+          label: `How many of those the documentation describes by name`,
+          expected: String(documented.length),
+          reproduceWith:
+            `for f in ${modules.map((m) => m.path).join(" ")}; do ` +
+            `git grep -l -F "$(basename "$f")" -- "*.md" >/dev/null && echo "$f"; done | wc -l`,
+          verify: { kind: "documented-count", paths: modules.map((m) => m.path) }
+        },
+        {
+          label: `How many were never imported by any commit in the history`,
+          expected: String(neverReferenced.length),
+          reproduceWith:
+            `# per file: git log --pickaxe-regex -S'(from|require)[^\\n]*<basename>' -- '*.js' | wc -l`,
+          verify: { kind: "never-referenced-count", paths: modules.map((m) => m.path) }
+        }
+      ]
+    });
+  }
+
+  return candidates;
+}
+
+export const DETECTORS = [duplicateThresholdSet, unimportedModule];
 
 export function detectAll(scanId) {
   return DETECTORS.flatMap((detector) => detector(scanId));

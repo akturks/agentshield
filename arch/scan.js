@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, openSync, readSync, closeSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { join, relative } from "node:path";
+import { join, dirname } from "node:path";
 import db, { ROOT } from "./db.js";
 
 // Reads the repository and records what is in it. Concludes nothing.
@@ -22,7 +22,7 @@ import db, { ROOT } from "./db.js";
 // A parser is the upgrade path, and the reason to take it will be a false
 // positive this cannot avoid rather than a preference for parsers.
 
-export const SCANNER_VERSION = "scan-2";
+export const SCANNER_VERSION = "scan-7";
 
 // Values that carry no design decision. 0 and 1 are structural, 100 is almost
 // always a percentage ceiling, and -1 is a sentinel. A threshold repeated across
@@ -134,36 +134,152 @@ function inLoopHeader(line, index) {
   return true;
 }
 
-/** Files git tracks, filtered to the source this scanner understands. */
-function trackedSourceFiles() {
-  const listed = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
-    .split("\0")
-    .filter(Boolean);
+/**
+ * Whether a path is part of the program this tool reasons about.
+ *
+ * Exported because the verifier needs the same answer, and this is the third time the
+ * two paths have disagreed over a *definition* rather than over a fact. First it was
+ * what counts as code — a threshold quoted in a doc comment. Then which file extensions
+ * exist. Now which files are part of the program: git grep found imports of
+ * `Evidence.js` in `test-evidence.js`, which the scan excludes, so the scan said four
+ * modules were unimported and git said two. Both were right about what they were asked.
+ *
+ * Independence belongs in the search, never in the vocabulary. One definition, two
+ * mechanisms.
+ */
+export function isProgramFile(p) {
+  return (
+    /\.(js|mjs|cjs)$/.test(p) &&
+    !/node_modules\//.test(p) &&
+    !/\.(backup|bak|orig|old)(\.|$)/.test(p) &&
+    !/(^|\/)(dist|build|vendor)\//.test(p) &&
+    !/(^|\/)(test|tests|__tests__|spec|e2e|benchmark|benchmarks)\//.test(p) &&
+    !/\.(test|spec|smoke)\./.test(p) &&
+    !/(^|\/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$/.test(p) &&
+    // Illustrative rather than part of the program. fastify ships 8 files in
+    // `examples/` and winston 25, and every one is standalone by design — an example
+    // nothing imports is an example working as intended. Reporting them as dead code
+    // is the same error as reporting a test's fixture size as a threshold.
+    !/(^|\/)(examples?|demos?|samples?|fixtures?)\//.test(p)
+  );
+}
 
-  return listed.filter((p) => {
-    if (!/\.(js|mjs|cjs)$/.test(p)) return false;
-    // Generated, vendored, or deliberately dead: a duplicate in a .backup file is
-    // not a duplicate in the program, and reporting it would be a false positive
-    // dressed up as thoroughness.
-    if (/node_modules\//.test(p)) return false;
-    // `.backup` anywhere in the name, not only at the end: the first version of
-    // this filter tested for a trailing `.backup` and let `server.v0.2.backup.js`
-    // through, which produced a duplicate-threshold finding whose two sites were
-    // the live server and a snapshot of the same file from an earlier version.
-    // True as text, false as a claim about the program.
-    if (/\.(backup|bak|orig|old)(\.|$)/.test(p)) return false;
-    if (/(^|\/)(dist|build|vendor)\//.test(p)) return false;
-    // Tests, excluded after the first run against code this tool did not grow up
-    // in. Four of the five candidates it produced across express and axios lived
-    // entirely in test files: `for (var i = 0; i < 6000; i++)` repeated across four
-    // of express's router tests, and `bytesReceived <= 1024` across two of axios's
-    // adapter tests. Every one is a fixture size or an assertion bound, and none is
-    // a decision the program makes. A threshold repeated between two tests is not
-    // drift, and a report that says otherwise trains its reader to skim.
-    if (/(^|\/)(test|tests|__tests__|spec|e2e|benchmark|benchmarks)\//.test(p)) return false;
-    if (/\.(test|spec|smoke)\./.test(p)) return false;
-    return true;
-  });
+/**
+ * Files git tracks that are part of the program, via the one definition of that.
+ *
+ * This function used to hold its own copy of the rules while `isProgramFile` held
+ * another, which is the fifth time this tool has grown two definitions of one word —
+ * and the first time it happened inside a change made to stop it happening. Adding
+ * `examples/` to `isProgramFile` therefore had no effect on the scan, and fastify's
+ * eight example files kept coming back as dead code.
+ *
+ * There is nothing subtle about the failure. It is what a duplicated rule always does,
+ * which is why this tool exists.
+ */
+function trackedSourceFiles() {
+  return execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+    .split("\0")
+    .filter(Boolean)
+    .filter(isProgramFile);
+}
+
+/**
+ * Files that are meant to be run rather than imported.
+ *
+ * The unimported-module detector is worthless without this. Its first measurement on
+ * agentshield named 50 files, and a third of them were command-line tools, config
+ * files and one-off scripts: nothing imports a CLI, and saying so is true and useless.
+ *
+ * Three signals, all of them declarations rather than guesses. A shebang is a file
+ * saying "run me". An appearance in package.json scripts is the project saying it.
+ * A `*.config.js` name is the ecosystem's convention, read by tools that require the
+ * file themselves. Anything relying on a hunch about the filename stays out.
+ */
+function entryPoints(files) {
+  const entries = new Set();
+
+  for (const rel of files) {
+    if (/(^|\/)bin\//.test(rel)) entries.add(rel);
+    if (/\.config\.(js|mjs|cjs)$/.test(rel)) entries.add(rel);
+    try {
+      const fd = openSync(join(ROOT, rel), "r");
+      const head = Buffer.alloc(2);
+      readSync(fd, head, 0, 2, 0);
+      closeSync(fd);
+      if (head.toString("utf8") === "#!") entries.add(rel);
+    } catch {
+      // Unreadable is not an entry point; the scan skips it later anyway.
+    }
+  }
+
+  try {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    const scripts = Object.values(pkg.scripts ?? {}).join(" ");
+    const main = [pkg.main, pkg.module, pkg.bin]
+      .flatMap((v) => (typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v) : []))
+      .filter(Boolean);
+    for (const rel of files) {
+      if (scripts.includes(rel)) entries.add(rel);
+      if (main.some((m) => m.replace(/^\.\//, "") === rel)) entries.add(rel);
+    }
+  } catch {
+    // No package.json, or unreadable: the other two signals still apply.
+  }
+
+  return entries;
+}
+
+/**
+ * Every module specifier imported or required by a file, with where it points.
+ *
+ * Recorded as observation, not as a conclusion. A row says "this file, at this line,
+ * names this specifier, which resolves to this path" — whether anything is wrong with
+ * that is a question for the layer above, and one that has to stay answerable by
+ * re-reading these rows.
+ *
+ * Only relative specifiers are resolved. A bare `fastify` is a package and not a file
+ * in this repository, so it is recorded with no resolution rather than guessed at.
+ */
+// A quoted specifier reached from an import keyword, with anything in between.
+//
+// The first version required the quote to follow `require(` immediately, and went blind
+// on the pattern project-anchor uses everywhere:
+// `require(path.join(rootDir, 'src/extraction/extract-generic.js'))`. Five modules came
+// back as imported by nothing when `bin/ingest.js` loads all five, and the verifier
+// refused the finding. Plugin loaders and CLI dispatchers compute paths like this
+// routinely, so it is the normal case rather than an oddity.
+//
+// Nothing between the keyword and the quote may itself be a quote, which keeps the match
+// on one specifier instead of running across two.
+const IMPORT = /\b(?:from|import|require)\b[^"'\n]*["']([^"']+)["']/g;
+
+function resolveSpecifier(fromRel, specifier, fileSet) {
+  // A specifier that starts with a dot is relative to the importing file. One that looks
+  // like a repository path — `src/extraction/extract-generic.js` — is what a computed
+  // require leaves behind once `path.join(rootDir, ...)` is stripped away, and resolving
+  // it from the root is the only way to see those edges. A bare `fastify` is a package
+  // and matches neither, so it resolves to nothing rather than being guessed at.
+  const looksRootRelative = /^[a-zA-Z0-9_@][\w@./-]*\/[^/]/.test(specifier);
+  if (!specifier.startsWith(".") && !looksRootRelative) return null;
+
+  const base = specifier.startsWith(".") ? join(dirname(fromRel), specifier) : specifier;
+  const normalised = base.split("/").filter((seg) => seg !== ".").join("/");
+
+  const candidates = [
+    normalised,
+    `${normalised}.js`,
+    `${normalised}.mjs`,
+    `${normalised}.cjs`,
+    `${normalised}/index.js`,
+    `${normalised}/index.mjs`,
+    `${normalised}/index.cjs`
+  ];
+
+  for (const candidate of candidates) {
+    const cleaned = candidate.replace(/^\.\//, "");
+    if (fileSet.has(cleaned)) return cleaned;
+  }
+  return null;
 }
 
 function head() {
@@ -183,8 +299,11 @@ const insertScan = db.prepare(`
 `);
 
 const insertRow = db.prepare(`
-  INSERT INTO RepoReality (id, scanId, kind, filePath, line, subject, operator, value, sourceLine)
-  VALUES (@id, @scanId, @kind, @filePath, @line, @subject, @operator, @value, @sourceLine)
+  INSERT INTO RepoReality (
+    id, scanId, kind, filePath, line, subject, operator, value, sourceLine, resolvesTo
+  ) VALUES (
+    @id, @scanId, @kind, @filePath, @line, @subject, @operator, @value, @sourceLine, @resolvesTo
+  )
 `);
 
 /**
@@ -197,10 +316,30 @@ const insertRow = db.prepare(`
 export function scanRepository({ verbose = false } = {}) {
   const { sha, at, dirty } = head();
   const files = trackedSourceFiles();
+  const fileSet = new Set(files);
+  const entries = entryPoints(files);
   const scanId = randomUUID();
   const now = new Date();
 
   const rows = [];
+
+  for (const relPath of files) {
+    // One row per module, so the layer above can ask about a file that contains
+    // nothing else of interest. `subject` carries how the file declares itself
+    // runnable, which is a fact about the file and not a judgement about it.
+    rows.push({
+      id: randomUUID(),
+      scanId,
+      kind: "module",
+      filePath: relPath,
+      line: 0,
+      subject: entries.has(relPath) ? "entry_point" : "module",
+      operator: null,
+      value: relPath,
+      sourceLine: relPath,
+      resolvesTo: null
+    });
+  }
 
   for (const relPath of files) {
     const abs = join(ROOT, relPath);
@@ -238,7 +377,34 @@ export function scanRepository({ verbose = false } = {}) {
           subject,
           operator,
           value,
-          sourceLine: (originalLines[n] ?? "").trim().slice(0, 300)
+          sourceLine: (originalLines[n] ?? "").trim().slice(0, 300),
+          resolvesTo: null
+        });
+      }
+
+      // Read from the original line, not the stripped one. An import specifier *is*
+      // a string literal, so `stripCommentsAndStrings` deletes exactly the thing this
+      // is looking for — the first version of this recorded zero imports in a repo
+      // with hundreds. The stripped line is still consulted, for whether the keyword
+      // survived it: a line whose `import` sits inside a comment has no keyword left,
+      // so this reads the original only where the stripped version proves it is code.
+      if (!/\b(import|require|from)\b/.test(lines[n])) continue;
+
+      IMPORT.lastIndex = 0;
+      let imp;
+      while ((imp = IMPORT.exec(originalLines[n] ?? "")) !== null) {
+        const specifier = imp[1];
+        rows.push({
+          id: randomUUID(),
+          scanId,
+          kind: "import",
+          filePath: relPath,
+          line: n + 1,
+          subject: specifier,
+          operator: null,
+          value: specifier,
+          sourceLine: (originalLines[n] ?? "").trim().slice(0, 300),
+          resolvesTo: resolveSpecifier(relPath, specifier, fileSet)
         });
       }
     }
@@ -261,11 +427,21 @@ export function scanRepository({ verbose = false } = {}) {
 
   if (verbose) {
     console.log(
-      `[scan] ${sha.slice(0, 8)}${dirty ? " (dirty)" : ""} · ${files.length} file(s) · ${rows.length} threshold(s)`
+      `[scan] ${sha.slice(0, 8)}${dirty ? " (dirty)" : ""} · ${files.length} file(s) · ` +
+        `${rows.filter((r) => r.kind === "threshold_comparison").length} threshold(s) · ` +
+        `${rows.filter((r) => r.kind === "import").length} import(s) · ${entries.size} entry point(s)`
     );
   }
 
-  return { scanId, commitSha: sha, dirty, fileCount: files.length, thresholdCount: rows.length };
+  return {
+    scanId,
+    commitSha: sha,
+    dirty,
+    fileCount: files.length,
+    thresholdCount: rows.filter((r) => r.kind === "threshold_comparison").length,
+    importCount: rows.filter((r) => r.kind === "import").length,
+    entryPointCount: entries.size
+  };
 }
 
 export function latestScan() {

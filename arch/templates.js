@@ -26,7 +26,7 @@
 
 import { historyIsTruncated } from "./dating.js";
 
-export const TEMPLATE_VERSION = "arch-tpl-6";
+export const TEMPLATE_VERSION = "arch-tpl-9";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -186,7 +186,100 @@ in a variable and compared elsewhere, is invisible to it.
   };
 }
 
-const TEMPLATES = { duplicate_threshold_set: duplicateThresholdSet };
+function unimportedModule({ facts, claims }) {
+  const { directory, modules, count, documented, neverReferenced, earliest, standingDays } = facts;
+
+  const title = `${count} files in \`${directory}\` are reached by no import in the running program`;
+
+  const summary =
+    `No import or require statement in the program resolves to any of ${count} files in ` +
+    `\`${directory}\`. ${documented.length} of them are described by name in the documentation. ` +
+    (earliest
+      ? `The oldest arrived in ${short(earliest.sha)}, "${earliest.subject}", ${ago(standingDays)}.`
+      : `When they arrived is not recoverable from the history available here.`);
+
+  const table = [
+    `| File | Added | Documented in | Ever imported |`,
+    `| --- | --- | --- | --- |`,
+    ...modules.map(
+      (m) =>
+        `| \`${cell(m.path)}\` | ${m.added ? `${short(m.added.sha)} · ${m.added.at.slice(0, 10)}` : "unknown"} ` +
+        `| ${m.documentedIn.length ? m.documentedIn.map((d) => `\`${cell(d)}\``).join(", ") : "—"} ` +
+        `| ${m.everReferenced === null ? "unknown" : m.everReferenced ? "yes" : "no"} |`
+    )
+  ].join("\n");
+
+  const documentedSection = documented.length
+    ? `## Described in the documentation, and not run
+
+${documented
+  .map(
+    (m) =>
+      `- \`${m.path}\` — named in ${m.documentedIn.map((d) => `\`${d}\``).join(", ")}`
+  )
+  .join("\n")}
+
+A reader of those documents would take these modules for part of the running system. A
+reader of the import graph would not find them at all. Which of the two is wrong is not
+something this finding decides.
+`
+    : "";
+
+  const neverSection = neverReferenced.length
+    ? `## Never imported, at any point in the history
+
+${neverReferenced.map((m) => `- \`${m.path}\``).join("\n")}
+
+Nothing removed the last caller of these, because there was never a caller. They were
+written and not wired. That is a different situation from a module that worked and was
+later orphaned, and the fix for it is a different decision.
+`
+    : "";
+
+  const body = `${summary}
+
+## The files
+
+${table}
+
+${documentedSection}${neverSection}
+## Verified figures
+
+Each was recomputed by a different route than the one that produced it: the scan resolves
+import specifiers with its own parser, and the check below asks git whether the name
+appears in any import or require in the tree.
+
+${claimBlocks(claims)}
+
+## What this finding does not say
+
+Nothing here says these files are unused. A module can be loaded without being imported
+— from a service manager, a container command, a \`<script>\` tag, a plugin loader that
+builds a path at runtime. Files named by any non-JavaScript file in the repository are
+already excluded for that reason, but a loader living outside the repository leaves no
+trace inside it.
+
+Nothing here says they should be deleted either. A module written ahead of the pipeline
+that will use it looks exactly like one left behind by a pipeline that changed.
+
+This is not reachability analysis, and deliberately so: this codebase passes its
+collaborators as arguments, so an import graph would report most of \`src/services\` as
+dead. The question asked here is narrower and checkable — whether any import statement
+resolves to the file.
+`;
+
+  return {
+    slug: `unimported-${directory.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
+    title,
+    summary,
+    body
+  };
+}
+
+const TEMPLATES = {
+  duplicate_threshold_set: duplicateThresholdSet,
+  unimported_module: unimportedModule
+};
 
 export function render(candidate) {
   const template = TEMPLATES[candidate.detectorId];

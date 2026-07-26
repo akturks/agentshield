@@ -19,6 +19,29 @@ import { ROOT } from "./db.js";
 // a dating function that always answers "unknown" and never errors. POSIX classes
 // are used below for that reason.
 
+/**
+ * A pattern matching any import or require of a module with this basename.
+ *
+ * Exported so `moduleHistory` and the verifier ask the identical question. They did not
+ * at first: each built its own version, they disagreed on winston by 23 of 25, and the
+ * finding was refused. That is the fourth time in this tool that two paths differed over
+ * a *definition* rather than a fact — after what counts as code, which extensions exist,
+ * and which files are part of the program.
+ *
+ * The rule that keeps emerging: independence belongs in the search, never in the
+ * vocabulary. Two mechanisms, one definition.
+ */
+export function importPattern(basename) {
+  const stem = escapePosix(basename.replace(/\.(js|mjs|cjs)$/, ""));
+  // The basename must sit at a path boundary — right after the opening quote, or after a
+  // slash. Without that, `system.js` matches `require('./filesystem-provider')`, because
+  // `filesystem` ends in `system`, and the verifier reported project-anchor's
+  // `src/ollama/prompt/system.js` as imported when nothing imports it. Same shape as the
+  // `statusCode` / `err.statusCode` widening in comparisonPattern, and the same fix:
+  // a pattern with no left boundary silently answers a wider question than it was asked.
+  return `(from|require)[^'\"]*['\"]([^'\"]*/)?${stem}(\\.(js|mjs|cjs))?['\"]`;
+}
+
 /** Escapes a string for use inside a POSIX basic regular expression. */
 function escapePosix(text) {
   return text.replace(/[.[\]*^$\\+?(){}|/]/g, (c) => `\\${c}`);
@@ -182,4 +205,66 @@ export function daysSince(iso) {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   return Math.floor((Date.now() - then) / 86_400_000);
+}
+
+/**
+ * When a file was added, and whether anything ever imported it.
+ *
+ * "Nothing imports this" is a fact about now. The question a reader actually has is
+ * whether it was ever wired up — a module written for a pipeline that never shipped is
+ * a different story from one that was connected and then orphaned, and only the second
+ * has a commit where somebody removed the last caller.
+ *
+ * The pickaxe is asked about the module's own basename across all source. Its own
+ * creation shows up as one of those commits, so a module never imported produces a
+ * count of one, and anything above one means a reference to the name existed elsewhere
+ * at some point.
+ */
+export function moduleHistory(relPath) {
+  if (historyIsTruncated()) return { added: null, referenceCommits: [], everReferenced: null };
+
+  let added = null;
+  try {
+    const out = git([
+      "log",
+      "--diff-filter=A",
+      "--follow",
+      "--format=%H%x09%aI%x09%s",
+      "--",
+      relPath
+    ]);
+    const lines = out.split("\n").filter((l) => l.trim());
+    const last = lines[lines.length - 1];
+    if (last) {
+      const [sha, at, subject] = last.split("\t");
+      added = { sha, at, subject };
+    }
+  } catch {
+    added = null;
+  }
+
+  let referenceCommits = [];
+  try {
+    const out = git([
+      "log",
+      "--pickaxe-regex",
+      `-S${importPattern(relPath.split("/").pop())}`,
+      "--format=%H%x09%aI%x09%s",
+      "--",
+      "*.js",
+      "*.mjs",
+      "*.cjs"
+    ]);
+    referenceCommits = out
+      .split("\n")
+      .filter((l) => l.trim())
+      .map((l) => {
+        const [sha, at, subject] = l.split("\t");
+        return { sha, at, subject };
+      });
+  } catch {
+    referenceCommits = [];
+  }
+
+  return { added, referenceCommits, everReferenced: referenceCommits.length > 0 };
 }

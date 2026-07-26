@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import db, { ROOT } from "./db.js";
-import { firstAppearance } from "./dating.js";
-import { stripCommentsAndStrings } from "./scan.js";
+import { firstAppearance, importPattern } from "./dating.js";
+import { stripCommentsAndStrings, isProgramFile } from "./scan.js";
 
 // Recomputes every figure by a different route than the one that produced it.
 //
@@ -29,7 +29,7 @@ import { stripCommentsAndStrings } from "./scan.js";
 // not. That split is the useful finding from building this here rather than guessing
 // at it in a design document.
 
-export const VERIFIER_VERSION = "arch-ver-4";
+export const VERIFIER_VERSION = "arch-ver-8";
 
 const EXCLUDED = /\.(backup|bak|orig|old)(\.|$)/;
 
@@ -181,6 +181,64 @@ export function observe(claim) {
   if (spec.kind === "git-grep-sites-any") {
     return String(spec.patterns.reduce((total, p) => total + matchingSites(p), 0));
   }
+  // Recomputed from git's view of the tree, not from the scan's import rows. The scan
+  // parses imports with a regex over stripped lines; this asks git whether the module's
+  // name appears in any import or require anywhere. The two disagree when the scan's
+  // resolution is wrong — which is the whole reason the claim is checked this way.
+  if (spec.kind === "unimported-count") {
+    let unimported = 0;
+    for (const path of spec.paths) {
+      const hits = git([
+        "grep",
+        "-l",
+        "--extended-regexp",
+        importPattern(path.split("/").pop()),
+        "--",
+        "*.js",
+        "*.mjs",
+        "*.cjs"
+      ])
+        .split("\n")
+        .map((l) => l.trim())
+        // Same scope the scan uses, via the same predicate. Test scripts import some
+        // of these modules and the scan does not read test scripts, so counting their
+        // imports here would refuse a finding that is correct about the program.
+        .filter((l) => l && l !== path && isProgramFile(l));
+      if (hits.length === 0) unimported += 1;
+    }
+    return String(unimported);
+  }
+
+  if (spec.kind === "documented-count") {
+    let documented = 0;
+    for (const path of spec.paths) {
+      const base = path.split("/").pop();
+      const hits = git(["grep", "-l", "-F", base, "--", "*.md"])
+        .split("\n")
+        .filter(Boolean);
+      if (hits.length > 0) documented += 1;
+    }
+    return String(documented);
+  }
+
+  if (spec.kind === "never-referenced-count") {
+    let never = 0;
+    for (const path of spec.paths) {
+      const out = git([
+        "log",
+        "--pickaxe-regex",
+        `-S${importPattern(path.split("/").pop())}`,
+        "--format=%H",
+        "--",
+        "*.js",
+        "*.mjs",
+        "*.cjs"
+      ]);
+      if (out.split("\n").filter(Boolean).length === 0) never += 1;
+    }
+    return String(never);
+  }
+
   if (spec.kind === "first-appearance") {
     const found = firstAppearance(spec);
     return found ? found.sha.slice(0, 8) : null;
