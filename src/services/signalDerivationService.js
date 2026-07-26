@@ -1,64 +1,12 @@
+import { applySignalRules } from "./signalRules.js";
+
+// Which signals a set of events asserts.
+//
+// The thresholds used to live here as five hand-written filters, duplicated in
+// evidenceDerivationService.js with only one of the five implemented. They are now
+// declared once in signalRules.js so that a signal and the events supporting it
+// cannot disagree.
+
 export function deriveSignals(events) {
-  const signals = [];
-
-  const adminRequests =
-    events.filter(
-      event =>
-        event.path &&
-        event.path.includes("/admin")
-    );
-
-  if (adminRequests.length >= 3) {
-    signals.push("admin_scanning");
-  }
-
-  const readingEvents =
-    events.filter(
-      event =>
-        (event.readingTime || 0) >= 10
-    );
-
-  if (readingEvents.length > 0) {
-    signals.push(
-      "engaged_reading"
-    );
-  }
-
-  const deepScrollEvents =
-    events.filter(
-      event =>
-        (event.scrollDepth || 0) >= 50
-    );
-
-  if (deepScrollEvents.length > 0) {
-    signals.push(
-      "deep_scroll"
-    );
-  }
-
-  const activeMouseEvents =
-    events.filter(
-      event =>
-        (event.mouseMoves || 0) >= 10
-    );
-
-  if (activeMouseEvents.length > 0) {
-    signals.push(
-      "active_mouse"
-    );
-  }
-
-  const focusedEvents =
-    events.filter(
-      event =>
-        (event.focusEvents || 0) >= 1
-    );
-
-  if (focusedEvents.length > 0) {
-    signals.push(
-      "focused_session"
-    );
-  }
-
-  return signals;
+  return applySignalRules(events).signals;
 }

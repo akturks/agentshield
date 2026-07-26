@@ -182,10 +182,24 @@ moving both onto the interpretation record and migrating existing rows, which
 changes the shape of the live pipeline — hence recorded rather than patched
 quietly.
 
-**Independent Validation — 17 of 36 assessments have no inputs.** Those rows kept
-neither `signals` nor `evidence`, so the conclusions they contain cannot be
+**Independent Validation — 33 of 36 assessments have no inputs.** Those rows kept
+no `signals`, no `evidence`, or neither, so the conclusions they contain cannot be
 recomputed and therefore cannot be corrected. Nothing can repair the existing
-rows; the record of how they were produced is gone. What can be fixed is the write
-path, so the count stops growing.
+rows; the record of how they were produced is gone.
 
-Neither figure is to be removed from this list by adjusting the check.
+The first version of this figure read 17, because the check tested only for NULL
+and empty string while `saveAssessment` writes `JSON.stringify(signals || [])` —
+so a missing input was stored as `[]` or `{}` and passed. The check was made
+stricter, not looser, and the true count appeared. A check with a hole in it is
+worse than no check, because it certifies the part it cannot see.
+
+The write path itself is now fixed. `deriveEvidence` covered one of the five
+signals the trust score adjusts on, so four adjustments out of five had no
+recorded basis by construction; `src/services/signalRules.js` now declares each
+signal together with the predicate selecting the events that support it, and both
+derivations read that one table. The count above therefore describes history and
+should not grow.
+
+Neither figure is to be removed from this list by adjusting a check to agree with
+the code. Making a check *stricter* and finding more, as happened here, is the
+opposite act and is always in order.

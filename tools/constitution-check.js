@@ -197,10 +197,21 @@ function assessmentsCarryTheirInputs(db) {
     };
   }
 
+  // An empty JSON container counts as absent. The first version of this check
+  // tested only for NULL and '' and reported 17 of 36 — but saveAssessment writes
+  // `JSON.stringify(signals || [])`, so a missing input is stored as "[]" or "{}"
+  // and sailed past. The true figure was 33 of 36. A check with a hole in it is
+  // worse than no check, because it certifies the part it cannot see.
+  const EMPTY = `(
+       %COL% IS NULL OR TRIM(%COL%) IN ('', '[]', '{}', 'null')
+     )`;
+  const emptySignals = EMPTY.replaceAll("%COL%", "signals");
+  const emptyEvidence = EMPTY.replaceAll("%COL%", "evidence");
+
   const blank = db
     .prepare(
       `SELECT COUNT(*) AS n FROM TrustAssessment
-       WHERE signals IS NULL OR signals = '' OR evidence IS NULL OR evidence = ''`
+       WHERE ${emptySignals} OR ${emptyEvidence}`
     )
     .get().n;
 
@@ -213,7 +224,7 @@ function assessmentsCarryTheirInputs(db) {
     detail:
       blank === 0
         ? `all ${total} assessment(s) record the signals and evidence they used`
-        : `${blank} of ${total} assessment(s) stored without signals or evidence`,
+        : `${blank} of ${total} assessment(s) stored with no signals or no evidence`,
     why: "An interpretation with no recorded inputs cannot be recomputed, and so cannot be corrected."
   };
 }

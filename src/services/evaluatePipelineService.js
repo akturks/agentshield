@@ -108,7 +108,10 @@ export async function evaluatePipeline({
       evidence:
         trust.evidence,
 
-      intent
+      intent,
+
+      observedEventCount:
+        trust.eventCount
     });
 
   saveAssessment({
