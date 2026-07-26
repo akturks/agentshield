@@ -24,7 +24,7 @@
 //      finding back until a second detector existed, which stores the doubt in a
 //      queue where no reader ever sees it and pays off once instead of every time.
 
-export const TEMPLATE_VERSION = "arch-tpl-4";
+export const TEMPLATE_VERSION = "arch-tpl-5";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -42,18 +42,39 @@ function ago(days) {
   return `${days} days ago`;
 }
 
+/** Escapes a pipe so a cell containing one does not split the row. */
+const cell = (text) => String(text).replaceAll("|", "\\|");
+
 function siteTable(sites) {
   const rows = sites
-    .map((s) => `| \`${s.filePath}\` | ${s.line} | \`${s.value}\` | \`${s.sourceLine}\` |`)
+    .map(
+      (s) =>
+        `| \`${cell(s.filePath)}\` | ${s.line} | \`${cell(s.value)}\` | \`${cell(s.sourceLine)}\` |`
+    )
     .join("\n");
   return `| File | Line | Value | As written |\n| --- | --- | --- | --- |\n${rows}`;
 }
 
-function claimTable(claims) {
-  const rows = claims
-    .map((c) => `| ${c.label} | ${c.expected} |\n| ↳ reproduce | \`${c.reproduceWith}\` |`)
-    .join("\n");
-  return `| Figure | Value |\n| --- | --- |\n${rows}`;
+/**
+ * Figures in a table, commands in their own block below each one.
+ *
+ * The commands were table cells until the page rendered for the first time and a
+ * `git grep -E '(90|70|50)'` split itself across three columns — a document showing
+ * a command that would not run, in the section whose whole purpose is letting the
+ * reader check the numbers without trusting the document.
+ */
+function claimBlocks(claims) {
+  const table = [
+    `| Figure | Value |`,
+    `| --- | --- |`,
+    ...claims.map((c) => `| ${cell(c.label)} | ${cell(c.expected)} |`)
+  ].join("\n");
+
+  const commands = claims
+    .map((c) => `**${c.label}**\n\n\`\`\`\n${c.reproduceWith}\n\`\`\``)
+    .join("\n\n");
+
+  return `${table}\n\nEach figure again, with the command that reproduces it:\n\n${commands}`;
 }
 
 /** "3 hours" when both sides arrived the same day, "12 days" otherwise. */
@@ -121,7 +142,7 @@ Each was recomputed by a different route than the one that produced it: the scan
 counts what its own lexer found, and the check below counts what git's regex engine
 finds in the working tree.
 
-${claimTable(claims)}
+${claimBlocks(claims)}
 
 ## What this finding does not say
 

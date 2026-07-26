@@ -18,6 +18,7 @@ import * as content from "./pages/content.js";
 import * as probes from "./pages/probes.js";
 import { lab, methodology } from "./pages/lab.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
+import { audit } from "./pages/audit.js";
 import {
   questionsIndex,
   questionPage,
@@ -111,6 +112,8 @@ app.get("/constitution", (req, reply) =>
 );
 
 app.get("/about", (req, reply) => html(req, reply, "about", about));
+
+app.get("/audit", (req, reply) => html(req, reply, "audit", audit));
 
 app.get("/questions", (req, reply) =>
   html(req, reply, "questions", questionsIndex)

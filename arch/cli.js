@@ -2,12 +2,15 @@
 import { runOnce, restate, pending, published, approve, reject, ENGINE_VERSION } from "./engine.js";
 import { claimsFor } from "./verifier.js";
 import { scanRepository, latestScan } from "./scan.js";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 //   node arch/cli.js scan             read the repository, record what is in it
 //   node arch/cli.js run              scan, detect, verify, hold what survives
 //   node arch/cli.js list             what is held and what is published
 //   node arch/cli.js show <id>        one finding in full, with its figures
-//   node arch/cli.js report           every held finding as one markdown document
+//   node arch/cli.js report [--write <path>]
+//                                     every published finding as one markdown document
 //   node arch/cli.js approve <id>
 //   node arch/cli.js reject <id> [reason]
 //   node arch/cli.js restate          rebuild findings against a fresh scan
@@ -76,18 +79,43 @@ switch (cmd) {
   }
 
   case "report": {
-    const held = pending();
+    // Published findings, not held ones. A report is the reviewed output; the
+    // queue is where a finding waits to become one, and printing both under one
+    // heading would erase the distinction the review exists to make.
+    const live = published();
     const scan = latestScan();
-    console.log(`# Architecture drift report\n`);
-    console.log(
-      `Repository at \`${scan?.commitSha?.slice(0, 8) ?? "unknown"}\`${scan?.dirty ? " with uncommitted changes" : ""}, scanned ${scan?.scannedAt ?? "never"}. Method version \`${ENGINE_VERSION}\`.\n`
+    const lines = [];
+
+    lines.push(`# What this repository is, checked against what it says\n`);
+    lines.push(
+      `Repository at \`${scan?.commitSha?.slice(0, 8) ?? "unknown"}\`${
+        scan?.dirty ? " with uncommitted changes at scan time" : ""
+      }, scanned ${scan?.scannedAt ?? "never"}. Method version \`${ENGINE_VERSION}\`.\n`
     );
-    console.log(
-      `${held.length} finding(s). Every figure below was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it.\n`
+    lines.push(
+      `${live.length} finding(s), each reviewed by a person before it appeared here. ` +
+        `Every figure was recomputed by a second, independent route before it was written ` +
+        `down, and each carries the command that reproduces it — so a reader who doubts a ` +
+        `number does not have to take this document's word for it.\n`
     );
-    for (const f of held) {
-      console.log(`\n---\n\n## ${f.title}\n`);
-      console.log(f.bodyMarkdown);
+
+    for (const f of live) {
+      lines.push(`\n---\n\n## ${f.title}\n`);
+      lines.push(f.bodyMarkdown);
+    }
+
+    const text = lines.join("\n");
+    const target = args[0] === "--write" ? args[1] : null;
+
+    if (target) {
+      // Written to a file and committed rather than rendered live. The artefact is
+      // then versioned: what was found, and when, is in the history of one file
+      // rather than in a database nobody else can read — which is the same claim
+      // this tool makes about code, applied to its own output.
+      writeFileSync(resolve(target), `${text}\n`, "utf8");
+      console.log(`wrote ${target} · ${live.length} finding(s) · ${ENGINE_VERSION}`);
+    } else {
+      console.log(text);
     }
     break;
   }
@@ -109,5 +137,7 @@ switch (cmd) {
   }
 
   default:
-    console.log("usage: arch/cli.js scan|run|list|show <id>|report|approve <id>|reject <id> [reason]|restate");
+    console.log(
+      "usage: arch/cli.js scan|run|list|show <id>|report [--write <path>]|approve <id>|reject <id> [reason]|restate"
+    );
 }
