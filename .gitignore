@@ -11,6 +11,12 @@ reality.db-shm
 agentshield.db
 agentshield.db-wal
 agentshield.db-shm
+
+# Repository reality — rebuildable from the working tree by `pnpm run arch scan`,
+# unlike the two above, which record events nobody can observe a second time.
+arch-reality.db
+arch-reality.db-wal
+arch-reality.db-shm
 public-site/logs/
 
 # Regenerable listings produced while auditing the repo
