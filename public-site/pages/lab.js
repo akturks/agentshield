@@ -95,6 +95,16 @@ export function lab(canary, published) {
 
 <p>The second rule is the only mechanism on this site that can remove genuine observations from a published figure, so its effect is printed above rather than described. It exists because the inference is not enough: a phone that never runs <code>curl</code> is invisible to it, and this machine's IPv6 address rotates daily, which made the same laptop look like a new visitor 13 times on 25 July 2026. The declared list lives in versioned source, not in the database, so every change to it is in the history.</p>
 
+${
+  headline().unresolvedOperator
+    ? `<p><strong>${escapeHtml(String(headline().unresolvedOperator))} of the external requests above are probably ours and are counted anyway.</strong> They come from ${escapeHtml(String(headline().unresolvedOperatorIps))} addresses in a Turkish mobile carrier's pool, sending the exact <code>Accept-Language</code> header that the declared operator machine sends — a list no other client here has ever sent. It is almost certainly a phone of ours.</p>
+
+<p>It stays in the count for two reasons. A carrier-pool address identifies a carrier and not a person: declaring one would exclude whichever customer holds it next, and the phone will have a different address tomorrow, so the exclusion would delete real observations while failing at its purpose. Matching on the header instead would work, and is worse — <a href="/constitution">Article VII</a> says the unit of observation is a request rather than a person, and identifying someone by their combination of headers is exactly the technique it rules out. A codebase that holds that capability for self-exclusion holds it for everything else.</p>
+
+<p>So the figure is stated rather than corrected. Every external count on this site is up to ${escapeHtml(String(Math.round((headline().unresolvedOperator / Math.max(1, headline().external)) * 100)))}% too high for this reason, and that is a more useful thing to publish than a tidier number.</p>`
+    : ""
+}
+
 ${statBlock([
   ["External requests", total.toLocaleString("en-US")],
   ["Distinct user agents", agents.toLocaleString("en-US")],

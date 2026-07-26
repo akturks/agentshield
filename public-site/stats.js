@@ -145,6 +145,35 @@ const EXCLUDED_BY_HEURISTIC = `
     SELECT cfConnectingIp FROM RequestReality
     WHERE cfConnectingIp IS NOT NULL AND ${PLAIN_CLIENT})`;
 
+// Counted as external, and probably ours anyway.
+//
+// Three addresses in Vodafone Turkey's mobile pool send the exact Accept-Language
+// header that the declared operator machine sends — a long list ending in Turkmen,
+// Azeri and Bosnian that no other client on this site has ever sent. It is almost
+// certainly the operator's phone. It is not excluded, for two reasons.
+//
+// A carrier pool address identifies a carrier, not a person. Declaring one would
+// exclude whichever Vodafone customer holds it next, and the phone will have a
+// different address tomorrow regardless — so the exclusion would remove real
+// observations while failing at the thing it was for.
+//
+// The alternative, matching on the header itself, is worse. Article VII of the
+// constitution says the unit of observation is a request and not a person, and no
+// fingerprinting. Identifying a person by their combination of headers is that
+// technique, and a codebase containing it for self-exclusion contains it for
+// everything else too. Not having the capability is worth more than a 13% correction.
+//
+// So it is reported instead. The criterion derives from the declared addresses
+// rather than naming any header value here, which keeps this honest and lets it
+// follow the operator's browser settings if they change.
+const OPERATOR_LANGUAGES = `
+  acceptLanguage IS NOT NULL AND acceptLanguage <> '' AND acceptLanguage IN (
+    SELECT DISTINCT acceptLanguage FROM RequestReality
+    WHERE acceptLanguage IS NOT NULL AND acceptLanguage <> ''
+      AND NOT (${notDeclared(null)}))`;
+
+const UNRESOLVED_OPERATOR = `${EXTERNAL} AND ${OPERATOR_LANGUAGES}`;
+
 const q = {
   external: db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`),
   instrument: db.prepare(
@@ -167,6 +196,12 @@ const q = {
   ),
   byHeuristic: db.prepare(
     `SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXCLUDED_BY_HEURISTIC}`
+  ),
+  unresolvedOperator: db.prepare(
+    `SELECT COUNT(*) AS n FROM RequestReality WHERE ${UNRESOLVED_OPERATOR}`
+  ),
+  unresolvedOperatorIps: db.prepare(
+    `SELECT COUNT(DISTINCT cfConnectingIp) AS n FROM RequestReality WHERE ${UNRESOLVED_OPERATOR}`
   ),
   // Filtered like every other figure here. Unfiltered, this counted two agents
   // that had executed JavaScript and both were the operator's own test clients.
@@ -192,6 +227,8 @@ export function headline() {
     jsAgents: q.jsAgents.get().n,
     excludedByDeclaration: q.byDeclaration.get().n,
     excludedByHeuristic: q.byHeuristic.get().n,
-    declaredAddresses: OPERATOR_ADDRESSES
+    declaredAddresses: OPERATOR_ADDRESSES,
+    unresolvedOperator: q.unresolvedOperator.get().n,
+    unresolvedOperatorIps: q.unresolvedOperatorIps.get().n
   };
 }
