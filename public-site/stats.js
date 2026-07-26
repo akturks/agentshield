@@ -174,6 +174,18 @@ const OPERATOR_LANGUAGES = `
 
 const UNRESOLVED_OPERATOR = `${EXTERNAL} AND ${OPERATOR_LANGUAGES}`;
 
+/**
+ * Matches requests sending an Accept-Language header that a declared operator
+ * address also sends. Exported so a detector can subtract traffic that is
+ * probably ours from a figure without restating the criterion.
+ *
+ * This narrows a claim; it never widens one, and it excludes nothing from any
+ * published total. See the note above on why these requests are counted.
+ */
+export function probablyOperatorLanguage() {
+  return OPERATOR_LANGUAGES;
+}
+
 const q = {
   external: db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`),
   instrument: db.prepare(

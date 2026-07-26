@@ -8,7 +8,7 @@ import { escapeHtml } from "../layout.js";
 // generated sentence that cannot invent a figure is worth more here than a
 // fluent one that might.
 
-export const TEMPLATE_VERSION = "tpl-5";
+export const TEMPLATE_VERSION = "tpl-6";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -160,16 +160,32 @@ ${limits([
   },
 
   arrival_host(c) {
-    const { canonical, hosts, aiOnCanonical, aiElsewhere, otherHostRequests } = c.facts;
-    const aiTotal = aiOnCanonical + aiElsewhere;
-    const allOnCanonical = aiElsewhere === 0 && aiOnCanonical > 0;
+    const {
+      canonical,
+      hosts,
+      aiOnCanonical,
+      promptedOnCanonical,
+      unpromptedOnCanonical,
+      aiElsewhere,
+      otherHostRequests,
+      otherHostNotOurs
+    } = c.facts;
 
+    const others = hosts.filter((h) => h.host !== canonical).map((h) => h.host);
+
+    // The headline is about the hostname we never published, not about crawlers
+    // using the one we did.
+    //
+    // The first version led on "every declared AI crawler arrived on the name we
+    // announced", which is the unremarkable half of this observation: robots.txt,
+    // the sitemap, llms.txt and the feed are generated from one origin and mention
+    // no other name, so a crawler working from any of them could not have arrived
+    // anywhere else. The finding was pointed at its own control group. What needs
+    // explaining is the traffic that asked for a name appearing in none of it.
     return {
       slug: `arrival-host-${day(c.windowEndMs)}`,
-      title: allOnCanonical
-        ? `Every declared AI crawler arrived on one of our two hostnames — the one we announced`
-        : `Declared AI crawlers arrived on ${new Set([canonical]).size + (aiElsewhere ? 1 : 0)} of our hostnames`,
-      summary: `This site answers on ${hosts.length} hostnames, both serving every path. Of ${aiTotal} request${aiTotal === 1 ? "" : "s"} from clients declaring a known AI crawler, ${aiOnCanonical} arrived on ${canonical} and ${aiElsewhere} elsewhere — while ${otherHostRequests} other external requests used a non-canonical hostname.`,
+      title: `${otherHostNotOurs} requests asked for a hostname we have never published anywhere`,
+      summary: `Everything this site publishes — robots.txt, the sitemap, llms.txt, the feed, every canonical tag — names ${canonical} and nothing else. ${otherHostRequests} external requests nonetheless arrived on ${others.join(", ")}, ${otherHostNotOurs} of them from clients that do not share our own browser language profile. Whatever told them that name, we did not.`,
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC. Both hostnames return <code>200</code> for every path and carry a canonical tag pointing at <code>${escapeHtml(canonical)}</code>; there is no redirect between them.</p>
@@ -181,23 +197,28 @@ ${hosts.map((h) => `<tr><td><code>${escapeHtml(h.host)}</code>${h.host === canon
 </table>
 <table>
 <tbody>
+<tr><th>Requests on ${escapeHtml(others.join(", "))}</th><td>${otherHostRequests}</td></tr>
+<tr><th>&nbsp;&nbsp;of those, from clients not sharing our browser language</th><td>${otherHostNotOurs}</td></tr>
 <tr><th>AI-crawler requests on ${escapeHtml(canonical)}</th><td>${aiOnCanonical}</td></tr>
+<tr><th>&nbsp;&nbsp;of those, inside a trial we ran ourselves</th><td>${promptedOnCanonical}</td></tr>
 <tr><th>AI-crawler requests on any other hostname</th><td>${aiElsewhere}</td></tr>
 </tbody>
 </table>
 <h2>What it means</h2>
+<p>Every surface this site publishes is generated from a single origin and names <code>${escapeHtml(canonical)}</code> only. A client working from robots.txt, the sitemap, <code>llms.txt</code>, the feed or a canonical tag could not have learned any other name here. So the ${otherHostNotOurs} requests above arrived carrying a name they got from somewhere else: DNS, a certificate transparency log, a scraped list, or a source we cannot see.</p>
+<p>That is the part worth recording. The mirror-image figure — declared AI crawlers on the canonical name — is not evidence of anything, because the canonical name is the only one they could have been given. This finding first led on that figure, which was pointing it at its own control group.</p>
 ${
-  allOnCanonical
-    ? `<p>Every client declaring a known AI crawler used the hostname we announced to the indexes, and none used the other one. Other automated traffic did not divide the same way — ${otherHostRequests} external requests arrived on a non-canonical hostname, including a distributed retrieval that used it almost exclusively.</p>
-<p>The obvious reading is that these are two different discovery routes: a crawler that came from an index we submitted to arrives on the name we submitted, and a crawler that found the site some other way — enumerating DNS, reading certificate transparency logs, working from a list — arrives on whichever name that source held. The counts here are consistent with that and do not establish it. ${aiTotal} requests is not enough to establish anything about crawler behaviour in general.</p>`
-    : `<p>Declared AI crawlers used more than one of our hostnames, so arrival hostname does not separate them from other automated traffic here.</p>`
+  promptedOnCanonical
+    ? `<p><strong>${promptedOnCanonical} of the ${aiOnCanonical} AI-crawler requests were caused by us</strong>, arriving inside windows in which we had asked a vendor to read a page here. That leaves ${unpromptedOnCanonical} unprompted — too few to describe crawler behaviour, and stated here so the larger number is not read as one.</p>`
+    : ""
 }
-<p>This is also why the two hostnames were left in place. Serving one canonical host is the ordinary advice, and a redirect was the first thing considered — but no figure published here is computed per hostname, so nothing was being corrupted, and the redirect would have made every future arrival look identical. The untidiness is carrying information, so it stays and is measured instead.</p>
+<p>The two hostnames are deliberately still in place. A redirect is the ordinary advice and was the first thing considered; measuring first showed that no figure published here is computed per hostname, so nothing was being corrupted, and that a redirect would have made every future arrival identical and destroyed exactly the signal above. Duplicate content is already handled by canonical tags on both names.</p>
 ${limits([
   UA_CLAIM_LIMIT,
-  `Sample size. ${aiTotal} AI-crawler request${aiTotal === 1 ? "" : "s"} in total. This is a description of what has arrived here, not a result about how crawlers behave.`,
-  "Requests on the non-canonical hostname include traffic that is probably our own — see the note on unresolved operator traffic on the lab page. The AI-crawler figures are unaffected by it, since none of that traffic declares an AI crawler.",
-  "Hostname is the Host header as received. It records the name the client asked for, not how the client learned it; the discovery route is an inference and is not recorded anywhere.",
+  `Sample size. ${unpromptedOnCanonical} unprompted AI-crawler request${unpromptedOnCanonical === 1 ? "" : "s"}, and ${otherHostNotOurs} on the unpublished hostname, most of them one distributed retrieval. This describes what arrived here; it is not a result about crawlers in general.`,
+  "The language-profile subtraction is a narrowing, not an exclusion: those requests remain in every published total, and are described on the lab page. It is used here only so a claim about clients finding an unadvertised name does not rest on our own phone.",
+  "Hostname is the Host header as received. It records the name a client asked for, not how it learned it. Every explanation offered above is an inference; the route is recorded nowhere.",
+  "Absence of a redirect is a choice this project made, and it shapes what can be seen here. A site that redirects would produce none of these figures.",
   SINGLE_SITE_LIMIT
 ])}`
     };

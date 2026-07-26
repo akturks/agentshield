@@ -1,5 +1,5 @@
 import db from "../realityDb.js";
-import { notOperator, notDeclaredOperator } from "../stats.js";
+import { notOperator, notDeclaredOperator, probablyOperatorLanguage } from "../stats.js";
 
 // Deterministic rules over observed reality. A detector never interprets and
 // never writes prose — it returns candidates: a subject, a time window, and the
@@ -10,7 +10,7 @@ import { notOperator, notDeclaredOperator } from "../stats.js";
 // returned a number without a query would be asking to be trusted, which is the
 // thing this system does not do.
 
-export const DETECTOR_VERSION = "det-5";
+export const DETECTOR_VERSION = "det-6";
 
 const AI_AGENT_PATTERNS = [
   "GPTBot",
@@ -425,10 +425,44 @@ function arrivalHost(siteId, { minAiRequests = 2 } = {}) {
     [siteId, canonical, ...aiParams]
   );
 
-  if (aiOnCanonical + aiElsewhere < minAiRequests) return [];
+  // How many of those arrivals happened inside a window in which we had asked a
+  // vendor to read a page here.
+  //
+  // The first version of this rule omitted this and reported seven AI-crawler
+  // arrivals, four of which were the Claude trial the operator had run the
+  // evening before — traffic this project had already published as its own. The
+  // reconciliation existed in newAiAgent and simply was not applied here, which
+  // is how a figure can be individually correct and collectively a fiction.
+  let promptedOnCanonical = 0;
+  for (const pattern of AI_AGENT_PATTERNS) {
+    const times = db
+      .prepare(
+        `SELECT observedAtMs AS ms FROM RequestReality
+         WHERE ${SCOPE} AND host = ? AND userAgent LIKE ?`
+      )
+      .all(siteId, canonical, `%${pattern}%`)
+      .map((r) => r.ms);
+    promptedOnCanonical += promptedCount(siteId, pattern, times);
+  }
+
+  const unpromptedOnCanonical = aiOnCanonical - promptedOnCanonical;
+
+  // Unprompted arrivals are what this finding can speak about, so the threshold
+  // applies to those rather than to the raw count.
+  if (unpromptedOnCanonical + aiElsewhere < minAiRequests) return [];
 
   const otherHostRequests = one(
     `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ?`,
+    [siteId, canonical]
+  );
+
+  // The same requests, minus those that share the declared operator's browser
+  // language profile. Those are probably our own phone, disclosed on the lab page
+  // and deliberately not excluded from totals — but a claim about clients finding
+  // an unadvertised hostname should not lean on our own device.
+  const otherHostNotOurs = one(
+    `SELECT COUNT(*) FROM RequestReality
+     WHERE ${SCOPE} AND host <> ? AND NOT (${probablyOperatorLanguage()})`,
     [siteId, canonical]
   );
 
@@ -442,12 +476,19 @@ function arrivalHost(siteId, { minAiRequests = 2 } = {}) {
       subjectKey: "all",
       windowStartMs: bounds.a,
       windowEndMs: bounds.b,
+      // Held for review is not enough on its own — the reviewer sees the prose,
+      // and the prose is generated from these facts, so the facts have to carry
+      // what would make a reader doubt the headline.
+      requiresReview: true,
       facts: {
         canonical,
         hosts,
         aiOnCanonical,
+        promptedOnCanonical,
+        unpromptedOnCanonical,
         aiElsewhere,
-        otherHostRequests
+        otherHostRequests,
+        otherHostNotOurs
       },
       claims: [
         claim(
@@ -455,6 +496,19 @@ function arrivalHost(siteId, { minAiRequests = 2 } = {}) {
           `SELECT COUNT(DISTINCT host) FROM RequestReality WHERE ${SCOPE}`,
           [siteId],
           hosts.length
+        ),
+        claim(
+          "external requests on the hostname we never publish",
+          `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ?`,
+          [siteId, canonical],
+          otherHostRequests
+        ),
+        claim(
+          "the same requests, excluding clients sharing our own browser language profile",
+          `SELECT COUNT(*) FROM RequestReality
+           WHERE ${SCOPE} AND host <> ? AND NOT (${probablyOperatorLanguage()})`,
+          [siteId, canonical],
+          otherHostNotOurs
         ),
         claim(
           `requests declaring a known AI agent, on ${canonical}`,
@@ -467,12 +521,6 @@ function arrivalHost(siteId, { minAiRequests = 2 } = {}) {
           `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ? AND ${aiLike}`,
           [siteId, canonical, ...aiParams],
           aiElsewhere
-        ),
-        claim(
-          "external requests on hostnames other than the canonical one",
-          `SELECT COUNT(*) FROM RequestReality WHERE ${SCOPE} AND host <> ?`,
-          [siteId, canonical],
-          otherHostRequests
         )
       ]
     }
