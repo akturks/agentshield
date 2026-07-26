@@ -22,7 +22,7 @@ import db, { ROOT } from "./db.js";
 // A parser is the upgrade path, and the reason to take it will be a false
 // positive this cannot avoid rather than a preference for parsers.
 
-export const SCANNER_VERSION = "scan-11";
+export const SCANNER_VERSION = "scan-16";
 
 // Values that carry no design decision. 0 and 1 are structural, 100 is almost
 // always a percentage ceiling, and -1 is a sentinel. A threshold repeated across
@@ -321,12 +321,13 @@ function trackedSourceFiles() {
  * agentshield named 50 files, and a third of them were command-line tools, config
  * files and one-off scripts: nothing imports a CLI, and saying so is true and useless.
  *
- * Five signals, all of them declarations rather than guesses. A shebang is a file
- * saying "run me". An appearance in package.json scripts is the project saying it.
- * A `*.config.js` or `.somethingrc.js` name is the ecosystem's convention, read by tools
- * that require the file themselves. And a file at the root whose name is a declared
- * dependency belongs to that dependency: sequelize keeps `typedoc.js` beside a
- * `typedoc` devDependency, and the tool reported it and `.eslintrc.js` as dead code.
+ * Every signal here is a declaration rather than a guess. A shebang is a file saying "run
+ * me". A path in a manifest is the project saying it — see `manifestDeclarations`, which
+ * reads all of them rather than a list of keys somebody thought of. A `*.config.js` or
+ * `.somethingrc.js` name is the ecosystem's convention, read by tools that require the
+ * file themselves. And a file at the root whose name is a declared dependency belongs to
+ * that dependency: sequelize keeps `typedoc.js` beside a `typedoc` devDependency, and the
+ * tool reported it and `.eslintrc.js` as dead code.
  *
  * Note what the last signal is not. It is not "this filename looks like a config" — it
  * is the project's own package.json saying the name refers to a tool it installed.
@@ -367,21 +368,220 @@ function entryPoints(files) {
     }
   }
 
-  try {
-    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
-    const scripts = Object.values(pkg.scripts ?? {}).join(" ");
-    const main = [pkg.main, pkg.module, pkg.bin]
-      .flatMap((v) => (typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v) : []))
-      .filter(Boolean);
-    for (const rel of files) {
-      if (scripts.includes(rel)) entries.add(rel);
-      if (main.some((m) => m.replace(/^\.\//, "") === rel)) entries.add(rel);
-    }
-  } catch {
-    // No package.json, or unreadable: the other two signals still apply.
+  const { paths, directories, commands } = manifestDeclarations();
+
+  for (const rel of files) {
+    if (paths.has(rel)) entries.add(rel);
+    // Anywhere beneath a declared directory, not only directly inside it. oclif's command
+    // directory nests: sequelize keeps its migration subcommands in
+    // `_commands/migration/`, and matching only the immediate parent left all four of them
+    // reported as dead code by a change made to stop exactly that.
+    if ([...directories].some((d) => rel.startsWith(`${d}/`))) entries.add(rel);
+    // Script bodies are command lines, not paths, so the file has to be looked for
+    // inside them. `"start": "node server.js"` names server.js and nothing resolves it.
+    if (commands.includes(rel)) entries.add(rel);
   }
 
   return entries;
+}
+
+/** Every string anywhere in a parsed manifest, at any depth. */
+function everyString(value, out = []) {
+  if (typeof value === "string") out.push(value);
+  else if (Array.isArray(value)) for (const v of value) everyString(v, out);
+  else if (value && typeof value === "object") for (const v of Object.values(value)) everyString(v, out);
+  return out;
+}
+
+/** A string that could be a path: no whitespace, and a slash or an extension in it. */
+function looksLikePath(text) {
+  return !/\s/.test(text) && (text.includes("/") || /\.[a-z]+$/.test(text));
+}
+
+// Keys npm defines itself. Everything else at the top level of a package.json belongs to
+// some tool that reads it — `oclif`, `jest`, `nodemon`, `c8` — and a path inside one of
+// those blocks is that tool being told where to find things to load.
+//
+// The distinction is not decoration. Reading *every* key found sequelize's oclif commands
+// and also found express's `"files": ["lib/"]`, which is a publish manifest: it says which
+// files go into the npm tarball and nothing about what loads them. Honouring it marked all
+// seven of express's program files as entry points and silenced the detector for that
+// repository completely — the failure this function's own comment had warned about, one
+// paragraph above the code that caused it.
+//
+// So npm's keys are read by name, because their meanings are known, and only the ones that
+// genuinely name an entry point are used. Unknown keys are read whole, because a tool's
+// configuration block is exactly where a loader declaration lives and no list of key names
+// would have contained `oclif.commands`.
+const NPM_KEYS = new Set([
+  "name", "version", "description", "keywords", "homepage", "bugs", "license", "author",
+  "contributors", "funding", "files", "man", "directories", "repository", "config",
+  "dependencies", "devDependencies", "peerDependencies", "peerDependenciesMeta",
+  "bundledDependencies", "bundleDependencies", "optionalDependencies", "overrides",
+  "resolutions", "engines", "devEngines", "os", "cpu", "private", "publishConfig",
+  "workspaces", "type", "types", "typings", "sideEffects", "packageManager", "scripts"
+]);
+
+// npm keys that do name something meant to be loaded rather than imported by a sibling.
+const NPM_ENTRY_KEYS = ["main", "module", "browser", "bin", "exports", "imports"];
+
+/**
+ * Paths the project's own manifests declare, mapped back to source.
+ *
+ * `main`, `bin` and `scripts` were read by name, which found the three declarations this
+ * repository happens to make and missed the one sequelize makes:
+ *
+ *     "oclif": { "commands": "./lib/_commands" }
+ *
+ * oclif loads every file in that directory as a subcommand. Nothing imports them, nothing
+ * writes their names down, and the tool reported four of them as dead code.
+ *
+ * Two things keep the wider reading from being reckless. A string only counts if it
+ * resolves to something git tracks. And `./lib/_commands` resolves to nothing, because
+ * `lib` is build output — so the sibling `tsconfig.json` is read for `outDir` and
+ * `rootDir`, and the path is mapped back through them. That mapping is a declaration too;
+ * nothing here guesses that `lib` means `src`.
+ *
+ * A declaration naming the source root itself is still dropped, as a second guard.
+ */
+function manifestDeclarations() {
+  const paths = new Set();
+  const directories = new Set();
+  const commands = [];
+
+  let manifests;
+  try {
+    manifests = execFileSync("git", ["ls-files", "-z", "package.json", "*/package.json"], {
+      cwd: ROOT,
+      encoding: "utf8"
+    })
+      .split("\0")
+      .filter((p) => p && !p.includes("node_modules/"));
+  } catch {
+    return { paths, directories, commands };
+  }
+
+  const tracked = new Set(
+    execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+      .split("\0")
+      .filter(Boolean)
+  );
+  const trackedDirectories = new Set();
+  for (const file of tracked) {
+    let at = file.lastIndexOf("/");
+    while (at > -1) {
+      trackedDirectories.add(file.slice(0, at));
+      at = file.lastIndexOf("/", at - 1);
+    }
+  }
+
+  for (const manifest of manifests) {
+    const base = manifest.slice(0, Math.max(0, manifest.lastIndexOf("/")));
+    let pkg;
+    try {
+      pkg = JSON.parse(readFileSync(join(ROOT, manifest), "utf8"));
+    } catch {
+      continue;
+    }
+
+    commands.push(Object.values(pkg.scripts ?? {}).join(" "));
+
+    const { outDir, rootDir } = buildLayout(base);
+    const sourceRoot = rootDir ? joinRel(base, rootDir) : null;
+
+    // Node's implicit rule when a package declares no entry at all: `index.js` beside the
+    // manifest. express relies on it — it has no `main`, no `exports`, and lists
+    // `index.js` only under `files`, which is a publish manifest and says nothing about
+    // loading. Without this the package's own front door reads as dead code.
+    const declaresEntry = NPM_ENTRY_KEYS.some((key) => pkg[key] !== undefined);
+    const implicit = declaresEntry ? [] : SOURCE_EXTENSIONS.map((e) => `index.${e}`);
+
+    const declaredHere = [
+      ...implicit,
+      ...NPM_ENTRY_KEYS.flatMap((key) => everyString(pkg[key] ?? null)),
+      ...Object.entries(pkg)
+        .filter(([key]) => !NPM_KEYS.has(key) && !NPM_ENTRY_KEYS.includes(key))
+        .flatMap(([, value]) => everyString(value))
+    ];
+
+    for (const text of declaredHere) {
+      if (!looksLikePath(text)) continue;
+      for (const candidate of underSource(joinRel(base, text), outDir && joinRel(base, outDir), sourceRoot)) {
+        if (candidate === sourceRoot || candidate === base) continue;
+        if (tracked.has(candidate)) paths.add(candidate);
+        // A declared directory that holds every program file this package has says nothing
+        // discriminating: honouring it would mark the whole package as entry points and
+        // switch the detector off. `"nodemonConfig": { "watch": ["src"] }` is that shape,
+        // and so is any `outDir` in a project with no tsconfig to recognise it by. Exact
+        // rather than a proportion — a threshold here would be a guess about how much of a
+        // package a loader may plausibly own, and there is no such number.
+        else if (trackedDirectories.has(candidate) && !coversWholePackage(candidate, base, tracked)) {
+          directories.add(candidate);
+        }
+      }
+    }
+  }
+
+  return { paths, directories, commands: commands.join(" ") };
+}
+
+/**
+ * Whether a directory holds every program file belonging to this package.
+ *
+ * "Belonging to" stops at the next manifest down, which matters in a monorepo: the root
+ * package of a workspace contains every package's files, and a directory of the root is
+ * not the whole of it.
+ */
+function coversWholePackage(directory, base, tracked) {
+  const prefix = base ? `${base}/` : "";
+  let inPackage = 0;
+  let inDirectory = 0;
+
+  for (const file of tracked) {
+    if (!file.startsWith(prefix) || !isProgramFile(file)) continue;
+    inPackage += 1;
+    if (file.startsWith(`${directory}/`)) inDirectory += 1;
+  }
+
+  return inPackage > 0 && inDirectory === inPackage;
+}
+
+/** `outDir` and `rootDir` from the tsconfig.json beside a manifest, if it declares them. */
+function buildLayout(base) {
+  try {
+    const raw = readFileSync(join(ROOT, base ? `${base}/tsconfig.json` : "tsconfig.json"), "utf8");
+    // Comments are legal in tsconfig.json and JSON.parse rejects them.
+    const config = JSON.parse(stripComments(raw));
+    return {
+      outDir: config.compilerOptions?.outDir ?? null,
+      rootDir: config.compilerOptions?.rootDir ?? null
+    };
+  } catch {
+    return { outDir: null, rootDir: null };
+  }
+}
+
+/** A declared path, plus the same path with the build directory swapped for the source. */
+function underSource(declared, outDir, sourceRoot) {
+  const out = [declared];
+  if (outDir && sourceRoot && (declared === outDir || declared.startsWith(`${outDir}/`))) {
+    const tail = declared.slice(outDir.length);
+    const mapped = `${sourceRoot}${tail}`;
+    out.push(mapped);
+    // A declaration written against build output names the compiled extension. The
+    // source it came from does not have it.
+    for (const extension of SOURCE_EXTENSIONS) {
+      out.push(mapped.replace(/\.(js|mjs|cjs)$/, `.${extension}`));
+    }
+  }
+  return out;
+}
+
+/** Normalises `base` + `./relative` into a repository-relative path. */
+function joinRel(base, relative) {
+  const cleaned = relative.replace(/^\.\//, "").replace(/^\//, "").replace(/\/$/, "");
+  const combined = base ? `${base}/${cleaned}` : cleaned;
+  return combined.split("/").filter((s) => s && s !== ".").join("/");
 }
 
 /**

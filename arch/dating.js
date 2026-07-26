@@ -275,7 +275,7 @@ export function daysSince(iso) {
  * starting since 2013.
  */
 export function moduleHistory(relPath) {
-  if (historyIsTruncated()) return { added: null, referenceCommits: [], everReferenced: null };
+  if (historyIsTruncated()) return { added: null, everReferenced: null };
 
   let added = null;
   try {
@@ -297,26 +297,30 @@ export function moduleHistory(relPath) {
     added = null;
   }
 
-  let referenceCommits = [];
+  // `--max-count=1`, because the only question asked of this is whether the answer is
+  // empty. It used to collect every commit that ever touched a reference to the module and
+  // then test `.length > 0`; the list was stored in the finding's facts and read by
+  // nothing. On etherpad-lite each of these walks 10,001 commits and takes 7.3 seconds,
+  // and stopping at the first hit ends it immediately for every module that *was*
+  // referenced — which is most of them.
+  //
+  // A module that never was still costs a full walk, and nothing can avoid that: proving
+  // absence means looking everywhere. That is the floor on this detector's cost.
+  let everReferenced = null;
   try {
     const out = git([
       "log",
       "--pickaxe-regex",
       `-S${reachedPattern(relPath.split("/").pop())}`,
-      "--format=%H%x09%aI%x09%s",
+      "--max-count=1",
+      "--format=%H",
       "--",
       ...SOURCE_PATHSPEC
     ]);
-    referenceCommits = out
-      .split("\n")
-      .filter((l) => l.trim())
-      .map((l) => {
-        const [sha, at, subject] = l.split("\t");
-        return { sha, at, subject };
-      });
+    everReferenced = out.split("\n").filter((l) => l.trim()).length > 0;
   } catch {
-    referenceCommits = [];
+    everReferenced = null;
   }
 
-  return { added, referenceCommits, everReferenced: referenceCommits.length > 0 };
+  return { added, everReferenced };
 }

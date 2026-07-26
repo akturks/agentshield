@@ -95,9 +95,9 @@ report most of `src/services` as dead. A name mentioned nowhere is safe against
 dependency injection, because injecting a function still mentions its name at the
 injection site.
 
-## What eight repositories showed
+## What nine repositories showed
 
-The tool has now been run against six repositories it did not grow up in. Every number
+The tool has now been run against seven repositories it did not grow up in. Every number
 below is after the defects those runs exposed were fixed, which was the point of running
 them. The sections that follow describe those defects; what they have in common is that
 none of them could have been found by reading this repository more carefully.
@@ -109,15 +109,16 @@ none of them could have been found by reading this repository more carefully.
 | axios | 0 | 80 of 456 | mature library |
 | pm2 | 0 | 172 of 938 | process manager |
 | fastify | 1 | 37 of 395 | one real duplicated boundary, hand-checked |
+| sequelize | 1 | 345 of 944 | TypeScript, in a monorepo with a CLI |
 | etherpad-lite | 6 | 299 of 1108 | TypeScript, and 0 until it was read |
 | agentshield | 6 | 131 of 225 | this repository |
 | project-anchor | 6 | 88 of 104 | the author's other repository |
 
-The finding count is not a quality score, and the table should not be read as one. Four of
-the five libraries here are small, mature and reviewed by many people; etherpad-lite is a
-product with a decade of history and it looks like the two repositories written by one
-person without review. What these findings track is **growth without a second reader**,
-and a large old product accumulates that whoever writes it.
+The finding count is not a quality score, and the table should not be read as one. The
+quiet repositories are libraries: small, mature, and reviewed by many people. The one that
+looks like the two written by a single person is etherpad-lite, a product with a decade of
+history. What these findings track is **growth without a second reader**, and a large old
+product accumulates that whoever writes it.
 
 The "files read" column is in the table because a zero without it cannot be interpreted.
 express is 7 files of 213 and its zero means something. etherpad-lite was 12 of 1108, and
@@ -159,8 +160,8 @@ it is excluded, because `"git log -- src/services/outcomeEngineService.js"` name
 
 ### sequelize, and what counts as a declaration
 
-Two more categories of false positive came out of the only repository here that is a
-product rather than a library:
+Two more categories of false positive came out of a repository that ships a command-line
+tool alongside a library:
 
 - `packages/cli/static/skeletons` — four files copied into somebody else's project. A
   skeleton nothing imports is a skeleton working as intended, exactly like an example.
@@ -236,16 +237,122 @@ etherpad-lite went from 0 findings to 6. Two more things fell out of running it:
 The coverage line stays now that the cause is fixed, and should. The next repository will
 be mostly Python, or a monorepo where the Node part is a tenth of the tree.
 
-### Cost
+### The declaration that was under a key nobody would have listed
 
-sequelize took **629 seconds** on its first run and over 1500 on its last, for 67 files.
-Almost all of it is dating: `git log --pickaxe-regex` walks 11,866 commits once per
-candidate module, and the candidate list is long before the detectors group it.
-agentshield takes about 25 seconds over 127 files.
+sequelize's CLI keeps four subcommands in `packages/cli/src/_commands/migration`, and the
+tool called all four dead. Nothing imports them and nothing writes their names down —
+because `packages/cli/package.json` says:
 
-Note which number grew. Excluding skeletons and config files made the scan cheaper and the
-run slower, because the modules that remain are the ones with history to walk. Cost here
-tracks the age of the repository, not its size.
+    "oclif": { "commands": "./lib/_commands" }
 
-That is fine for a report run by hand and disqualifying for anything that runs on every
-commit, which is worth knowing before it is designed around rather than after.
+oclif loads every file in that directory. The declaration was there the whole time, under
+a key that no list of known keys would have contained, which is the argument against
+lists of known keys. It also points at `lib`, which is build output and not in the
+repository at all; the mapping back to `src` is declared too, in the sibling
+`tsconfig.json` as `outDir` and `rootDir`.
+
+So the reader now takes every string in every `package.json`, at any depth, keeps the ones
+that resolve to something git tracks, and maps build paths back through tsconfig.
+
+That version lasted one measurement. express declares `"files": ["index.js", "lib/"]` — a
+**publish manifest**, listing what goes into the npm tarball and saying nothing about what
+loads it. Honouring it marked all seven of express's program files as entry points and
+silenced the detector for that repository completely. The tool would have reported a clean
+express forever, and the finding count would not have changed, because it was already zero.
+
+The fix is the distinction the first version skipped over. npm's own keys have known
+meanings, so they are read by name and only the ones that name an entry point are used.
+Every *other* top-level key is some tool's configuration block — `oclif`, `jest`,
+`nodemon` — and a path inside one of those is that tool being told where to find things
+to load. `files` is npm's and means "ship this"; `oclif.commands` is not and means "load
+this".
+
+One more rule came out of the same measurement: express declares no `main` and no
+`exports` at all, and relies on Node's implicit `index.js`. Without that rule the package's
+own front door read as dead code.
+
+Both of these were found by looking at the entry-point count per repository before running
+the detectors, which took a minute and is now the first thing to check after any change to
+what counts as an entry point. A detector that has been switched off reports zero findings,
+and so does a clean repository.
+
+### Cost, measured rather than assumed
+
+Cost tracks the age of a repository rather than its size: `git log --pickaxe-regex` walks
+the whole history once per candidate, and one such walk over etherpad-lite's 10,001 commits
+takes 7.3 seconds.
+
+The claim "almost all of it is dating" was written into this file before it was checked.
+It is right, and checking it produced two savings the guess would not have:
+
+| | etherpad-lite |
+| --- | --- |
+| before | 445s |
+| dating only what survives the grouping | 377s |
+| asking git for the first hit instead of every hit | **318s** |
+
+The first: the detector dated every candidate module and *then* dropped the directories
+holding fewer than two. The work was thrown away after being paid for.
+
+The second: `moduleHistory` collected every commit that ever touched a reference to a
+module, stored the list in the finding's facts, and tested `.length > 0`. Nothing read the
+list. `--max-count=1` ends the walk at the first hit, which on a module that *was*
+referenced is usually immediate.
+
+A module that never was still costs a full walk, and nothing can avoid that: proving
+absence means looking everywhere. That is the floor.
+
+agentshield takes about 25 seconds over 131 files. That is fine for a report run by hand
+and disqualifying for anything that runs on every commit, which is worth knowing before it
+is designed around rather than after.
+
+### The first tests in this directory
+
+`tests/arch/lexer.test.js` covers what a lexer defect looks like when it is silent, which
+is the only kind this pipeline has produced. The regex-literal bug lived here from the
+first commit, never threw, never made a figure look strange, and was found only when a
+second consumer of the same function started asking a different question of it.
+
+Six tests, and the one that matters asserts that a comment sitting below a regex literal
+containing an apostrophe is still recognised as a comment. Written after the fix rather
+than before it, which is worth admitting: the test exists because the defect taught what
+to test for, and no amount of thinking about the lexer in advance had produced it.
+
+### Two rules that were not added, and why
+
+Reading etherpad's output raised the same objection twice: `` `d` is compared against the
+same boundary in 2 separate files `` is a finding about a one-letter variable, and
+sequelize's `length` is a property every array has. Both look like noise, and the obvious
+fixes are a rule about the subject's shape or a rule about how common it is.
+
+Both were measured against the findings from nine repositories before being written, and
+both fail.
+
+**"A dotted expression names something specific; a bare identifier does not."** The bare
+subjects are `statusCode` in fastify, `trafficQuality` here and `lastLogged` in etherpad —
+all three hand-verified, all three real. The rule would have deleted more true findings
+than false ones.
+
+**"A subject compared against many values across the repository is generic."** `evt.which`
+appears at 11 sites against 6 distinct values in etherpad and is the best finding the tool
+has produced there: three separate files hardcode `27` for the Escape key. `lastLogged`
+appears at 2 sites against 1 value and is equally real. The two ends of the range are both
+good.
+
+| Subject | Sites | Distinct values | Files | Verdict by hand |
+| --- | --- | --- | --- | --- |
+| `evt.which` | 11 | 6 | 4 | real — Escape hardcoded in 3 files |
+| `statusCode` | 8 | 5 | 3 | real |
+| `d` | 9 | 4 | 2 | real — the same 60-second boundary in two date formatters |
+| `risk.riskScore` | 6 | 3 | 2 | real |
+| `trafficQuality` | 4 | 2 | 2 | real |
+| `lastLogged` | 2 | 1 | 2 | real |
+
+So there is no discriminator here, and inventing one would mean choosing which true
+findings to hide on the strength of how they read. The unit the detector already uses —
+one expression, one operator, one value, in more than one file — is defensible, and every
+finding already says the thing the counts cannot settle: a repeated threshold may be
+deliberate, which is why a person reads it before it is published.
+
+The negative result is recorded because it will occur to somebody again, and next time the
+measurement is already done.

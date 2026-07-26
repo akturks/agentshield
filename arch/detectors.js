@@ -25,7 +25,7 @@ import { NOT_PROGRAM_PATTERN, SOURCE_PATHSPEC } from "./scan.js";
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-15";
+export const DETECTOR_VERSION = "arch-det-17";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
@@ -295,35 +295,41 @@ function documentedIn(relPath) {
  * imports what it injects, at the injection site.
  */
 export function unimportedModule(scanId) {
-  const dead = [];
+  // Grouped first, dated second, and the order is the whole cost of this detector.
+  //
+  // Dating asks git to walk the entire history once per module, which on sequelize is
+  // 11,866 commits a time. Doing it before the grouping dated every candidate — including
+  // every directory holding exactly one, which the filter below then discards. The work
+  // was thrown away after being paid for, and it was most of the runtime.
+  const byDirectory = new Map();
 
   for (const { path } of unimportedModules.all(scanId)) {
     if (namedOutsideJavaScript(path) > 0) continue;
-    const docs = documentedIn(path);
-    const history = moduleHistory(path);
-    dead.push({
-      path,
-      directory: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ".",
-      documentedIn: docs,
-      added: history.added,
-      everReferenced: history.everReferenced,
-      referenceCommits: history.referenceCommits
-    });
+    const directory = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ".";
+    if (!byDirectory.has(directory)) byDirectory.set(directory, []);
+    byDirectory.get(directory).push({ path, directory });
   }
 
-  const byDirectory = new Map();
-  for (const entry of dead) {
-    if (!byDirectory.has(entry.directory)) byDirectory.set(entry.directory, []);
-    byDirectory.get(entry.directory).push(entry);
+  for (const [directory, group] of byDirectory) {
+    if (group.length < 2) {
+      byDirectory.delete(directory);
+      continue;
+    }
+    for (const entry of group) {
+      const history = moduleHistory(entry.path);
+      entry.documentedIn = documentedIn(entry.path);
+      entry.added = history.added;
+      entry.everReferenced = history.everReferenced;
+    }
   }
 
   const candidates = [];
 
+  // A single unimported file in a directory is a normal thing in a working repo — a
+  // script, something half-written, something about to be wired. A cluster is a different
+  // claim, and the one worth a person's attention. Those are already gone: the loop above
+  // drops them before paying to date them.
   for (const [directory, modules] of byDirectory) {
-    // A single unimported file in a directory is a normal thing in a working repo — a
-    // script, something half-written, something about to be wired. A cluster is a
-    // different claim, and the one worth a person's attention.
-    if (modules.length < 2) continue;
 
     const documented = modules.filter((m) => m.documentedIn.length > 0);
     const neverReferenced = modules.filter((m) => m.everReferenced === false);

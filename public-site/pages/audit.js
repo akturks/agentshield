@@ -100,6 +100,14 @@ and trying to defend each line of it. A report of twenty findings where three ar
 wrong is worth less than a report of two that hold, because the reader who finds the
 first false one stops reading.</p>
 
+<div class="marker">
+<p><strong>Türkçe:</strong> yöntemin açıklaması —
+<a href="https://github.com/akturks/agentshield/blob/main/docs/denetim-kilavuzu.md">denetim
+kılavuzu</a>. Her bulgunun ne dediği, ne demediği, ve rakamlara neden
+güvenilebileceği. Rapor tek dilde üretiliyor; kılavuz onu tekrarlamaz, yöntemi
+anlatır.</p>
+</div>
+
 <hr>
 
 ${

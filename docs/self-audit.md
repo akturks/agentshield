@@ -2,7 +2,7 @@
 
 # What this repository is, checked against what it says
 
-Repository at `5d0368dd` with uncommitted changes at scan time, scanned 2026-07-26T17:36:46.953Z. Method version `scan-11/arch-det-15/arch-tpl-10/arch-ver-12`.
+Repository at `d1070e50` with uncommitted changes at scan time, scanned 2026-07-26T18:44:51.132Z. Method version `scan-16/arch-det-17/arch-tpl-14/arch-ver-12`.
 
 This tool read **131 files**, out of 155 JavaScript and TypeScript files in the repository and 225 files in total. The 24 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 131 files.
 
@@ -13,7 +13,15 @@ This tool read **131 files**, out of 155 JavaScript and TypeScript files in the 
 
 ## 2 files in `tools` are named nowhere in the running program
 
-Nothing in the program names any of 2 files in `tools` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in 7663e33d, "chore(tools): add the local repository-analyst and memory experiments", today.
+Nothing in the program names any of 2 files in `tools` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in 7663e33d, "chore(tools): add the local repository-analyst and memory experiments", yesterday.
+
+## When this becomes a problem
+
+The day someone reads `tools` and believes it.
+
+Somebody opens this directory looking for where a thing is done, finds 2 files whose names say they do it, and cannot tell from the code that none of them are reached. The next change goes into one of them.
+
+1 of these files never had a caller, so no commit broke anything and there is no bug report to find. The oldest arrived yesterday and has been here since.
 
 ## The files
 
@@ -86,7 +94,15 @@ narrower and checkable: does any line of the program write this file's name down
 
 ## 9 files in `src/services` are named nowhere in the running program
 
-Nothing in the program names any of 9 files in `src/services` — not an import, not a require, and not a path handed to something that loads a file. 2 of them are described by name in the documentation. The oldest arrived in d7fd3e3f, "Implement outcome engine v1", 49 days ago.
+Nothing in the program names any of 9 files in `src/services` — not an import, not a require, and not a path handed to something that loads a file. 2 of them are described by name in the documentation. The oldest arrived in d7fd3e3f, "Implement outcome engine v1", 50 days ago.
+
+## When this becomes a problem
+
+The day someone reads `src/services` and believes it.
+
+The documentation names 2 of these as part of the system. Somebody planning a change reads that, budgets for it, and finds out afterwards that the code they were told about does not run — or worse, changes it and sees no effect, because nothing was calling it.
+
+5 of these files never had a caller, so no commit broke anything and there is no bug report to find. The oldest arrived 50 days ago and has been here since.
 
 ## The files
 
@@ -180,6 +196,14 @@ narrower and checkable: does any line of the program write this file's name down
 
 Nothing in the program names any of 4 files in `src/domain/evidence` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in a18dfb06, "refactor(core): move derivation out of the repository layer into services", yesterday.
 
+## When this becomes a problem
+
+The day someone reads `src/domain/evidence` and believes it.
+
+Somebody opens this directory looking for where a thing is done, finds 4 files whose names say they do it, and cannot tell from the code that none of them are reached. The next change goes into one of them.
+
+2 of these files never had a caller, so no commit broke anything and there is no bug report to find. The oldest arrived yesterday and has been here since.
+
 ## The files
 
 | File | Added | Documented in | Ever named |
@@ -256,6 +280,14 @@ narrower and checkable: does any line of the program write this file's name down
 
 Nothing in the program names any of 5 files in `repositories` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in 28d31607, "Add trust engine foundation", 52 days ago.
 
+## When this becomes a problem
+
+The day someone reads `repositories` and believes it.
+
+Somebody opens this directory looking for where a thing is done, finds 5 files whose names say they do it, and cannot tell from the code that none of them are reached. The next change goes into one of them.
+
+Something used to reach these files and no longer does. The commit that removed the last caller is in the history; nothing in the code says so.
+
 ## The files
 
 | File | Added | Documented in | Ever named |
@@ -324,6 +356,18 @@ narrower and checkable: does any line of the program write this file's name down
 ## `trafficQuality` is compared against the same 2 boundaries in 2 separate files
 
 2 files decide something by comparing `trafficQuality` against the same boundaries: `80`, `50`. The comparison exists at 4 places across 2 files, and the earliest of them had a twin from a18dfb06 onward — yesterday.
+
+## When this becomes a problem
+
+The day someone changes one of these numbers.
+
+They open `repositories/eventRepository.js`, change `80` to something else, test it, and ship.
+The other file still holds the old number. From then on the
+program compares `trafficQuality` against two different boundaries depending on which path
+the request took, and both are correct as far as any test knows, because each file is
+internally consistent.
+
+That is why the date matters more than the count. These have stood together for a day.
 
 ## Where it is
 
@@ -397,6 +441,18 @@ in a variable and compared elsewhere, is invisible to it.
 ## `risk.riskScore` is compared against the same 3 boundaries in 2 separate files
 
 2 files decide something by comparing `risk.riskScore` against the same boundaries: `90`, `70`, `50`. The comparison exists at 6 places across 2 files, and the earliest of them had a twin from 17e8f958 onward — 50 days ago.
+
+## When this becomes a problem
+
+The day someone changes one of these numbers.
+
+They open `src/services/allocationEngineService.js`, change `90` to something else, test it, and ship.
+The other file still holds the old number. From then on the
+program compares `risk.riskScore` against two different boundaries depending on which path
+the request took, and both are correct as far as any test knows, because each file is
+internally consistent.
+
+That is why the date matters more than the count. These have stood together for 50 days.
 
 ## Where it is
 

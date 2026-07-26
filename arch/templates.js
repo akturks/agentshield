@@ -23,10 +23,17 @@
 //      different fix — so every finding says so. The alternative was holding such a
 //      finding back until a second detector existed, which stores the doubt in a
 //      queue where no reader ever sees it and pays off once instead of every time.
+//   7. Say when the finding becomes a problem, in one concrete scene. Not what to do
+//      about it — that is the reader's decision and depends on things this tool cannot
+//      see. But a person who has to defend a report needs to be able to answer "so
+//      what?" without inventing an answer, and a table of verified counts does not
+//      supply one. The scene is built only from facts already in the finding: which
+//      files, which number, how long, whether the documentation names it. Nothing in it
+//      is a prediction.
 
 import { historyIsTruncated } from "./dating.js";
 
-export const TEMPLATE_VERSION = "arch-tpl-10";
+export const TEMPLATE_VERSION = "arch-tpl-14";
 
 const short = (sha) => (sha ? sha.slice(0, 8) : "unknown");
 
@@ -42,6 +49,20 @@ function ago(days) {
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   return `${days} days ago`;
+}
+
+/**
+ * "for 49 days", "for a day".
+ *
+ * `ago()` produces "yesterday" and "today", which read correctly after a verb of arrival
+ * and not after one of duration: "they have been here, yesterday" is not a sentence. Two
+ * shapes of the same fact, because English needs two.
+ */
+function duration(days) {
+  if (days === null || days === undefined) return "for an unknown length of time";
+  if (days === 0) return "since today";
+  if (days === 1) return "for a day";
+  return `for ${days} days`;
 }
 
 /** Escapes a pipe so a cell containing one does not split the row. */
@@ -148,6 +169,22 @@ addition. Reported as unknown rather than estimated.
 
   const body = `${summary}
 
+## When this becomes a problem
+
+The day someone changes one of these numbers.
+
+They open \`${files[0]}\`, change \`${values[0].value}\` to something else, test it, and ship.
+The other ${files.length === 2 ? "file" : `${files.length - 1} files`} still hold${files.length === 2 ? "s" : ""} the old number. From then on the
+program compares \`${subject}\` against two different boundaries depending on which path
+the request took, and both are correct as far as any test knows, because each file is
+internally consistent.
+
+That is why the date matters more than the count. These have stood together ${duration(standingDays)}${
+    values.some((v) => v.editedAfterwards)
+      ? `, and one of these boundaries has already been edited since the duplication began`
+      : ""
+  }.
+
 ## Where it is
 
 ${siteTable(sites)}
@@ -238,6 +275,32 @@ later orphaned, and the fix for it is a different decision.
     : "";
 
   const body = `${summary}
+
+## When this becomes a problem
+
+The day someone reads \`${directory}\` and believes it.
+
+${
+    documented.length
+      ? `The documentation names ${documented.length === 1 ? "one of these" : `${documented.length} of these`} as part of the system. Somebody planning a change ` +
+        `reads that, budgets for it, and finds out afterwards that the code they were told ` +
+        `about does not run — or worse, changes it and sees no effect, because nothing was ` +
+        `calling it.`
+      : `Somebody opens this directory looking for where a thing is done, finds ${count} files ` +
+        `whose names say they do it, and cannot tell from the code that none of them are ` +
+        `reached. The next change goes into one of them.`
+}
+
+${
+    neverReferenced.length
+      ? (neverReferenced.length === count
+          ? `None of these files ever had a caller`
+          : `${neverReferenced.length} of these files never had a caller`) +
+        `, so no commit broke anything and there is no bug report to find. The oldest ` +
+        `arrived ${ago(standingDays)} and has been here since.`
+      : `Something used to reach these files and no longer does. The commit that removed the ` +
+        `last caller is in the history; nothing in the code says so.`
+}
 
 ## The files
 
