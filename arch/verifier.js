@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import db, { ROOT } from "./db.js";
-import { firstAppearance, namedPattern } from "./dating.js";
-import { stripCommentsAndStrings, stripComments, isProgramFile } from "./scan.js";
+import { firstAppearance, reachedPattern } from "./dating.js";
+import { stripCommentsAndStrings, stripComments, isProgramFile, SOURCE_PATHSPEC } from "./scan.js";
 import { isGeneratedDoc } from "./generated.js";
 
 // Recomputes every figure by a different route than the one that produced it.
@@ -30,7 +30,7 @@ import { isGeneratedDoc } from "./generated.js";
 // not. That split is the useful finding from building this here rather than guessing
 // at it in a design document.
 
-export const VERIFIER_VERSION = "arch-ver-10";
+export const VERIFIER_VERSION = "arch-ver-12";
 
 const EXCLUDED = /\.(backup|bak|orig|old)(\.|$)/;
 
@@ -112,9 +112,7 @@ function codeMatches(pattern) {
     "--extended-regexp",
     pattern,
     "--",
-    "*.js",
-    "*.mjs",
-    "*.cjs"
+    ...SOURCE_PATHSPEC
   ]);
   const re = toJsRegex(pattern);
   const byFile = new Map();
@@ -163,7 +161,7 @@ function matchingFiles(pattern) {
  * quietest possible false negative, since it makes the tool report nothing.
  */
 function namingFiles(path) {
-  const pattern = namedPattern(path.split("/").pop());
+  const pattern = reachedPattern(path.split("/").pop());
   const re = toJsRegex(pattern);
   const raw = git([
     "grep",
@@ -171,9 +169,7 @@ function namingFiles(path) {
     "--extended-regexp",
     pattern,
     "--",
-    "*.js",
-    "*.mjs",
-    "*.cjs"
+    ...SOURCE_PATHSPEC
   ]);
 
   return raw
@@ -256,12 +252,10 @@ export function observe(claim) {
       const out = git([
         "log",
         "--pickaxe-regex",
-        `-S${namedPattern(path.split("/").pop())}`,
+        `-S${reachedPattern(path.split("/").pop())}`,
         "--format=%H",
         "--",
-        "*.js",
-        "*.mjs",
-        "*.cjs"
+        ...SOURCE_PATHSPEC
       ]);
       if (out.split("\n").filter(Boolean).length === 0) never += 1;
     }

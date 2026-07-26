@@ -95,33 +95,34 @@ report most of `src/services` as dead. A name mentioned nowhere is safe against
 dependency injection, because injecting a function still mentions its name at the
 injection site.
 
-## What eight repositories showed, and the one that decides whether this is a product
+## What eight repositories showed
 
 The tool has now been run against six repositories it did not grow up in. Every number
 below is after the defects those runs exposed were fixed, which was the point of running
-them:
+them. The sections that follow describe those defects; what they have in common is that
+none of them could have been found by reading this repository more carefully.
 
 | Repository | Findings | Files read | What it is |
 | --- | --- | --- | --- |
 | express | 0 | 7 of 213 | mature library, small surface |
 | winston | 0 | 19 of 116 | mature library |
-| axios | 0 | 78 of 456 | mature library |
+| axios | 0 | 80 of 456 | mature library |
 | pm2 | 0 | 172 of 938 | process manager |
-| sequelize | 0 | 67 of 944 | TypeScript — see the scope limit below |
-| etherpad-lite | 0 | 12 of 1108 | TypeScript — see the scope limit below |
 | fastify | 1 | 37 of 395 | one real duplicated boundary, hand-checked |
-| agentshield | 6 | 127 of 224 | this repository |
+| etherpad-lite | 6 | 299 of 1108 | TypeScript, and 0 until it was read |
+| agentshield | 6 | 131 of 225 | this repository |
 | project-anchor | 6 | 88 of 104 | the author's other repository |
 
-Six of the seven repositories written by other people show nothing at all, and the two
-that show six each were written by one person without review. That is the shape the
-detectors were built to find, and it is worth stating plainly rather than as a claim about
-code quality: what these findings track is **growth without a second reader**, not
-competence.
+The finding count is not a quality score, and the table should not be read as one. Four of
+the five libraries here are small, mature and reviewed by many people; etherpad-lite is a
+product with a decade of history and it looks like the two repositories written by one
+person without review. What these findings track is **growth without a second reader**,
+and a large old product accumulates that whoever writes it.
 
-The "files read" column is in the table because several of those zeros are not what they
-look like, and no reader could have told which without it. express is 7 files of 213 and
-its zero means something; etherpad-lite is 12 of 1108 and its zero means almost nothing.
+The "files read" column is in the table because a zero without it cannot be interpreted.
+express is 7 files of 213 and its zero means something. etherpad-lite was 12 of 1108, and
+its zero meant only that this tool could not read TypeScript — the same repository, read
+properly, has six.
 
 The column was first written into this table from memory and every figure in it was wrong.
 They are now the output of `coverage()`, run once per repository. A table of numbers
@@ -196,27 +197,44 @@ strange, and the number simply grew each time the report was regenerated. And an
 independent verifier could never have caught it — both routes grep Markdown, so both would
 have counted the report and agreed.
 
-### The scope limit that matters more than any detector
+### TypeScript, and the zero that was not a zero
 
-Two of the four commercial-shaped projects picked for this round are TypeScript:
+This tool read `.js`, `.mjs` and `.cjs`. Both of the commercial-shaped projects picked for
+this round are TypeScript, so it saw 12 of etherpad-lite's 1108 files and reported nothing
+about them. That number was true and it was not an audit.
 
-| Repository | JavaScript files | TypeScript files |
-| --- | --- | --- |
-| etherpad-lite | 41 | 514 |
-| sequelize | 239 | 546 |
-
-This tool reads `.js`, `.mjs` and `.cjs`. It therefore sees 16 files of etherpad-lite's
-555, and reported 0 findings about them. That number is true and it is not an audit.
-
-This is the more dangerous of the two ways to be wrong. A false positive gets argued with;
+That is the more dangerous of the two ways to be wrong. A false positive gets argued with;
 a report of "0 findings" reads as a clean bill of health rather than as a tool that was
-not looking, and nothing in the output distinguishes the two.
+not looking, and nothing in the output distinguished the two.
 
-No detector improvement changes it. It is the first thing to fix if these reports are ever
-meant to be about somebody else's codebase, and it is a lexer question rather than a
-method question: the three-layer contract, the claim/verify shape and the dating all
-transfer to TypeScript unchanged. Until then, a run should say what share of the
-repository it read, so a zero can be read for what it is.
+It turned out to be a lexer question rather than a method question, exactly as it looked:
+the three-layer contract, the claim/verify shape and the dating all transferred unchanged.
+What it cost was one list of extensions, which had been written out **seventeen times
+across four files** — the same duplication this tool exists to find, in the tool.
+
+| Repository | Files read before | after |
+| --- | --- | --- |
+| etherpad-lite | 12 | **299** |
+| sequelize | 67 | **345** |
+
+etherpad-lite went from 0 findings to 6. Two more things fell out of running it:
+
+- The verifier counted a module as reached when any quoted string ended in its name.
+  etherpad writes `fetch("./tokenTransfer")` for an HTTP route, `['importexport',
+  'timeslider']` for toolbar buttons and `"admin": string` for a key in a type — three
+  modules called alive by a pattern that had matched a URL, a label and a type. The scan
+  had it right; a path literal now requires its extension, and a reference without one
+  needs an import keyword to supply the evidence instead.
+- Sixteen groups in etherpad compare one expression against one value with **two different
+  operators**. `statusCode === 200` and `statusCode >= 200` are not the same boundary, and
+  the detector had been merging them and labelling the group with whichever site came
+  first. fastify and axios and sequelize each have such a pair too. Neither the verifier
+  nor any run would have surfaced it: both sides built their pattern from the same first
+  site, searched for one operator, and agreed. It was found by asking the databases a
+  question instead of reading the output.
+
+The coverage line stays now that the cause is fixed, and should. The next repository will
+be mostly Python, or a monorepo where the Node part is a tenth of the tree.
 
 ### Cost
 

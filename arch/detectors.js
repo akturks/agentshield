@@ -6,11 +6,11 @@ import {
   duplicationBegan,
   changeHistory,
   moduleHistory,
-  namedPattern,
+  reachedPattern,
   daysSince
 } from "./dating.js";
 import { isGeneratedDoc, GENERATED_MARKER } from "./generated.js";
-import { NOT_PROGRAM_PATTERN } from "./scan.js";
+import { NOT_PROGRAM_PATTERN, SOURCE_PATHSPEC } from "./scan.js";
 
 // What the scan means, kept apart from what the scan saw.
 //
@@ -25,13 +25,18 @@ import { NOT_PROGRAM_PATTERN } from "./scan.js";
 // not a detector, and dependency injection is common enough that getting it wrong
 // here means getting it wrong everywhere.
 
-export const DETECTOR_VERSION = "arch-det-12";
+export const DETECTOR_VERSION = "arch-det-15";
 
 // Below this, a repeated number is more likely to be a coincidence of small
 // integers than a threshold someone chose twice. The scanner already drops 0, 1
 // and 100; this drops the rest of the range where the same value in two files says
 // nothing about the design.
 const MIN_INTERESTING_VALUE = 10;
+
+// The pathspec every published command searches, quoted for the shell and built from the
+// one list of extensions this tool reads. It was written out by hand in five commands,
+// which is how `.cjs` came to be missing from one of them.
+const pathspec = SOURCE_PATHSPEC.map((p) => `'${p}'`).join(" ");
 
 const thresholdRows = db.prepare(`
   SELECT subject, operator, value, filePath, line, sourceLine
@@ -60,19 +65,32 @@ const thresholdRows = db.prepare(`
 export function duplicateThresholdSet(scanId) {
   const rows = thresholdRows.all(scanId);
 
-  // subject -> value -> sites
-  const bySubject = new Map();
+  // subject and operator together -> value -> sites.
+  //
+  // The operator was not part of the key, and the group then took its operator from
+  // whichever site happened to be first. `statusCode === 200` and `statusCode >= 200` are
+  // not the same boundary — one is a test for a status, the other is a test for a class
+  // of statuses — and fastify has both, as does axios for `httpVersion`, and sequelize
+  // for two length checks. Sixteen such groups exist in etherpad-lite alone.
+  //
+  // The merge did not surface as a refused finding, because the verifier builds its
+  // pattern from the same first-site operator: both sides then search for one operator
+  // and count sites matching it, and agree. Another definition wrong in both places, and
+  // this one was found by asking the databases a question rather than by reading output.
+  const byExpression = new Map();
   for (const row of rows) {
     if (Number(row.value) < MIN_INTERESTING_VALUE) continue;
-    if (!bySubject.has(row.subject)) bySubject.set(row.subject, new Map());
-    const byValue = bySubject.get(row.subject);
+    const key = `${row.subject}\u0000${row.operator}`;
+    if (!byExpression.has(key)) byExpression.set(key, new Map());
+    const byValue = byExpression.get(key);
     if (!byValue.has(row.value)) byValue.set(row.value, []);
     byValue.get(row.value).push(row);
   }
 
   const candidates = [];
 
-  for (const [subject, byValue] of bySubject) {
+  for (const [key, byValue] of byExpression) {
+    const [subject, operator] = key.split("\u0000");
     // Only the values this expression is compared against in more than one file.
     const shared = [...byValue.entries()].filter(
       ([, sites]) => new Set(sites.map((s) => s.filePath)).size > 1
@@ -81,7 +99,6 @@ export function duplicateThresholdSet(scanId) {
 
     const sites = shared.flatMap(([, s]) => s);
     const files = [...new Set(sites.map((s) => s.filePath))].sort();
-    const operator = sites[0].operator;
 
     // Dated per value, because each boundary arrived on its own. The one reported
     // as the beginning is the earliest, since that is when this expression first
@@ -158,13 +175,13 @@ export function duplicateThresholdSet(scanId) {
           // a line-level approximation of what the scan does properly by stripping
           // comments and strings, which is why the figure is checked that way and
           // not by parsing this output.
-          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 | sort -u`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- ${pathspec} | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 | sort -u`,
           verify: { kind: "git-grep-files-all", patterns }
         },
         {
           label: `How many places compare \`${subject}\` against one of these value(s)`,
           expected: String(sites.length),
-          reproduceWith: `git grep -nE '${anyPattern}' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)'`,
+          reproduceWith: `git grep -nE '${anyPattern}' -- ${pathspec} | grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)'`,
           verify: { kind: "git-grep-sites-any", patterns }
         },
         ...(began
@@ -319,7 +336,7 @@ export function unimportedModule(scanId) {
     // missing the whitespace exclusion, so the command a reader runs was asking a wider
     // question than the figure beside it answered. `__B__` stands in for the shell
     // variable so the pattern can be built by the same function and then substituted.
-    const shellPattern = namedPattern("__B__")
+    const shellPattern = reachedPattern("__B__")
       .replaceAll('"', '\\"')
       .replaceAll("`", "\\`")
       .replaceAll("__B__", "$b");
@@ -350,7 +367,7 @@ export function unimportedModule(scanId) {
           // definition of itself.
           reproduceWith:
             `for f in ${paths}; do b=$(basename "$f" .js); ` +
-            `git grep -nE "${shellPattern}" -- '*.js' '*.mjs' '*.cjs' ` +
+            `git grep -nE "${shellPattern}" -- ${pathspec} ` +
             `| grep -vE ':[0-9]+:[[:space:]]*(//|\\*|/\\*)' | cut -d: -f1 ` +
             `| grep -vE '${NOT_PROGRAM_PATTERN}' | grep -vxF "$f" ` +
             `| grep -q . || echo "$f"; done | wc -l`,
@@ -381,7 +398,7 @@ export function unimportedModule(scanId) {
           reproduceWith:
             `n=0\n` +
             `for f in ${paths}; do b=$(basename "$f" .js); ` +
-            `git log --pickaxe-regex -S"${shellPattern}" --format=%H -- '*.js' '*.mjs' '*.cjs' ` +
+            `git log --pickaxe-regex -S"${shellPattern}" --format=%H -- ${pathspec} ` +
             `| grep -q . || n=$((n+1)); done\n` +
             `echo "$n"`,
           verify: { kind: "never-referenced-count", paths: modules.map((m) => m.path) }

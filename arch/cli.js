@@ -105,15 +105,11 @@ switch (cmd) {
     // not read, and the second is the common case in a working Node codebase.
     const seen = coverage();
     lines.push(
-      `Read ${seen.read} of the ${seen.read + seen.excludedSource} JavaScript files here ` +
-        `— the other ${seen.excludedSource} are tests, examples or generated output — out ` +
-        `of ${seen.tracked} files in the repository.` +
-        (seen.typescript > 0
-          ? ` **${seen.typescript} TypeScript file${seen.typescript === 1 ? "" : "s"} ` +
-            `w${seen.typescript === 1 ? "as" : "ere"} not read**, and nothing below is a ` +
-            `statement about ${seen.typescript === 1 ? "it" : "them"}.`
-          : "") +
-        `\n`
+      `This tool read **${seen.read} files**, out of ${seen.source} JavaScript and ` +
+        `TypeScript files in the repository and ${seen.tracked} files in total. The ` +
+        `${seen.excludedSource} not read are tests, examples, type declarations or ` +
+        `generated output. Nothing below is a statement about anything outside those ` +
+        `${seen.read} files.\n`
     );
     lines.push(
       `${live.length} finding(s), each reviewed by a person before it appeared here. ` +

@@ -22,7 +22,7 @@ import db, { ROOT } from "./db.js";
 // A parser is the upgrade path, and the reason to take it will be a false
 // positive this cannot avoid rather than a preference for parsers.
 
-export const SCANNER_VERSION = "scan-10";
+export const SCANNER_VERSION = "scan-11";
 
 // Values that carry no design decision. 0 and 1 are structural, 100 is almost
 // always a percentage ceiling, and -1 is a sentinel. A threshold repeated across
@@ -226,7 +226,30 @@ function inLoopHeader(line, index) {
  * Independence belongs in the search, never in the vocabulary. One definition, two
  * mechanisms.
  */
-export const SOURCE_EXTENSION = "\\.(js|mjs|cjs)$";
+/**
+ * Every extension this tool reads.
+ *
+ * It was three, and the list was written out seventeen times across four files. That is
+ * how the verifier came to search `*.js` while the scan read `.cjs` too, reported
+ * `observed 0` for a finding that was correct, and refused it — the pathspec being
+ * narrower than the scan turns every finding outside it into a false refusal.
+ *
+ * TypeScript is here because leaving it out was the largest thing wrong with this tool.
+ * Against etherpad-lite it read 12 files of 1108 and reported nothing, truthfully; against
+ * sequelize, 67 of 944. Neither number is a false claim and neither is an audit. Almost
+ * every Node codebase somebody would pay to have read is in this list's second half.
+ *
+ * `.d.ts` is deliberately absent — see NOT_PROGRAM.
+ */
+export const SOURCE_EXTENSIONS = ["js", "mjs", "cjs", "jsx", "ts", "mts", "cts", "tsx"];
+
+/** The extensions as a regex group: `js|mjs|cjs|...`. */
+export const EXTENSION_GROUP = SOURCE_EXTENSIONS.join("|");
+
+/** The extensions as git pathspecs: `*.js`, `*.mjs`, ... */
+export const SOURCE_PATHSPEC = SOURCE_EXTENSIONS.map((e) => `*.${e}`);
+
+export const SOURCE_EXTENSION = `\\.(${EXTENSION_GROUP})$`;
 
 /**
  * Everything a source file can be that is not part of the program.
@@ -244,7 +267,11 @@ export const NOT_PROGRAM = [
   "(^|/)(dist|build|vendor)/",
   "(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/",
   "\\.(test|spec|smoke)\\.",
-  "(^|/)(test|prisma|seed)-[^/]*\\.(js|mjs|cjs)$",
+  `(^|/)(test|prisma|seed)-[^/]*\\.(${EXTENSION_GROUP})$`,
+  // A declaration file describes types and runs nothing. Nothing importing one is the
+  // normal case — the compiler finds it by convention — so reporting it as unreached
+  // would be the TypeScript equivalent of reporting an example as dead code.
+  "\\.d\\.(ts|mts|cts)$",
   // Illustrative rather than part of the program. fastify ships 8 files in
   // `examples/` and winston 25, and every one is standalone by design — an example
   // nothing imports is an example working as intended. Reporting them as dead code
@@ -260,6 +287,8 @@ export const NOT_PROGRAM = [
 export const NOT_PROGRAM_PATTERN = NOT_PROGRAM.join("|");
 
 const sourceRe = new RegExp(SOURCE_EXTENSION);
+const configRe = new RegExp(`\\.config\\.(${EXTENSION_GROUP})$`);
+const rcRe = new RegExp(`^\\.[\\w.-]*rc\\.(${EXTENSION_GROUP})$`);
 const notProgramRe = new RegExp(NOT_PROGRAM_PATTERN);
 
 export function isProgramFile(p) {
@@ -322,11 +351,11 @@ function entryPoints(files) {
 
   for (const rel of files) {
     if (/(^|\/)bin\//.test(rel)) entries.add(rel);
-    if (/\.config\.(js|mjs|cjs)$/.test(rel)) entries.add(rel);
-    if (/^\.[\w.-]*rc\.(js|mjs|cjs)$/.test(rel)) entries.add(rel);
+    if (configRe.test(rel)) entries.add(rel);
+    if (rcRe.test(rel)) entries.add(rel);
     // Root level only. Deeper down, a file sharing a package's name is far more likely
     // to be a module about that package than the package's own configuration.
-    if (!rel.includes("/") && declared.has(rel.replace(/\.(js|mjs|cjs)$/, ""))) entries.add(rel);
+    if (!rel.includes("/") && declared.has(rel.replace(sourceRe, ""))) entries.add(rel);
     try {
       const fd = openSync(join(ROOT, rel), "r");
       const head = Buffer.alloc(2);
@@ -391,14 +420,19 @@ function resolveSpecifier(fromRel, specifier, fileSet) {
   const base = specifier.startsWith(".") ? join(dirname(fromRel), specifier) : specifier;
   const normalised = base.split("/").filter((seg) => seg !== ".").join("/");
 
+  // TypeScript's rule, which is the one that matters here: under NodeNext a specifier
+  // ending in `.js` resolves to the `.ts` file beside it, because the extension names the
+  // *output*. `import { x } from './parser.js'` in a repository containing only
+  // `parser.ts` is correct code, and a resolver that only tries the literal extension
+  // sees nothing — which would report most of a TypeScript codebase as unreachable and be
+  // wrong about every one.
+  const withoutJsSuffix = normalised.replace(/\.(js|mjs|cjs)$/, "");
+
   const candidates = [
     normalised,
-    `${normalised}.js`,
-    `${normalised}.mjs`,
-    `${normalised}.cjs`,
-    `${normalised}/index.js`,
-    `${normalised}/index.mjs`,
-    `${normalised}/index.cjs`
+    ...SOURCE_EXTENSIONS.map((e) => `${normalised}.${e}`),
+    ...SOURCE_EXTENSIONS.map((e) => `${withoutJsSuffix}.${e}`),
+    ...SOURCE_EXTENSIONS.map((e) => `${normalised}/index.${e}`)
   ];
 
   for (const candidate of candidates) {
@@ -454,7 +488,7 @@ function filesNamedBy(literal, filesByTail) {
     tail.unshift(segments[i]);
   }
   if (tail.length === 0) return [];
-  if (!/\.(js|mjs|cjs)$/.test(tail[tail.length - 1])) return [];
+  if (!sourceRe.test(tail[tail.length - 1])) return [];
 
   // Longest tail first: the literal claims as much of the path as it plainly states,
   // and a shorter match would widen a specific reference into a vague one.
@@ -681,11 +715,13 @@ export function latestScan() {
  *
  * A report of "0 findings" is the most dangerous output this tool can produce, because it
  * reads as a clean bill of health and is indistinguishable from a tool that was not
- * looking. Run against etherpad-lite it read 16 files of 555 — 41 JavaScript files beside
- * 514 TypeScript ones — and reported nothing, truthfully.
+ * looking. Before TypeScript was added, this read 12 files of etherpad-lite's 1108 and
+ * reported nothing, truthfully. It now reads 299 and finds six things.
  *
- * So every report states this. Not a caveat in a footer: the numerator and denominator,
- * where the reader sees the finding count, so a zero can be read for what it is.
+ * The counting stayed after the cause was fixed, and should. The next repository will be
+ * mostly Python, or Rust, or a monorepo where the Node part is a tenth of the tree, and
+ * the ratio is what tells a reader which kind of zero they are looking at. Not a caveat
+ * in a footer: the numerator and denominator, where the finding count is.
  */
 export function coverage() {
   const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
@@ -693,14 +729,12 @@ export function coverage() {
     .filter(Boolean);
 
   const read = tracked.filter(isProgramFile);
-  // Counted separately because it is the specific reason a large repository can come back
-  // almost empty, and naming it is more use to a reader than a bare percentage.
-  const typescript = tracked.filter((p) => /\.(ts|tsx|mts|cts)$/.test(p));
+  const source = tracked.filter((p) => sourceRe.test(p));
 
   return {
     read: read.length,
+    source: source.length,
     tracked: tracked.length,
-    typescript: typescript.length,
-    excludedSource: tracked.filter((p) => sourceRe.test(p)).length - read.length
+    excludedSource: source.length - read.length
   };
 }

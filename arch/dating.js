@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { ROOT } from "./db.js";
+import { EXTENSION_GROUP, SOURCE_PATHSPEC } from "./scan.js";
 
 // When did this start?
 //
@@ -32,7 +33,7 @@ import { ROOT } from "./db.js";
  * vocabulary. Two mechanisms, one definition.
  */
 export function namedPattern(basename) {
-  const stem = escapePosix(basename.replace(/\.(js|mjs|cjs)$/, ""));
+  const stem = escapePosix(basename.replace(extensionRe, ""));
   // The basename must sit at a path boundary — right after the opening quote, or after a
   // slash. Without that, `system.js` matches `require('./filesystem-provider')`, because
   // `filesystem` ends in `system`, and the verifier reported project-anchor's
@@ -47,7 +48,7 @@ export function namedPattern(basename) {
   // Without that, `"git log -- src/services/outcomeEngineService.js"` matches, and this
   // said the module was named while the scan — which had the rule — said it was not.
   // Same word, two definitions, one refused finding: the sixth time in this tool.
-  return `['\"\`]([^'\"\`[:space:]]*/)?${stem}(\\.(js|mjs|cjs))?['\"\`]`;
+  return `['\"\`]([^'\"\`[:space:]]*/)?${stem}(\\.(${EXTENSION_GROUP}))?['\"\`]`;
 }
 
 /**
@@ -64,6 +65,36 @@ export function namedPattern(basename) {
 export function importPattern(basename) {
   return `(from|require)[^'\"]*${namedPattern(basename)}`;
 }
+
+/**
+ * A pattern matching a string literal that is a *path* to this module.
+ *
+ * The extension is required, and that single character of difference is the whole rule.
+ * Without an import keyword in front of it, a quoted string ending in a bare module name
+ * is not evidence of anything — etherpad-lite writes `fetch("./tokenTransfer")` for an
+ * HTTP route, `['importexport', 'timeslider']` for a list of toolbar buttons, and
+ * `"admin": string` for a key in a type. All three matched the extensionless pattern, so
+ * the verifier called three modules reached that nothing loads, and refused a finding the
+ * scan had got right.
+ *
+ * A module referred to without an extension is still found, by `importPattern` — because
+ * there the keyword supplies the evidence the extension would otherwise have to.
+ *
+ * This is the seventh time two paths in this tool have differed over a definition rather
+ * than a fact, and the third time the correction went this way: the narrow side was
+ * right, and the wide side had been quietly agreeing with things it had not checked.
+ */
+export function pathLiteralPattern(basename) {
+  const stem = escapePosix(basename.replace(extensionRe, ""));
+  return `['\"\`]([^'\"\`[:space:]]*/)?${stem}\\.(${EXTENSION_GROUP})['\"\`]`;
+}
+
+/** Either way a file's name can appear in code: as a path, or behind an import keyword. */
+export function reachedPattern(basename) {
+  return `(${importPattern(basename)}|${pathLiteralPattern(basename)})`;
+}
+
+const extensionRe = new RegExp(`\\.(${EXTENSION_GROUP})$`);
 
 /** Escapes a string for use inside a POSIX basic regular expression. */
 function escapePosix(text) {
@@ -238,10 +269,10 @@ export function daysSince(iso) {
  * a different story from one that was connected and then orphaned, and only the second
  * has a commit where somebody removed the last caller.
  *
- * The pickaxe is asked with `namedPattern` and not `importPattern`, so a module launched
- * by path rather than imported counts as referenced. It has to be the same question the
- * detector asks about the present, or the report says "never imported" of a file that a
- * `fork` call has been starting since 2013.
+ * The pickaxe is asked with `reachedPattern`, so a module launched by path rather than
+ * imported counts as referenced. It has to be the same question the detector asks about
+ * the present, or the report says "never imported" of a file that a `fork` call has been
+ * starting since 2013.
  */
 export function moduleHistory(relPath) {
   if (historyIsTruncated()) return { added: null, referenceCommits: [], everReferenced: null };
@@ -271,12 +302,10 @@ export function moduleHistory(relPath) {
     const out = git([
       "log",
       "--pickaxe-regex",
-      `-S${namedPattern(relPath.split("/").pop())}`,
+      `-S${reachedPattern(relPath.split("/").pop())}`,
       "--format=%H%x09%aI%x09%s",
       "--",
-      "*.js",
-      "*.mjs",
-      "*.cjs"
+      ...SOURCE_PATHSPEC
     ]);
     referenceCommits = out
       .split("\n")

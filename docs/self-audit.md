@@ -2,9 +2,9 @@
 
 # What this repository is, checked against what it says
 
-Repository at `aff163eb` with uncommitted changes at scan time, scanned 2026-07-26T17:01:47.103Z. Method version `scan-10/arch-det-12/arch-tpl-10/arch-ver-10`.
+Repository at `5d0368dd` with uncommitted changes at scan time, scanned 2026-07-26T17:36:46.953Z. Method version `scan-11/arch-det-15/arch-tpl-10/arch-ver-12`.
 
-Read 127 of the 151 JavaScript files here — the other 24 are tests, examples or generated output — out of 224 files in the repository. **1 TypeScript file was not read**, and nothing below is a statement about it.
+This tool read **131 files**, out of 155 JavaScript and TypeScript files in the repository and 225 files in total. The 24 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 131 files.
 
 6 finding(s), each reviewed by a person before it appeared here. Every figure was recomputed by a second, independent route before it was written down, and each carries the command that reproduces it — so a reader who doubts a number does not have to take this document's word for it.
 
@@ -20,12 +20,11 @@ Nothing in the program names any of 2 files in `tools` — not an import, not a 
 | File | Added | Documented in | Ever named |
 | --- | --- | --- | --- |
 | `tools/repo-agent.js` | 7663e33d · 2026-07-25 | — | no |
-| `tools/repo-analyst.js` | 7663e33d · 2026-07-25 | — | no |
+| `tools/repo-analyst.js` | 7663e33d · 2026-07-25 | — | yes |
 
 ## Never named, at any point in the history
 
 - `tools/repo-agent.js`
-- `tools/repo-analyst.js`
 
 Nothing removed the last caller of these, because there was never a caller. They were
 written and not wired. That is a different situation from a module that worked and was
@@ -41,14 +40,14 @@ whether the name appears in any string literal in the code.
 | --- | --- |
 | How many files in `tools` the program never names, tests aside | 2 |
 | How many of those the documentation describes by name | 0 |
-| How many the program has never named, in any commit in the history | 2 |
+| How many the program has never named, in any commit in the history | 1 |
 
 Each figure again, with the command that reproduces it:
 
 **How many files in `tools` the program never names, tests aside**
 
 ```
-for f in tools/repo-agent.js tools/repo-analyst.js; do b=$(basename "$f" .js); git grep -nE "['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
+for f in tools/repo-agent.js tools/repo-analyst.js; do b=$(basename "$f" .js); git grep -nE "((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$|\.d\.(ts|mts|cts)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
 ```
 
 **How many of those the documentation describes by name**
@@ -62,7 +61,7 @@ for f in tools/repo-agent.js tools/repo-analyst.js; do git grep -l -F "$(basenam
 
 ```
 n=0
-for f in tools/repo-agent.js tools/repo-analyst.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" --format=%H -- '*.js' '*.mjs' '*.cjs' | grep -q . || n=$((n+1)); done
+for f in tools/repo-agent.js tools/repo-analyst.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" --format=%H -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -q . || n=$((n+1)); done
 echo "$n"
 ```
 
@@ -140,7 +139,7 @@ Each figure again, with the command that reproduces it:
 **How many files in `src/services` the program never names, tests aside**
 
 ```
-for f in src/services/correlationEngineService.js src/services/feedbackEngineService.js src/services/hypothesisEvidenceService.js src/services/hypothesisGenerationService.js src/services/hypothesisValidationService.js src/services/knowledgePromotionService.js src/services/learningEngineService.js src/services/outcomeEngineService.js src/services/trustUpdateEngineService.js; do b=$(basename "$f" .js); git grep -nE "['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
+for f in src/services/correlationEngineService.js src/services/feedbackEngineService.js src/services/hypothesisEvidenceService.js src/services/hypothesisGenerationService.js src/services/hypothesisValidationService.js src/services/knowledgePromotionService.js src/services/learningEngineService.js src/services/outcomeEngineService.js src/services/trustUpdateEngineService.js; do b=$(basename "$f" .js); git grep -nE "((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$|\.d\.(ts|mts|cts)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
 ```
 
 **How many of those the documentation describes by name**
@@ -154,7 +153,7 @@ for f in src/services/correlationEngineService.js src/services/feedbackEngineSer
 
 ```
 n=0
-for f in src/services/correlationEngineService.js src/services/feedbackEngineService.js src/services/hypothesisEvidenceService.js src/services/hypothesisGenerationService.js src/services/hypothesisValidationService.js src/services/knowledgePromotionService.js src/services/learningEngineService.js src/services/outcomeEngineService.js src/services/trustUpdateEngineService.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" --format=%H -- '*.js' '*.mjs' '*.cjs' | grep -q . || n=$((n+1)); done
+for f in src/services/correlationEngineService.js src/services/feedbackEngineService.js src/services/hypothesisEvidenceService.js src/services/hypothesisGenerationService.js src/services/hypothesisValidationService.js src/services/knowledgePromotionService.js src/services/learningEngineService.js src/services/outcomeEngineService.js src/services/trustUpdateEngineService.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" --format=%H -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -q . || n=$((n+1)); done
 echo "$n"
 ```
 
@@ -179,7 +178,7 @@ narrower and checkable: does any line of the program write this file's name down
 
 ## 4 files in `src/domain/evidence` are named nowhere in the running program
 
-Nothing in the program names any of 4 files in `src/domain/evidence` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in a18dfb06, "refactor(core): move derivation out of the repository layer into services", today.
+Nothing in the program names any of 4 files in `src/domain/evidence` — not an import, not a require, and not a path handed to something that loads a file. 0 of them are described by name in the documentation. The oldest arrived in a18dfb06, "refactor(core): move derivation out of the repository layer into services", yesterday.
 
 ## The files
 
@@ -216,7 +215,7 @@ Each figure again, with the command that reproduces it:
 **How many files in `src/domain/evidence` the program never names, tests aside**
 
 ```
-for f in src/domain/evidence/AuditEvidence.js src/domain/evidence/CalibrationEvidence.js src/domain/evidence/Evidence.js src/domain/evidence/EvidenceVerificationEvent.js; do b=$(basename "$f" .js); git grep -nE "['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
+for f in src/domain/evidence/AuditEvidence.js src/domain/evidence/CalibrationEvidence.js src/domain/evidence/Evidence.js src/domain/evidence/EvidenceVerificationEvent.js; do b=$(basename "$f" .js); git grep -nE "((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$|\.d\.(ts|mts|cts)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
 ```
 
 **How many of those the documentation describes by name**
@@ -230,7 +229,7 @@ for f in src/domain/evidence/AuditEvidence.js src/domain/evidence/CalibrationEvi
 
 ```
 n=0
-for f in src/domain/evidence/AuditEvidence.js src/domain/evidence/CalibrationEvidence.js src/domain/evidence/Evidence.js src/domain/evidence/EvidenceVerificationEvent.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" --format=%H -- '*.js' '*.mjs' '*.cjs' | grep -q . || n=$((n+1)); done
+for f in src/domain/evidence/AuditEvidence.js src/domain/evidence/CalibrationEvidence.js src/domain/evidence/Evidence.js src/domain/evidence/EvidenceVerificationEvent.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" --format=%H -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -q . || n=$((n+1)); done
 echo "$n"
 ```
 
@@ -285,7 +284,7 @@ Each figure again, with the command that reproduces it:
 **How many files in `repositories` the program never names, tests aside**
 
 ```
-for f in repositories/confidenceRepository.js repositories/intentRepository.js repositories/trustAssessmentRepository.js repositories/trustDimensionsRepository.js repositories/trustRepository.js; do b=$(basename "$f" .js); git grep -nE "['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
+for f in repositories/confidenceRepository.js repositories/intentRepository.js repositories/trustAssessmentRepository.js repositories/trustDimensionsRepository.js repositories/trustRepository.js; do b=$(basename "$f" .js); git grep -nE "((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | grep -vE 'node_modules/|\.(backup|bak|orig|old)(\.|$)|(^|/)(dist|build|vendor)/|(^|/)(test|tests|__tests__|spec|e2e|benchmarks?)/|\.(test|spec|smoke)\.|(^|/)(test|prisma|seed)-[^/]*\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$|\.d\.(ts|mts|cts)$|(^|/)(examples?|demos?|samples?|fixtures?)/|(^|/)(skeletons?|templates?|scaffolds?|stubs?|boilerplates?)/' | grep -vxF "$f" | grep -q . || echo "$f"; done | wc -l
 ```
 
 **How many of those the documentation describes by name**
@@ -299,7 +298,7 @@ for f in repositories/confidenceRepository.js repositories/intentRepository.js r
 
 ```
 n=0
-for f in repositories/confidenceRepository.js repositories/intentRepository.js repositories/trustAssessmentRepository.js repositories/trustDimensionsRepository.js repositories/trustRepository.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs))?['\"\`]" --format=%H -- '*.js' '*.mjs' '*.cjs' | grep -q . || n=$((n+1)); done
+for f in repositories/confidenceRepository.js repositories/intentRepository.js repositories/trustAssessmentRepository.js repositories/trustDimensionsRepository.js repositories/trustRepository.js; do b=$(basename "$f" .js); git log --pickaxe-regex -S"((from|require)[^'\"]*['\"\`]([^'\"\`[:space:]]*/)?$b(\.(js|mjs|cjs|jsx|ts|mts|cts|tsx))?['\"\`]|['\"\`]([^'\"\`[:space:]]*/)?$b\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)['\"\`])" --format=%H -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -q . || n=$((n+1)); done
 echo "$n"
 ```
 
@@ -324,7 +323,7 @@ narrower and checkable: does any line of the program write this file's name down
 
 ## `trafficQuality` is compared against the same 2 boundaries in 2 separate files
 
-2 files decide something by comparing `trafficQuality` against the same boundaries: `80`, `50`. The comparison exists at 4 places across 2 files, and the earliest of them had a twin from a18dfb06 onward — today.
+2 files decide something by comparing `trafficQuality` against the same boundaries: `80`, `50`. The comparison exists at 4 places across 2 files, and the earliest of them had a twin from a18dfb06 onward — yesterday.
 
 ## Where it is
 
@@ -339,7 +338,7 @@ narrower and checkable: does any line of the program write this file's name down
 
 `trafficQuality` first got one of these boundaries in a9e8d833, "Implement traffic tier engine v1", on 2026-06-08.
 
-A second file gained the same boundary 48 days later, in a18dfb06, "refactor(core): move derivation out of the repository layer into services" — today.
+A second file gained the same boundary 48 days later, in a18dfb06, "refactor(core): move derivation out of the repository layer into services" — yesterday.
 
 - `80` — duplicated from a18dfb06, 2026-07-25; neither site has been edited since
 - `50` — duplicated from a18dfb06, 2026-07-25; neither site has been edited since
@@ -361,13 +360,13 @@ Each figure again, with the command that reproduces it:
 **How many files compare `trafficQuality` against every one of these 2 value(s)**
 
 ```
-git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
 ```
 
 **How many places compare `trafficQuality` against one of these value(s)**
 
 ```
-git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+git grep -nE '(^|[^_$.[:alnum:]])trafficQuality[[:space:]]*>=[[:space:]]*(80|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
 **The commit where this expression first had a threshold in two files**
@@ -397,7 +396,7 @@ in a variable and compared elsewhere, is invisible to it.
 
 ## `risk.riskScore` is compared against the same 3 boundaries in 2 separate files
 
-2 files decide something by comparing `risk.riskScore` against the same boundaries: `90`, `70`, `50`. The comparison exists at 6 places across 2 files, and the earliest of them had a twin from 17e8f958 onward — 49 days ago.
+2 files decide something by comparing `risk.riskScore` against the same boundaries: `90`, `70`, `50`. The comparison exists at 6 places across 2 files, and the earliest of them had a twin from 17e8f958 onward — 50 days ago.
 
 ## Where it is
 
@@ -414,7 +413,7 @@ in a variable and compared elsewhere, is invisible to it.
 
 `risk.riskScore` first got one of these boundaries in b67f34b8, "Implement allocation engine v1", on 2026-06-06.
 
-A second file gained the same boundary 4 hours later, in 17e8f958, "Implement policy engine v1" — 49 days ago.
+A second file gained the same boundary 4 hours later, in 17e8f958, "Implement policy engine v1" — 50 days ago.
 
 - `90` — duplicated from 17e8f958, 2026-06-06; neither site has been edited since
 - `70` — duplicated from 17e8f958, 2026-06-06; neither site has been edited since
@@ -437,13 +436,13 @@ Each figure again, with the command that reproduces it:
 **How many files compare `risk.riskScore` against every one of these 3 value(s)**
 
 ```
-git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
+git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 | sort -u
 ```
 
 **How many places compare `risk.riskScore` against one of these value(s)**
 
 ```
-git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
+git grep -nE '(^|[^_$.[:alnum:]])risk\.riskScore[[:space:]]*>=[[:space:]]*(90|70|50)' -- '*.js' '*.mjs' '*.cjs' '*.jsx' '*.ts' '*.mts' '*.cts' '*.tsx' | grep -vE ':[0-9]+:[[:space:]]*(//|\*|/\*)'
 ```
 
 **The commit where this expression first had a threshold in two files**
