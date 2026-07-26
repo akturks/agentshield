@@ -101,22 +101,32 @@ The tool has now been run against six repositories it did not grow up in. Every 
 below is after the defects those runs exposed were fixed, which was the point of running
 them:
 
-| Repository | Findings | What it is |
-| --- | --- | --- |
-| express | 0 | mature library, small surface |
-| axios | 0 | mature library |
-| winston | 0 | mature library |
-| etherpad-lite | 0 | large product — but see the scope limit below |
-| pm2 | 0 | process manager, 177 program files |
-| fastify | 1 | one real duplicated boundary, hand-checked |
-| sequelize | 1 | 71 program files of 785 in the repository |
-| agentshield | 6 | this repository |
-| project-anchor | 6 | the author's other repository |
+| Repository | Findings | Files read | What it is |
+| --- | --- | --- | --- |
+| express | 0 | 7 of 213 | mature library, small surface |
+| winston | 0 | 19 of 116 | mature library |
+| axios | 0 | 78 of 456 | mature library |
+| pm2 | 0 | 172 of 938 | process manager |
+| sequelize | 0 | 67 of 944 | TypeScript — see the scope limit below |
+| etherpad-lite | 0 | 12 of 1108 | TypeScript — see the scope limit below |
+| fastify | 1 | 37 of 395 | one real duplicated boundary, hand-checked |
+| agentshield | 6 | 127 of 224 | this repository |
+| project-anchor | 6 | 88 of 104 | the author's other repository |
 
-Five repositories out of seven show nothing at all, and the two that show six each were
-written by one person without review. That is the shape the detectors were built to find,
-and it is worth stating plainly rather than as a claim about code quality: what these
-findings track is **growth without a second reader**, not competence.
+Six of the seven repositories written by other people show nothing at all, and the two
+that show six each were written by one person without review. That is the shape the
+detectors were built to find, and it is worth stating plainly rather than as a claim about
+code quality: what these findings track is **growth without a second reader**, not
+competence.
+
+The "files read" column is in the table because several of those zeros are not what they
+look like, and no reader could have told which without it. express is 7 files of 213 and
+its zero means something; etherpad-lite is 12 of 1108 and its zero means almost nothing.
+
+The column was first written into this table from memory and every figure in it was wrong.
+They are now the output of `coverage()`, run once per repository. A table of numbers
+nobody measured, inside a document arguing that figures must be recomputed independently,
+is the failure this whole pipeline exists to make visible — including here.
 
 Every published figure in `docs/self-audit.md` is now produced by pasting the command
 printed beside it — all sixteen, checked by running them. Three of them could not have
@@ -210,9 +220,14 @@ repository it read, so a zero can be read for what it is.
 
 ### Cost
 
-sequelize took **629 seconds**. Almost all of it is dating: `git log --pickaxe-regex`
-walks 11,866 commits once per candidate module, and the candidate list is long before the
-detectors group it. agentshield takes about 25 seconds over 127 files.
+sequelize took **629 seconds** on its first run and over 1500 on its last, for 67 files.
+Almost all of it is dating: `git log --pickaxe-regex` walks 11,866 commits once per
+candidate module, and the candidate list is long before the detectors group it.
+agentshield takes about 25 seconds over 127 files.
+
+Note which number grew. Excluding skeletons and config files made the scan cheaper and the
+run slower, because the modules that remain are the ones with history to walk. Cost here
+tracks the age of the repository, not its size.
 
 That is fine for a report run by hand and disqualifying for anything that runs on every
 commit, which is worth knowing before it is designed around rather than after.
