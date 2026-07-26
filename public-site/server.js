@@ -17,6 +17,7 @@ import { indexNowKey } from "./geo/indexnow.js";
 import * as content from "./pages/content.js";
 import * as probes from "./pages/probes.js";
 import { lab, methodology } from "./pages/lab.js";
+import { status } from "./pages/status.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
 import { audit } from "./pages/audit.js";
 import {
@@ -149,6 +150,8 @@ app.get("/lab", (req, reply) => html(req, reply, "lab", lab));
 app.get("/lab/methodology", (req, reply) =>
   html(req, reply, "lab_methodology", methodology)
 );
+
+app.get("/status", (req, reply) => html(req, reply, "status", status));
 
 app.get("/glossary/:slug", (req, reply) => {
   const variant = content.glossaryVariant(req.params.slug);

@@ -124,9 +124,13 @@ export function about(canary, published) {
 
 <p>Every figure on the <a href="/lab">lab page</a> traces to specific recorded requests, and the <a href="/lab/methodology">methodology</a> lists the ways each one could be misleading. Where the sample is too small to support a conclusion, the page says so rather than rounding up to a finding. The <a href="/constitution">constitution</a> states the rules the whole thing is bound by.</p>
 
-<h2>Contact</h2>
+<h2 id="contact">Contact</h2>
 
-<p>Research collaboration, press, corrections, and disagreement about method are all welcome — particularly the last. If a published figure is wrong, the fastest way to establish that is to say which record contradicts it.</p>
+<p><a href="mailto:research@agentshieldaidefense.com">research@agentshieldaidefense.com</a></p>
+
+<p>Research collaboration, press, corrections, and disagreement about method are all welcome — particularly the last. If a published figure is wrong, the fastest way to establish that is to say which record contradicts it: the page, the figure, and the record you believe contradicts it are enough, and a correction that lands will be published as a correction rather than an edit.</p>
+
+<p>Mail sent to that address arrives as an ordinary email and gets an ordinary reply. There is no form on this site, no newsletter, and no list — a page that collects addresses would be doing something to its visitors, and everything here is built to do nothing but watch.</p>
 `
   });
 }

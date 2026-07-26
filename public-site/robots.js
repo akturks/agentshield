@@ -74,6 +74,7 @@ function publicPages() {
   ["/constitution", "0.7"],
   ["/about", "0.6"],
   ["/lab/methodology", "0.7"],
+  ["/status", "0.7"],
   ...glossarySlugs().map((slug) => [`/glossary/${slug}`, "0.6"]),
   ["/probe/html", "0.5"],
   ["/probe/js", "0.5"],

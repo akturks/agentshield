@@ -36,6 +36,31 @@ const jsCapable = db.prepare(`
   WHERE r.cfRay IS NOT NULL AND ${notOperator('r')}
 `);
 
+// Arrivals that carry the tag a published link was given. The query string is
+// stored verbatim in the reality layer, so this needs no redirect, no cookie and
+// no script — and no route that varies its bytes by who is asking, which the
+// constitution rules out anyway.
+//
+// This exists so that a link posted somewhere with an audience does not silently
+// become part of the crawler figures above. It separates; it never excludes. An
+// untagged arrival is still counted everywhere else on this page.
+const referredArrivals = db.prepare(`
+  SELECT
+    TRIM(REPLACE(SUBSTR(query, INSTR(query, 'from=') + 5), '&', ' ')) AS tag,
+    path,
+    COUNT(*) AS hits,
+    COUNT(DISTINCT cfConnectingIp) AS addresses,
+    COUNT(DISTINCT userAgent) AS agents,
+    MIN(observedAt) AS firstAt,
+    MAX(observedAt) AS lastAt
+  FROM RequestReality
+  WHERE ${EXTERNAL} AND query LIKE '%from=%'
+  GROUP BY tag, path
+  HAVING tag <> ''
+  ORDER BY hits DESC, lastAt DESC
+  LIMIT 25
+`);
+
 function disallowedHits() {
   const paths = disallowedPaths();
   const marks = paths.map(() => "?").join(",");
@@ -76,6 +101,7 @@ export function lab(canary, published) {
   const formats = formatPrefs.all();
 
   const agentRows = topAgents.all();
+  const referred = referredArrivals.all();
 
   return page({
     title: "Lab",
@@ -87,23 +113,23 @@ export function lab(canary, published) {
     body: `
 <h1>Lab</h1>
 
-<p class="lede">Everything below is computed from requests observed by this server. Nothing here comes from asking a model what it knows.</p>
+<p class="lede">Most of the traffic arriving at a website is no longer people, and almost nothing is publicly established about what those clients actually do. This page is one domain answering that question about itself, out loud, from the first request onward.</p>
 
-<p>Figures count <strong>external traffic only</strong>: requests that arrived over the public internet from an address this project does not operate from. Building and testing the instrument generated ${escapeHtml(String(headline().instrument))} further requests, which are kept in the record, excluded here, and never deleted.</p>
+<h2>What we are doing here</h2>
 
-<p>Two rules do that excluding, and they are reported separately because one of them is a judgement call. ${escapeHtml(String(headline().excludedByHeuristic))} requests are excluded because they came from an address that has also driven this site from a command line — an inference from the record itself. A further ${escapeHtml(String(headline().excludedByDeclaration))} are excluded because they came from an address <strong>declared</strong> as ours: ${headline().declaredAddresses.map((a) => `<code>${escapeHtml(a)}</code>`).join(", ")}.</p>
+<p>The question is narrow on purpose: <strong>when an automated client reads a page, what does it do — as opposed to what it says it is?</strong> Every client announces an identity, nothing verifies that announcement, and the gap between the declaration and the record is measurable without anyone's cooperation.</p>
 
-<p>The second rule is the only mechanism on this site that can remove genuine observations from a published figure, so its effect is printed above rather than described. It exists because the inference is not enough: a phone that never runs <code>curl</code> is invisible to it, and this machine's IPv6 address rotates daily, which made the same laptop look like a new visitor 13 times on 25 July 2026. The declared list lives in versioned source, not in the database, so every change to it is in the history.</p>
+<p>So the method is the whole point. Nothing on this page comes from asking a language model what it knows about this site; that is the system under test testifying about itself, and it is <a href="/lab/methodology">refused as evidence</a> here. What is left is slower and much smaller: requests this server saw, written down once, never edited, and counted in public. <a href="/about">Why this exists</a> covers the longer argument.</p>
 
-${
-  headline().unresolvedOperator
-    ? `<p><strong>${escapeHtml(String(headline().unresolvedOperator))} of the external requests above are probably ours and are counted anyway.</strong> They come from ${escapeHtml(String(headline().unresolvedOperatorIps))} addresses in a Turkish mobile carrier's pool, sending the exact <code>Accept-Language</code> header that the declared operator machine sends — a list no other client here has ever sent. It is almost certainly a phone of ours.</p>
+<h2>This site is installation number one</h2>
 
-<p>It stays in the count for two reasons. A carrier-pool address identifies a carrier and not a person: declaring one would exclude whichever customer holds it next, and the phone will have a different address tomorrow, so the exclusion would delete real observations while failing at its purpose. Matching on the header instead would work, and is worse — <a href="/constitution">Article VII</a> says the unit of observation is a request rather than a person, and identifying someone by their combination of headers is exactly the technique it rules out. A codebase that holds that capability for self-exclusion holds it for everything else.</p>
+<p>The instrument is a small server that records what it is asked for. This domain is the first place it runs, which makes the site both the instrument and the subject — every figure below was produced by this site watching itself being read. That is a limitation and it is also the reason the numbers can be checked: there is no customer data behind them, no privileged access, and no sample you cannot see.</p>
 
-<p>So the figure is stated rather than corrected. Every external count on this site is up to ${escapeHtml(String(Math.round((headline().unresolvedOperator / Math.max(1, headline().external)) * 100)))}% too high for this reason, and that is a more useful thing to publish than a tidier number.</p>`
-    : ""
-}
+<p>It also sets the ceiling on what any of it means. One domain is one sample. A new, small site about a niche subject is not the web, and nothing here generalises to it.</p>
+
+<h2>The record so far</h2>
+
+<p>Figures count <strong>external traffic only</strong> — requests that arrived over the public internet from an address this project does not operate from. Building and testing the instrument generated ${escapeHtml(String(headline().instrument))} further requests, which are kept in the record, excluded from these figures, and <a href="#counting">accounted for below</a> rather than deleted.</p>
 
 ${statBlock([
   ["External requests", total.toLocaleString("en-US")],
@@ -192,9 +218,44 @@ ${
       )
       .join("")}</tbody></table></div>
 
+<h2>Referred arrivals</h2>
+
+<p>Links to this site are published with a tag in the address — <code>?from=</code> — and the query string is recorded exactly as it arrived. That makes an arrival sent by something we posted separable from the ambient automated traffic this page exists to measure, without a redirect, a cookie, a script, or a page that changes its bytes depending on who is asking.</p>
+
+<p>The distinction matters here more than it would on an ordinary site. Every figure above is about how machines read a page; a few hundred people arriving from one post in one afternoon would move all of them at once, and afterwards there would be no way to say which requests were the thing being measured. Tagged arrivals are listed separately for that reason. <strong>Nothing is excluded — they are counted in the totals above as well.</strong> Arrivals from an untagged copy of a link are simply indistinguishable, and are not estimated.</p>
+
+${
+  referred.length === 0
+    ? "<p>No tagged arrivals observed yet. Every external request recorded so far reached this site without being sent by anything we published.</p>"
+    : `<div class="scroll"><table>
+<thead><tr><th>Tag</th><th>Page</th><th>Requests</th><th>Addresses</th><th>Agents</th><th>First</th><th>Last</th></tr></thead>
+<tbody>${referred
+        .map(
+          (r) =>
+            `<tr><td class="mono">${escapeHtml(truncate(r.tag, 24))}</td><td class="mono">${escapeHtml(truncate(r.path, 32))}</td><td>${r.hits}</td><td>${r.addresses}</td><td>${r.agents}</td><td>${escapeHtml(r.firstAt.slice(0, 10))}</td><td>${escapeHtml(r.lastAt.slice(0, 10))}</td></tr>`
+        )
+        .join("")}</tbody></table></div>`
+}
+
+<h2 id="counting">What these figures exclude, and who decided</h2>
+
+<p>Two rules remove requests from everything above, and they are reported separately because one of them is a judgement call. ${escapeHtml(String(headline().excludedByHeuristic))} requests are excluded because they came from an address that has also driven this site from a command line — an inference from the record itself. A further ${escapeHtml(String(headline().excludedByDeclaration))} are excluded because they came from an address <strong>declared</strong> as ours: ${headline().declaredAddresses.map((a) => `<code>${escapeHtml(a)}</code>`).join(", ")}.</p>
+
+<p>The second rule is the only mechanism on this site that can remove genuine observations from a published figure, so its effect is printed here rather than described. It exists because the inference is not enough: a phone that never runs <code>curl</code> is invisible to it, and this machine's IPv6 address rotates daily, which made the same laptop look like a new visitor 13 times on 25 July 2026. The declared list lives in versioned source, not in the database, so every change to it is in the history.</p>
+
+${
+  headline().unresolvedOperator
+    ? `<p><strong>${escapeHtml(String(headline().unresolvedOperator))} of the external requests above are probably ours and are counted anyway.</strong> They come from ${escapeHtml(String(headline().unresolvedOperatorIps))} addresses in a Turkish mobile carrier's pool, sending the exact <code>Accept-Language</code> header that the declared operator machine sends — a list no other client here has ever sent. It is almost certainly a phone of ours.</p>
+
+<p>It stays in the count for two reasons. A carrier-pool address identifies a carrier and not a person: declaring one would exclude whichever customer holds it next, and the phone will have a different address tomorrow, so the exclusion would delete real observations while failing at its purpose. Matching on the header instead would work, and is worse — <a href="/constitution">Article VII</a> says the unit of observation is a request rather than a person, and identifying someone by their combination of headers is exactly the technique it rules out. A codebase that holds that capability for self-exclusion holds it for everything else.</p>
+
+<p>So the figure is stated rather than corrected. Every external count on this site is up to ${escapeHtml(String(Math.round((headline().unresolvedOperator / Math.max(1, headline().external)) * 100)))}% too high for this reason, and that is a more useful thing to publish than a tidier number.</p>`
+    : ""
+}
+
 <h2>Method</h2>
 
-<p>How these figures are produced, and what would make them wrong, is described in the <a href="/lab/methodology">methodology</a>.</p>
+<p>How these figures are produced, and what would make them wrong, is described in the <a href="/lab/methodology">methodology</a>. The rules the whole instrument is bound by are in the <a href="/constitution">constitution</a>, and the same method turned on this project's own source code produces the <a href="/audit">architecture audit</a>.</p>
 `
   });
 }

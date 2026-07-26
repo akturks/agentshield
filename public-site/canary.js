@@ -42,6 +42,7 @@ export const CANARY_SURFACES = [
   { page: "/what-we-measure", variant: "what_we_measure" },
   { page: "/lab", variant: "lab" },
   { page: "/lab/methodology", variant: "lab_methodology" },
+  { page: "/status", variant: "status" },
   { page: "/glossary/ai-crawler", variant: "glossary_ai_crawler" },
   { page: "/glossary/reality-capture", variant: "glossary_reality_capture" },
   { page: "/glossary/canary-token", variant: "glossary_canary_token" },
