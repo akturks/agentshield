@@ -1,6 +1,7 @@
 import db from "../realityDb.js";
 import { notOperator, notDeclaredOperator, probablyOperatorLanguage } from "../stats.js";
 import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
+import { AGENT_OWNER, ownersOf } from "../vendors/sources.js";
 
 // Deterministic rules over observed reality. A detector never interprets and
 // never writes prose — it returns candidates: a subject, a time window, and the
@@ -11,7 +12,7 @@ import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
 // returned a number without a query would be asking to be trusted, which is the
 // thing this system does not do.
 
-export const DETECTOR_VERSION = "det-7";
+export const DETECTOR_VERSION = "det-8";
 
 const AI_AGENT_PATTERNS = [
   "GPTBot",
@@ -238,6 +239,31 @@ function verifyAgainstVendor(siteId, pattern) {
   return { ...tally, vendor, listUrl, reason, snapshot: SNAPSHOT_DATE };
 }
 
+/**
+ * How many of this agent's requests came from an address that also presented
+ * other companies' crawler identities.
+ *
+ * This is the check that needs nothing published by anyone. Six of the thirteen
+ * identities in the 2026-07-26 scan belonged to companies that release no address
+ * list, so `unlisted` could say nothing about them — and two of those, ClaudeBot
+ * and CCBot, stayed published as genuine arrivals for exactly that reason while
+ * the corroborated ones came down. One address cannot be several companies'
+ * crawlers, and establishing that requires only the record.
+ */
+function fromRotatingAddress(siteId, pattern) {
+  const rotators = identityRotation(siteId).map((c) => c.facts.ip);
+  if (rotators.length === 0) return 0;
+
+  const marks = rotators.map(() => "?").join(",");
+  return (
+    one(
+      `SELECT COUNT(*) FROM RequestReality
+       WHERE ${CREDIBLE_AGENT_SQL} AND cfConnectingIp IN (${marks})`,
+      [siteId, `%${pattern}%`, ...rotators]
+    ) ?? 0
+  );
+}
+
 function newAiAgent(siteId) {
   const out = [];
 
@@ -259,6 +285,7 @@ function newAiAgent(siteId) {
 
     const prompted = promptedCount(siteId, pattern, times);
     const verification = verifyAgainstVendor(siteId, pattern);
+    const rotating = fromRotatingAddress(siteId, pattern);
 
     // An arrival we caused is still an observation worth publishing — it is a
     // trial result. What it must not do is wear a headline implying discovery,
@@ -275,12 +302,25 @@ function newAiAgent(siteId) {
       // client's declared identity is unsupported by the vendor's own list is
       // the closest this site comes to an accusation, and nothing that reads as
       // an accusation publishes without a person.
-      requiresReview: prompted > 0 || verification.unlisted > 0,
+      requiresReview: prompted > 0 || verification.unlisted > 0 || rotating > 0,
+      // Two of these hold a new finding back. Only the first two withdraw one
+      // that is already published, because only they are evidence against what
+      // it says; trial overlap is disclosed in the title by design.
+      contradicted: verification.unlisted > 0 || rotating > 0,
+      // Why it is waiting, in the queue itself. A reviewer who has to re-derive
+      // the reason from the body reads the body instead of judging it.
+      reviewReason:
+        rotating > 0
+          ? `${rotating} of ${row.hits} request(s) came from an address that also presented other companies' crawler identities, so this agent name cannot be taken as the client`
+          : verification.unlisted > 0
+            ? `${verification.unlisted} of ${row.hits} request(s) came from an address ${verification.vendor ?? "the vendor"} does not publish for this crawler — the declared identity is uncorroborated`
+            : `${prompted} of ${row.hits} request(s) arrived inside a trial we ran, so part of this may be our own doing`,
       facts: {
         agent: pattern,
         paths: row.paths,
         ips: row.ips,
         prompted,
+        rotating,
         hits: row.hits,
         verification
       },
@@ -733,8 +773,123 @@ export const DETECTORS = [
   arrivalHost,
   identityInconsistency,
   jsExecution,
-  formatPreference
+  formatPreference,
+  identityRotation
 ];
+
+/**
+ * One address presenting several vendors' crawler identities.
+ *
+ * Every other detector here treats a user agent as a claim about identity and
+ * declines to judge it. This one does not judge it either — it counts something
+ * that needs no judgement: **how many mutually exclusive corporate identities
+ * arrived from a single address.** Googlebot and GPTBot are operated by
+ * different companies from different networks. One address cannot be both.
+ *
+ * The count is the whole finding. It says nothing about who sent the requests
+ * or why, because the record cannot say either, and the vendor check beside it
+ * says only what the vendors publish.
+ *
+ * Written after a scan on 2026-07-26 arrived under thirteen crawler identities
+ * in six seconds while requesting `.env`, `.git/config` and `.aws/credentials`.
+ * The pipeline at the time had no rule for the shape and published three of
+ * those identities as genuine arrivals.
+ */
+function identityRotation(siteId, { minOwners = 3 } = {}) {
+  const patterns = Object.keys(AGENT_OWNER);
+  const like = patterns.map(() => "userAgent LIKE ?").join(" OR ");
+  const params = patterns.map((p) => `%${p}%`);
+
+  // Counted in SQL: distinct user agent strings, which is all SQL can see. The
+  // question that matters — how many separate companies — is resolved below
+  // against the declared owner map, because "Googlebot desktop" and "Googlebot
+  // smartphone" are two strings and one company, and a rule that could not tell
+  // those apart flagged a genuine Google address on its first run.
+  const rows = db
+    .prepare(
+      `SELECT cfConnectingIp AS ip, COUNT(DISTINCT userAgent) AS identities,
+              COUNT(*) AS hits, COUNT(DISTINCT path) AS paths,
+              MIN(observedAtMs) AS firstMs, MAX(observedAtMs) AS lastMs
+       FROM RequestReality
+       WHERE siteId = ? AND ${ROUTABLE_SQL} AND ${notDeclaredOperator()}
+         AND (${like})
+       GROUP BY cfConnectingIp
+       HAVING identities >= 2`
+    )
+    .all(siteId, ...params);
+
+  return rows.flatMap((r) => {
+    // Which of those identities the vendor's own published list contradicts.
+    const claimed = db
+      .prepare(
+        `SELECT DISTINCT userAgent AS ua FROM RequestReality
+         WHERE siteId = ? AND cfConnectingIp = ? AND (${like})`
+      )
+      .all(siteId, r.ip, ...params)
+      .map((x) => x.ua);
+
+    const agents = [...new Set(
+      claimed.flatMap((ua) => patterns.filter((p) => (ua ?? "").includes(p)))
+    )];
+
+    const owners = ownersOf(agents);
+    if (owners.length < minOwners) return [];
+
+    const unlisted = agents.filter((a) => classify(a, r.ip).status === "unlisted");
+    const uncheckable = agents.filter((a) => classify(a, r.ip).status === "unverifiable");
+
+    return [{
+      detectorId: "identity_rotation",
+      subjectKey: r.ip,
+      windowStartMs: r.firstMs,
+      windowEndMs: r.lastMs,
+      // Always. The counts are solid and the shape is unambiguous, but the
+      // sentence a reader will form from it is about someone's conduct, and
+      // this site does not publish that without a person reading it first.
+      requiresReview: true,
+      reviewReason: `one address presented crawler identities belonging to ${owners.length} different companies; ${unlisted.length} of them are contradicted by the vendor's own published address list`,
+      facts: {
+        ip: r.ip,
+        identities: r.identities,
+        owners,
+        hits: r.hits,
+        paths: r.paths,
+        agents,
+        unlisted,
+        uncheckable,
+        snapshot: SNAPSHOT_DATE
+      },
+      claims: [
+        claim(
+          `distinct crawler identities presented by this one address`,
+          `SELECT COUNT(DISTINCT userAgent) FROM RequestReality
+           WHERE siteId = ? AND cfConnectingIp = ? AND (${like})`,
+          [siteId, r.ip, ...params],
+          r.identities
+        ),
+        claim(
+          `requests from this address presenting a crawler identity`,
+          `SELECT COUNT(*) FROM RequestReality
+           WHERE siteId = ? AND cfConnectingIp = ? AND (${like})`,
+          [siteId, r.ip, ...params],
+          r.hits
+        ),
+        // The filter has to match the one the group-by used. Without `(${like})`
+        // this counted every path the address took, crawler identity or not,
+        // which happens to equal the grouped figure here only because all 90 of
+        // its requests carried one. An address that also sent an ordinary browser
+        // string would have made the two disagree and failed its own verifier.
+        claim(
+          `distinct paths this address requested under a crawler identity`,
+          `SELECT COUNT(DISTINCT path) FROM RequestReality
+           WHERE siteId = ? AND cfConnectingIp = ? AND (${like})`,
+          [siteId, r.ip, ...params],
+          r.paths
+        )
+      ]
+    }];
+  });
+}
 
 /** Runs every detector for a site and returns all candidates. */
 export function detectAll(siteId) {

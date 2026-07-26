@@ -91,6 +91,52 @@ export const NO_PUBLISHED_LIST = {
   "cohere-ai": "no machine-readable range list found (checked 2026-07-26)"
 };
 
+// Who operates each crawler. Declared, because it is a fact about the world and
+// not something traffic can be asked.
+//
+// This exists to answer one question the user agent string cannot: are two
+// identities from the same company or from different ones? Googlebot sends
+// several user agents — desktop, smartphone, image — and one Google address
+// legitimately presents all of them. GPTBot and Googlebot from one address is a
+// different thing entirely, and no count of distinct user agent strings can tell
+// those two situations apart.
+export const AGENT_OWNER = {
+  GPTBot: "OpenAI",
+  "OAI-SearchBot": "OpenAI",
+  "ChatGPT-User": "OpenAI",
+  ClaudeBot: "Anthropic",
+  "Claude-User": "Anthropic",
+  "Claude-SearchBot": "Anthropic",
+  "anthropic-ai": "Anthropic",
+  Googlebot: "Google",
+  "Google-Extended": "Google",
+  "Google-CloudVertexBot": "Google",
+  "Google-InspectionTool": "Google",
+  GoogleOther: "Google",
+  "Google-Site-Verifier": "Google",
+  PerplexityBot: "Perplexity",
+  "Perplexity-User": "Perplexity",
+  bingbot: "Microsoft",
+  YandexBot: "Yandex",
+  Baiduspider: "Baidu",
+  CCBot: "Common Crawl",
+  "Applebot-Extended": "Apple",
+  Amazonbot: "Amazon",
+  "meta-externalagent": "Meta",
+  Bytespider: "ByteDance",
+  "cohere-ai": "Cohere",
+  Diffbot: "Diffbot",
+  YouBot: "You.com",
+  Timpibot: "Timpi",
+  "xAI-SearchBot": "xAI",
+  DeepSeekBot: "DeepSeek"
+};
+
+/** Which companies' crawlers these agent names belong to. */
+export function ownersOf(agents) {
+  return [...new Set(agents.map((a) => AGENT_OWNER[a]).filter(Boolean))];
+}
+
 /** Every list a vendor publishes, given one of its list ids. */
 export function siblingLists(listId) {
   const list = VENDOR_LISTS.find((l) => l.id === listId);

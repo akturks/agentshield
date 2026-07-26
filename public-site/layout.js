@@ -11,6 +11,27 @@ export function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * A recorded moment, to the second, in UTC.
+ *
+ * Everything published here used to be cut to ten characters — the date alone.
+ * That was wrong in two places and one of them was the measurement itself: a
+ * marker's publication instant is the zero point from which time-to-ingestion is
+ * counted, and printing "2026-07-26" gave that clock a 24-hour error before the
+ * measurement had begun. The other is any event shorter than a day; a scan that
+ * lasted six seconds is not described by its date.
+ *
+ * UTC is stated rather than converted. A reader comparing this against their own
+ * logs needs to know which clock produced it, and a local rendering of a
+ * server-side record invites two readers to disagree about when something
+ * happened.
+ */
+export function instant(value) {
+  if (!value) return "";
+  const text = String(value);
+  return `${text.slice(0, 10)} ${text.slice(11, 19)} UTC`.trim();
+}
+
 // The console's visual language — technical palette, bordered panels, monospace
 // for anything measured — applied to a page that still has to carry long prose.
 // Figures look like readings; paragraphs stay comfortable to read. Both themes
@@ -152,7 +173,7 @@ ${
   canary
     ? `<div class="marker"><p>Reality marker for this page: <code>${escapeHtml(canary)}</code>${
         published
-          ? ` &middot; published ${escapeHtml(published.slice(0, 10))}`
+          ? ` &middot; published ${escapeHtml(instant(published))}`
           : ""
       }</p>
 <p>This string is coined and appears nowhere else. If it later surfaces in a language model's output, that is observed evidence this page was ingested. <a href="/glossary/canary-token">What this is</a>.</p></div>`

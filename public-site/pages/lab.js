@@ -1,4 +1,4 @@
-import { page, escapeHtml } from "../layout.js";
+import { page, escapeHtml, instant } from "../layout.js";
 import { notOperator } from "../stats.js";
 import db from "../realityDb.js";
 import { allCanaries } from "../canary.js";
@@ -162,7 +162,7 @@ ${
 <tbody>${agentRows
         .map(
           (r) =>
-            `<tr><td class="mono">${escapeHtml(truncate(r.userAgent))}</td><td>${r.hits}</td><td>${escapeHtml(r.firstAt.slice(0, 10))}</td><td>${escapeHtml(r.lastAt.slice(0, 10))}</td></tr>`
+            `<tr><td class="mono">${escapeHtml(truncate(r.userAgent))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.firstAt))}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
         )
         .join("")}</tbody></table></div>`
 }
@@ -179,7 +179,7 @@ ${
 <tbody>${violations
         .map(
           (r) =>
-            `<tr><td class="mono">${escapeHtml(r.path)}</td><td class="mono">${escapeHtml(truncate(r.userAgent, 60))}</td><td>${r.hits}</td><td>${escapeHtml(r.lastAt.slice(0, 10))}</td></tr>`
+            `<tr><td class="mono">${escapeHtml(r.path)}</td><td class="mono">${escapeHtml(truncate(r.userAgent, 60))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
         )
         .join("")}</tbody></table></div>`
 }
@@ -214,7 +214,7 @@ ${
 <tbody>${canaries
       .map(
         (c) =>
-          `<tr><td class="mono">${escapeHtml(c.token)}</td><td class="mono">${escapeHtml(c.page)}</td><td>${escapeHtml(c.publishedAt.slice(0, 10))}</td><td>&mdash;</td></tr>`
+          `<tr><td class="mono">${escapeHtml(c.token)}</td><td class="mono">${escapeHtml(c.page)}</td><td>${escapeHtml(instant(c.publishedAt))}</td><td>&mdash;</td></tr>`
       )
       .join("")}</tbody></table></div>
 
@@ -232,7 +232,7 @@ ${
 <tbody>${referred
         .map(
           (r) =>
-            `<tr><td class="mono">${escapeHtml(truncate(r.tag, 24))}</td><td class="mono">${escapeHtml(truncate(r.path, 32))}</td><td>${r.hits}</td><td>${r.addresses}</td><td>${r.agents}</td><td>${escapeHtml(r.firstAt.slice(0, 10))}</td><td>${escapeHtml(r.lastAt.slice(0, 10))}</td></tr>`
+            `<tr><td class="mono">${escapeHtml(truncate(r.tag, 24))}</td><td class="mono">${escapeHtml(truncate(r.path, 32))}</td><td>${r.hits}</td><td>${r.addresses}</td><td>${r.agents}</td><td>${escapeHtml(instant(r.firstAt))}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
         )
         .join("")}</tbody></table></div>`
 }

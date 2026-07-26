@@ -29,10 +29,20 @@ import { escapeHtml } from "../layout.js";
 //   supply the missing verb and quantifier itself. Every counted row therefore
 //   asks "How many ...", which cannot be re-parsed as an instruction or a claim.
 
-export const TEMPLATE_VERSION = "tpl-8";
+export const TEMPLATE_VERSION = "tpl-9";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+// Spelled out rather than left as a bare number, because "6" beside a timestamp
+// is a quantity a translator will happily attach to the wrong noun.
+function duration(seconds) {
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"}`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = Math.round(minutes / 60);
+  return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
 
 function limits(items) {
   return `<h2>Limits</h2>\n<ul>\n${items.map((l) => `<li>${l}</li>`).join("\n")}\n</ul>`;
@@ -63,6 +73,55 @@ const TEMPLATES = {
 ${limits([
   UA_CLAIM_LIMIT,
   "Ordering is established by timestamp on the same connecting address. A client behind a shared address, or one rotating addresses, may be misattributed.",
+  SINGLE_SITE_LIMIT
+])}`
+    };
+  },
+
+  identity_rotation(c) {
+    const f = c.facts;
+    const seconds = Math.max(1, Math.round((c.windowEndMs - c.windowStartMs) / 1000));
+    const list = (items) =>
+      items.map((i) => `<code>${escapeHtml(i)}</code>`).join(", ");
+
+    return {
+      slug: `identity-rotation-${day(c.windowStartMs)}-${f.ip.replace(/[^a-z0-9]/gi, "").slice(0, 10)}`,
+      // The subject is the address and the verb is what it did. No word here
+      // names a motive, because the record holds no column for one.
+      title: `One address presented crawler identities belonging to ${f.owners.length} different companies`,
+      summary: `A single connecting address made ${f.hits} requests under ${f.identities} different crawler user agents, belonging to ${f.owners.length} separate companies, across ${f.paths} distinct paths. Crawlers operated by different companies do not share an address.`,
+      body: `
+<h2>What was observed</h2>
+<p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC — ${duration(seconds)} — one connecting address made ${f.hits} requests to ${f.paths} distinct paths, presenting ${f.identities} different crawler user agents.</p>
+<table>
+<tbody>
+<tr><th>How many separate companies those identities belong to</th><td>${f.owners.length}</td></tr>
+<tr><th>How many different crawler user agents it sent</th><td>${f.identities}</td></tr>
+<tr><th>How many requests it made</th><td>${f.hits}</td></tr>
+<tr><th>How many distinct paths it requested</th><td>${f.paths}</td></tr>
+<tr><th>How many of those identities the operating company's published address list contradicts</th><td>${f.unlisted.length}</td></tr>
+<tr><th>How many could not be checked, because no list is published</th><td>${f.uncheckable.length}</td></tr>
+</tbody>
+</table>
+<p>Companies named: ${list(f.owners)}.</p>
+<h2>What it means</h2>
+<p>Each of these companies operates its crawler from its own network. One address presenting identities from ${f.owners.length} of them at once is not something their infrastructure produces — so at most one of these declarations can be accurate, and the rest are not.</p>
+${
+  f.unlisted.length
+    ? `<p>${f.unlisted.length} of them can be checked against the operating company's own published list of crawler addresses, and this address is in none of those ranges: ${list(f.unlisted)}. Checked against the lists as captured on ${escapeHtml(f.snapshot ?? "the recorded date")}.</p>`
+    : ""
+}
+${
+  f.uncheckable.length
+    ? `<p>${f.uncheckable.length} could not be checked at all, because the company operating them publishes no machine-readable list of its crawler addresses: ${list(f.uncheckable)}. Nothing here counts against those declarations; they are simply unexamined.</p>`
+    : ""
+}
+<p>What this does not establish: who sent the requests, what they were for, or whether one party or several arranged it. A request carries no field for intent, and this site does not infer one. The counts above are the entire finding.</p>
+${limits([
+  "The address is what the CDN reported. It identifies a network endpoint for the duration of these requests, not a person or an organisation.",
+  "A count of contradicted identities is not a count of attacks. It establishes that a declaration was unsupported by the operating company's own published list, and nothing beyond that.",
+  `Published address lists change. Checked as captured on ${escapeHtml(f.snapshot ?? "the recorded date")}; a company adding a range afterwards makes an older answer stale rather than wrong.`,
+  "An identity that could not be checked is not an identity found false. Several of these companies publish nothing to check against, and their absence from this count is theirs, not the client's.",
   SINGLE_SITE_LIMIT
 ])}`
     };

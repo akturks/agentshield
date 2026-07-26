@@ -145,7 +145,7 @@ export function runOnce({ siteId = SITE_ID, verbose = false } = {}) {
       result.published += 1;
       if (verbose) console.log(`[findings] published ${slug}`);
     } else {
-      markVerified.run("pending", verdict.checkedAt, null, null, id);
+      markVerified.run("pending", verdict.checkedAt, null, candidate.reviewReason ?? null, id);
       result.pending += 1;
       if (verbose) console.log(`[findings] held for review ${slug}`);
     }
@@ -156,6 +156,23 @@ export function runOnce({ siteId = SITE_ID, verbose = false } = {}) {
 
 const restateFinding = db.prepare(
   `UPDATE Finding SET title = @title, summary = @summary, bodyHtml = @bodyHtml,
+          detectorVersion = @detectorVersion, verifiedAt = @verifiedAt
+   WHERE id = @id`
+);
+
+// Takes a published finding off the site and puts it back in the queue.
+//
+// `publishedAt` is deliberately left alone. It was published, at that instant,
+// and to whoever read it then — erasing the timestamp would make the record
+// claim it never happened, which is the one thing this project may not do. The
+// same choice `reject()` already makes for a withdrawn finding.
+//
+// `rejectedReason` carries the reason. The column name predates this use; what
+// it actually holds is "why this is not currently published", and a withdrawal
+// is one of those. Prefixed so the two cases stay distinguishable in the record.
+const withdrawFinding = db.prepare(
+  `UPDATE Finding SET status = 'pending', rejectedReason = @reason,
+          title = @title, summary = @summary, bodyHtml = @bodyHtml,
           detectorVersion = @detectorVersion, verifiedAt = @verifiedAt
    WHERE id = @id`
 );
@@ -176,7 +193,7 @@ const restateFinding = db.prepare(
  */
 export function restate({ siteId = SITE_ID, detectorId = null, verbose = false } = {}) {
   const candidates = detectAll(siteId);
-  const result = { considered: 0, restated: 0, unmatched: 0, failed: [] };
+  const result = { considered: 0, restated: 0, unmatched: 0, withdrawn: [], failed: [] };
 
   const existing = db
     .prepare(
@@ -216,14 +233,51 @@ export function restate({ siteId = SITE_ID, detectorId = null, verbose = false }
       continue;
     }
 
-    restateFinding.run({
+    const fields = {
       id: f.id,
       title: drafted.title,
       summary: drafted.summary,
       bodyHtml: drafted.body,
       detectorVersion: DETECTOR_VERSION,
       verifiedAt: verdict.checkedAt
-    });
+    };
+
+    // A method that got stricter has to reach what it already published, or the
+    // gate only ever applied to whatever happened to arrive after it was written.
+    //
+    // This is the failure that made it necessary. On 2026-07-26 the pipeline
+    // published three findings naming ClaudeBot, PerplexityBot and CCBot as
+    // visitors. Every one of those requests came from a single address running a
+    // secret-file scan under thirteen rotating crawler identities. The check that
+    // would have held them was written four hours earlier and was sitting in the
+    // working tree; restating under it corrected the wording and left all three
+    // published, because status was the one field restatement would not touch.
+    // Only a contradiction withdraws. Two things this deliberately does not do,
+    // both of them mistakes made on the first attempt:
+    //
+    // It does not withdraw because the detector requires review. Those findings
+    // were published by a person approving them, and treating a manual gate as a
+    // reason to unpublish erases that approval — it withdrew a distributed-crawl
+    // and an arrival-host finding that a human had read and accepted.
+    //
+    // It does not withdraw for trial overlap. "We asked Claude-User to read this
+    // page, and it did" exists to disclose exactly that, and the overlap was
+    // known when it was approved. Suppressing it would delete a disclosure that
+    // was chosen over deletion once already.
+    //
+    // What withdraws is new evidence against a published claim: the vendor's own
+    // list contradicting the identity, or the address turning out to be one that
+    // presented several companies' crawler identities.
+    if (f.status === "published" && candidate.contradicted) {
+      const why = candidate.reviewReason ?? "new evidence contradicts what this finding states";
+
+      withdrawFinding.run({ ...fields, reason: `WITHDRAWN BY RESTATE (${DETECTOR_VERSION}): ${why}` });
+      result.withdrawn.push({ slug: f.slug, reason: why });
+      if (verbose) console.log(`[restate] WITHDRAWN ${f.slug}: ${why}`);
+      continue;
+    }
+
+    restateFinding.run(fields);
 
     result.restated += 1;
     if (verbose) console.log(`[restate] ${f.slug} -> ${DETECTOR_VERSION}`);

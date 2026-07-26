@@ -1,4 +1,4 @@
-import { page, escapeHtml } from "../layout.js";
+import { page, escapeHtml, instant } from "../layout.js";
 import { pipelineDiagram, evidenceDiagram } from "../diagrams.js";
 import { headline } from "../stats.js";
 import { QUESTIONS } from "./questions.js";
@@ -58,7 +58,7 @@ ${publishedFindings()
       .slice(0, 4)
       .map(
         (f) =>
-          `<li><a href="/findings/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a> <span class="status">${escapeHtml(f.publishedAt?.slice(0, 10) ?? "")}</span></li>`
+          `<li><a href="/findings/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a> <span class="status">${escapeHtml(instant(f.publishedAt))}</span></li>`
       )
       .join("\n") || "<li>Nothing established yet.</li>"}
 </ul>

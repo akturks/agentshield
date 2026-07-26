@@ -1,4 +1,4 @@
-import { page, escapeHtml } from "../layout.js";
+import { page, escapeHtml, instant } from "../layout.js";
 import { published, bySlug } from "../findings/engine.js";
 import { claimsFor, recheck } from "../findings/verifier.js";
 import { articlesFor } from "../constitution.js";
@@ -14,9 +14,9 @@ const ORIGIN_LABEL = {
 
 function originNote(f) {
   if (f.origin === "human") {
-    return `<p class="status">Written by a person from the record &middot; ${escapeHtml(f.publishedAt?.slice(0, 10) ?? "")}</p>`;
+    return `<p class="status">Written by a person from the record &middot; ${escapeHtml(instant(f.publishedAt))}</p>`;
   }
-  return `<p class="status">Detected automatically by <code>${escapeHtml(f.detectorId)}</code> &middot; ${escapeHtml(f.publishedAt?.slice(0, 10) ?? "")}</p>`;
+  return `<p class="status">Detected automatically by <code>${escapeHtml(f.detectorId)}</code> &middot; ${escapeHtml(instant(f.publishedAt))}</p>`;
 }
 
 /**
@@ -46,7 +46,7 @@ function evidenceChain(finding) {
 <tr><td><strong>2. Evidence</strong></td><td>The rule <code>${escapeHtml(finding.detectorId)}</code> selected the observations that bear on this question and emitted each figure with the means of reproducing it.</td></tr>
 <tr><td><strong>3. Statement</strong></td><td>A fixed template turned that evidence into the prose above. No language model was involved and no figure was altered.</td></tr>
 <tr><td><strong>4. Verification</strong></td><td>Every figure was recomputed against the record. A single mismatch would have discarded the draft.</td></tr>
-<tr><td><strong>5. Publication</strong></td><td>${escapeHtml(finding.publishedAt?.slice(0, 10) ?? "—")}${finding.origin === "human" ? ", after a person wrote and reviewed it" : finding.detectorId === "ai_agent_arrival" || finding.detectorId === "format_preference" ? ", automatically" : ", after review by a person"}.</td></tr>
+<tr><td><strong>5. Publication</strong></td><td>${escapeHtml(instant(finding.publishedAt) || "—")}${finding.origin === "human" ? ", after a person wrote and reviewed it" : finding.detectorId === "ai_agent_arrival" || finding.detectorId === "format_preference" ? ", automatically" : ", after review by a person"}.</td></tr>
 </tbody></table></div>
 
 <h3>What was measured</h3>
@@ -154,12 +154,16 @@ export function findingPage(slug, canary, publishedAt) {
     description: f.summary.slice(0, 300),
     path: `/findings/${slug}`,
     canary,
-    published: f.publishedAt?.slice(0, 10),
+    // The full instant, not the date. This value reaches two places that both
+    // need it: the marker line, whose timestamp is the zero point of the
+    // time-to-ingestion measurement, and schema.org's datePublished, which
+    // accepts a full ISO 8601 moment and is read by machines.
+    published: f.publishedAt,
     schemaType: "Article",
     mainEntity: {
       "@type": "Article",
       headline: f.title,
-      datePublished: f.publishedAt?.slice(0, 10),
+      datePublished: f.publishedAt,
       abstract: f.summary,
       author: {
         "@type": "Organization",
