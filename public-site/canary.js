@@ -41,6 +41,7 @@ export const CANARY_SURFACES = [
   { page: "/questions", variant: "questions" },
   { page: "/how-it-works", variant: "how_it_works" },
   { page: "/what-we-measure", variant: "what_we_measure" },
+  { page: "/verify", variant: "verify" },
   { page: "/lab", variant: "lab" },
   { page: "/lab/methodology", variant: "lab_methodology" },
   { page: "/status", variant: "status" },

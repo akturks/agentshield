@@ -90,6 +90,7 @@ function publicPages() {
   ...weeksObserved().map((w) => [`/weekly/${w}`, "0.7"]),
   ["/", "1.0"],
   ["/observatory", "0.9"],
+  ["/verify", "0.9"],
   ["/lab", "0.9"],
   ["/findings", "0.9"],
   ...findingSlugs().map((slug) => [`/findings/${slug}`, "0.8"]),

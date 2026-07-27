@@ -123,6 +123,11 @@ figcaption{font-size:.84rem;color:var(--muted);margin-top:.85rem;line-height:1.6
 .status{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
 font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}
+button{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;
+letter-spacing:0;padding:.5rem .9rem;margin:.2rem .3rem .2rem 0;border:1px solid var(--line);
+background:var(--panel);color:var(--fg);border-radius:5px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 `;
 
 // Output first, then how you know it, then the other subject.
@@ -140,8 +145,14 @@ hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}
 // Neither page is deleted, and this is not tidiness. Both carry a published
 // marker, and a marker on a page that 404s can never be ingested again — retiring
 // a surface silently removes a measurement that was already running.
+// `/verify` sits second for a reason that is not about hierarchy. It is the only
+// page here a reader would send to somebody else, and an observatory with no
+// readers measures the web perfectly and tells nobody. It earns the position by
+// being the one surface where the site's central difficulty is felt rather than
+// reported.
 const NAV = [
   ["/weekly", "Weekly"],
+  ["/verify", "Verify"],
   ["/lab", "Lab"],
   ["/findings", "Findings"],
   ["/questions", "Questions"],

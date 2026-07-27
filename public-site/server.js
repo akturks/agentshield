@@ -22,6 +22,7 @@ import { status } from "./pages/status.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
 import { audit } from "./pages/audit.js";
 import { cdnArticle } from "./pages/cdnArticle.js";
+import { verify } from "./pages/verify.js";
 import { weeklyPage } from "./pages/weekly.js";
 import { latestWeek, weekFromLabel } from "./weekly.js";
 import {
@@ -224,6 +225,13 @@ app.get("/weekly/:label", (req, reply) => {
   req.realityCanary = token;
   sendWithValidator(req, reply.type("text/html; charset=utf-8"), html);
 });
+
+// Deals a fresh deck per request, so the ETag changes every time and nothing can
+// be concluded from conditional requests to this path. That is correct rather
+// than unfortunate: a page whose body is different on every fetch has no stable
+// validator to send, and pretending otherwise would make /lab's conditional
+// request counts read as behaviour when they were an artefact of this page.
+app.get("/verify", (req, reply) => html(req, reply, "verify", verify));
 
 app.get("/lab", (req, reply) => html(req, reply, "lab", lab));
 

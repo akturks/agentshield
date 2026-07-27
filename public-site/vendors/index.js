@@ -35,7 +35,7 @@ export const VERIFIER_SOURCE = snapshot ? snapshot.file : null;
 // through 74.7.249, which is the class of error this whole module exists to
 // avoid making about someone.
 
-function ipv4ToInt(address) {
+export function ipv4ToInt(address) {
   const parts = address.split(".");
   if (parts.length !== 4) return null;
   let value = 0n;
@@ -47,7 +47,7 @@ function ipv4ToInt(address) {
   return value;
 }
 
-function ipv6ToInt(address) {
+export function ipv6ToInt(address) {
   if (!address.includes(":")) return null;
 
   const [head, tail] = address.split("::");
@@ -159,6 +159,18 @@ export function classify(agent, address) {
   }
 
   return { status: "unlisted", vendor: list.vendor, list: list.id, url: list.url, at };
+}
+
+/**
+ * The prefixes held in the snapshot for one list, or an empty array.
+ *
+ * A copy is returned rather than the array itself. Callers outside this module
+ * display and sample these; handing out the live array would let a caller sort
+ * or splice the list the classifier checks against, which would change what
+ * `classify` says without anything in the record changing.
+ */
+export function prefixesFor(listId) {
+  return [...(snapshot?.lists?.[listId]?.prefixes ?? [])];
 }
 
 /** Which agents this site can check at all, for stating coverage honestly. */
