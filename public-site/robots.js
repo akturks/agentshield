@@ -91,6 +91,7 @@ function publicPages() {
   ["/findings", "0.9"],
   ...findingSlugs().map((slug) => [`/findings/${slug}`, "0.8"]),
   ["/audit", "0.9"],
+  ["/cdn-interventions", "0.9"],
   ["/questions", "0.9"],
   ...questionSlugs().map((slug) => [`/questions/${slug}`, "0.8"]),
   ["/how-it-works", "0.8"],

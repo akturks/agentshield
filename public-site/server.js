@@ -21,6 +21,7 @@ import { lab, methodology } from "./pages/lab.js";
 import { status } from "./pages/status.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
 import { audit } from "./pages/audit.js";
+import { cdnArticle } from "./pages/cdnArticle.js";
 import {
   questionsIndex,
   questionPage,
@@ -156,6 +157,10 @@ app.get("/constitution", (req, reply) =>
 app.get("/about", (req, reply) => html(req, reply, "about", about));
 
 app.get("/audit", (req, reply) => html(req, reply, "audit", audit));
+
+app.get("/cdn-interventions", (req, reply) =>
+  html(req, reply, "cdn_interventions", cdnArticle)
+);
 
 app.get("/questions", (req, reply) =>
   html(req, reply, "questions", questionsIndex)

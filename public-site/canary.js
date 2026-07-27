@@ -37,6 +37,7 @@ export const CANARY_SURFACES = [
   { page: "/constitution", variant: "constitution" },
   { page: "/about", variant: "about" },
   { page: "/audit", variant: "audit" },
+  { page: "/cdn-interventions", variant: "cdn_interventions" },
   { page: "/questions", variant: "questions" },
   { page: "/how-it-works", variant: "how_it_works" },
   { page: "/what-we-measure", variant: "what_we_measure" },
