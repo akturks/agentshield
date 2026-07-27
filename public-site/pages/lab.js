@@ -4,6 +4,8 @@ import db from "../realityDb.js";
 import { allCanaries } from "../canary.js";
 import { headline, EXTERNAL } from "../stats.js";
 import { disallowedPaths } from "./content.js";
+import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
+import { AI_AGENT_PATTERNS } from "../findings/detectors.js";
 
 const countAll = db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`);
 const firstSeen = db.prepare(
@@ -61,6 +63,83 @@ const referredArrivals = db.prepare(`
   LIMIT 25
 `);
 
+// How much of the record is one address?
+//
+// Every total on this page can be inflated by anyone willing to send requests: the
+// rate limit allows 240 a minute per address, and nothing here refuses a client for
+// being uninteresting. That is a property of an open, honest instrument, not a
+// defect to be fixed — refusing traffic would change what is measurable.
+//
+// What can be fixed is the figure hiding it. A single actor already accounts for an
+// eighth of this record (a credential scanner, 90 requests in six seconds), and an
+// average that absorbs that silently is a worse number than one that declares it.
+// So the largest single contributor is published beside the totals, always.
+//
+// This is Article VI applied to a threat rather than to a sample size: state the
+// weakness in the number, in the same breath as the number.
+const concentration = db.prepare(`
+  SELECT COUNT(*) AS hits
+  FROM RequestReality
+  WHERE ${EXTERNAL} AND cfConnectingIp IS NOT NULL AND cfConnectingIp <> ''
+  GROUP BY cfConnectingIp
+  ORDER BY hits DESC
+  LIMIT 1
+`);
+
+/**
+ * Declared identities, tallied against the vendors' own published address ranges.
+ *
+ * The table above this one counts what clients *say*. This one counts how many of
+ * those claims the vendor's own list corroborates, which is the difference between
+ * a number anybody can inflate and a number that requires OpenAI's infrastructure
+ * to inflate.
+ *
+ * Four outcomes, and only one of them is evidence against a client:
+ *  - verified      the address is in the list the vendor publishes for that agent
+ *  - vendor_other  a different range belonging to the same vendor
+ *  - unlisted      the vendor publishes a list and this address is not on it
+ *  - unverifiable  no published list exists to check against
+ *
+ * `unverifiable` is a gap in the vendor's publishing, never an accusation: Anthropic
+ * and Common Crawl publish nothing machine-readable, so every Claude agent lands
+ * here no matter how genuine it is.
+ *
+ * Classification runs against a dated snapshot, never a live fetch, so this table
+ * reproduces. A live list would give a different answer next month with no way to
+ * tell which answer was right.
+ */
+function verifiedIdentities() {
+  const out = [];
+
+  for (const pattern of AI_AGENT_PATTERNS) {
+    const rows = db
+      .prepare(
+        `SELECT cfConnectingIp AS ip, COUNT(*) AS hits
+         FROM RequestReality
+         WHERE ${EXTERNAL} AND userAgent LIKE ?
+         GROUP BY cfConnectingIp`
+      )
+      .all(`%${pattern}%`);
+
+    if (rows.length === 0) continue;
+
+    const tally = { verified: 0, vendor_other: 0, unlisted: 0, unverifiable: 0 };
+    let hits = 0;
+    let reason = null;
+
+    for (const row of rows) {
+      const result = classify(pattern, row.ip);
+      tally[result.status] = (tally[result.status] ?? 0) + row.hits;
+      hits += row.hits;
+      if (result.status === "unverifiable") reason = reason ?? result.reason;
+    }
+
+    out.push({ pattern, hits, addresses: rows.length, ...tally, reason });
+  }
+
+  return out.sort((a, b) => b.hits - a.hits);
+}
+
 function disallowedHits() {
   const paths = disallowedPaths();
   const marks = paths.map(() => "?").join(",");
@@ -102,6 +181,10 @@ export function lab(canary, published) {
 
   const agentRows = topAgents.all();
   const referred = referredArrivals.all();
+  const identities = verifiedIdentities();
+
+  const busiest = concentration.get()?.hits ?? 0;
+  const busiestShare = total > 0 ? Math.round((busiest / total) * 1000) / 10 : 0;
 
   return page({
     title: "Lab",
@@ -145,6 +228,12 @@ ${statBlock([
     }</p>
 
 ${
+  busiest > 0
+    ? `<p><strong>One address accounts for ${escapeHtml(busiest.toLocaleString("en-US"))} of those requests — ${escapeHtml(String(busiestShare))}% of the total.</strong> Anyone can add to these counts; the rate limit permits 240 requests a minute per address and no client is refused for being uninteresting. Refusing traffic would change what is measurable here, so the concentration is published instead of prevented: if a single source ever dominates this record, that figure says so before any conclusion is drawn from it. The identity table below is the part that cannot be inflated this way.</p>`
+    : ""
+}
+
+${
   total < 50
     ? `<p><em>The record is still small. Figures on this page are published from the first request onward rather than held back, so the dataset can be watched as it accumulates. Treat early numbers as a record of what happened, not as a finding about crawler behaviour in general.</em></p>`
     : ""
@@ -152,7 +241,7 @@ ${
 
 <h2>Declared clients</h2>
 
-<p>User-Agent strings are claims, not verified identities. They are recorded verbatim and counted as-is.</p>
+<p>User-Agent strings are claims, not verified identities. They are recorded verbatim and counted as-is. <a href="#checked">The next table</a> reports how many of those claims the vendor's own published address ranges corroborate.</p>
 
 ${
   agentRows.length === 0
@@ -166,6 +255,27 @@ ${
         )
         .join("")}</tbody></table></div>`
 }
+
+<h2 id="checked">Declared identities, checked against the vendor's list</h2>
+
+<p>The table above counts what clients say. This one counts how far each claim is corroborated by the address ranges the vendor itself publishes — the difference between a figure anybody can inflate and one that would require the vendor's own infrastructure to inflate. Checked against a dated snapshot${
+      SNAPSHOT_DATE ? ` captured ${escapeHtml(SNAPSHOT_DATE)}` : ""
+    }, never a live fetch, so every row here reproduces.</p>
+
+${
+  identities.length === 0
+    ? "<p>No client has yet declared one of the identities this site checks.</p>"
+    : `<div class="scroll"><table>
+<thead><tr><th>Declared identity</th><th>Requests</th><th>Verified</th><th>Vendor's other range</th><th>Unlisted</th><th>Unverifiable</th></tr></thead>
+<tbody>${identities
+        .map(
+          (r) =>
+            `<tr><td class="mono">${escapeHtml(r.pattern)}</td><td>${r.hits}</td><td>${r.verified}</td><td>${r.vendor_other}</td><td>${r.unlisted}</td><td>${r.unverifiable}</td></tr>`
+        )
+        .join("")}</tbody></table></div>`
+}
+
+<p><strong>Only <em>unlisted</em> is evidence against a client</strong>, and what it means is narrow: the vendor publishes a list of its addresses and this request did not come from one. It is never a statement about intent. <em>Unverifiable</em> is a gap in the vendor's publishing rather than anything about the client — Anthropic and Common Crawl publish no machine-readable list, so every one of their agents lands there however genuine it is, and a vendor's silence must not be rendered as an accusation.</p>
 
 <h2>robots.txt compliance</h2>
 

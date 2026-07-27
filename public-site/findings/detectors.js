@@ -14,7 +14,11 @@ import { AGENT_OWNER, ownersOf } from "../vendors/sources.js";
 
 export const DETECTOR_VERSION = "det-8";
 
-const AI_AGENT_PATTERNS = [
+// Exported so `/lab` can report the same identities the detectors reason about.
+// Restating this list on the page would let the two drift, and a page claiming to
+// check declared identities against vendor lists must be checking the same set the
+// findings do.
+export const AI_AGENT_PATTERNS = [
   "GPTBot",
   "OAI-SearchBot",
   "ChatGPT-User",
