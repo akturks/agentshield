@@ -1,5 +1,7 @@
 import { page, escapeHtml, SITE_ORIGIN } from "../layout.js";
 import { headline } from "../stats.js";
+import { EVIDENCE } from "./evidence.js";
+import { instant } from "../layout.js";
 
 // Questions people actually ask about AI crawlers, answered from what this
 // observatory can and cannot yet establish. Structured as one page per question
@@ -333,6 +335,9 @@ export function questionPage(slug, canary, published) {
 <p class="status">${escapeHtml(q.status)}</p>
 
 ${body}
+
+${EVIDENCE[slug] ? `${EVIDENCE[slug]()}
+<p class="status">Computed from the record at ${escapeHtml(instant(new Date().toISOString()))}. Every figure here is recomputed when the page is requested, so this section moves as the record does — <a href="/weekly">week by week</a>.</p>` : ""}
 
 <h2>Related</h2>
 <ul>
