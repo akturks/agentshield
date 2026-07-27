@@ -129,6 +129,7 @@ const NAV = [
   ["/observatory", "Observatory"],
   ["/lab", "Lab"],
   ["/findings", "Findings"],
+  ["/weekly", "Weekly"],
   ["/audit", "Audit"],
   ["/questions", "Questions"],
   ["/constitution", "Constitution"],

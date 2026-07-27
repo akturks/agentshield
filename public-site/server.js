@@ -22,6 +22,8 @@ import { status } from "./pages/status.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
 import { audit } from "./pages/audit.js";
 import { cdnArticle } from "./pages/cdnArticle.js";
+import { weeklyPage } from "./pages/weekly.js";
+import { latestWeek, weekFromLabel } from "./weekly.js";
 import {
   questionsIndex,
   questionPage,
@@ -191,6 +193,36 @@ app.get("/findings/:slug", (req, reply) => {
     reply.type("text/html; charset=utf-8"),
     findingPage(req.params.slug, token, canaryPublishedAt(variant))
   );
+});
+
+// The current week lives at /weekly and also at its own dated address. Both are
+// served; the page sets its canonical to the dated one only when it is not the
+// latest, so the week in progress does not compete with itself in an index.
+app.get("/weekly", (req, reply) => {
+  const label = latestWeek();
+  const variant = `weekly_${label.replace("-", "_").toLowerCase()}`;
+  const token = ensureCanary(`/weekly/${label}`, variant);
+  req.realityVariant = variant;
+  req.realityCanary = token;
+  sendWithValidator(
+    req,
+    reply.type("text/html; charset=utf-8"),
+    weeklyPage(label, token, canaryPublishedAt(variant))
+  );
+});
+
+app.get("/weekly/:label", (req, reply) => {
+  const label = req.params.label;
+  if (weekFromLabel(label) === null) return notFound(req, reply);
+
+  const variant = `weekly_${label.replace("-", "_").toLowerCase()}`;
+  const token = ensureCanary(`/weekly/${label}`, variant);
+  const html = weeklyPage(label, token, canaryPublishedAt(variant));
+  if (!html) return notFound(req, reply);
+
+  req.realityVariant = variant;
+  req.realityCanary = token;
+  sendWithValidator(req, reply.type("text/html; charset=utf-8"), html);
 });
 
 app.get("/lab", (req, reply) => html(req, reply, "lab", lab));

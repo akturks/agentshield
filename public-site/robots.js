@@ -2,6 +2,7 @@ import { SITE_ORIGIN } from "./layout.js";
 import { disallowedPaths, glossarySlugs } from "./pages/content.js";
 import { questionSlugs } from "./pages/questions.js";
 import { findingSlugs } from "./pages/findings.js";
+import { weeksObserved } from "./weekly.js";
 
 // AI crawlers are explicitly welcome: this site exists to observe them, so
 // blocking them would defeat the entire measurement. The Disallow rules below
@@ -85,6 +86,8 @@ export function publicUrls() {
 
 function publicPages() {
   return [
+  ["/weekly", "0.9"],
+  ...weeksObserved().map((w) => [`/weekly/${w}`, "0.7"]),
   ["/", "1.0"],
   ["/observatory", "0.9"],
   ["/lab", "0.9"],
