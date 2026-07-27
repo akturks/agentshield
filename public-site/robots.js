@@ -30,6 +30,22 @@ const WELCOMED_AGENTS = [
   "YouBot"
 ];
 
+// A declared rate, published so that honouring it becomes an observable act.
+//
+// The same trick as the disallowed paths: compliance cannot be measured against a
+// rule nobody was given. Until this line existed the record could show how fast a
+// client went and never whether it went faster than asked, because nothing had
+// been asked.
+//
+// Ten seconds is deliberately loose. This is an instrument, not a defence — a
+// value tight enough to inconvenience a well-behaved crawler would change the
+// behaviour being measured, which Article V rules out. Crawl-delay is also not
+// part of the original robots.txt specification and several major crawlers
+// document that they ignore it; that is itself the measurement, and a client
+// ignoring a directive it never promised to honour is reported as exactly that
+// and not as a violation.
+const CRAWL_DELAY_SECONDS = 10;
+
 export function robotsTxt() {
   const welcomed = WELCOMED_AGENTS.map((ua) => `User-agent: ${ua}`).join("\n");
   const disallows = disallowedPaths()
@@ -42,14 +58,22 @@ export function robotsTxt() {
 
 ${welcomed}
 Allow: /
+Crawl-delay: ${CRAWL_DELAY_SECONDS}
 
 User-agent: *
 Allow: /
+Crawl-delay: ${CRAWL_DELAY_SECONDS}
 ${disallows}
 
 # The disallowed paths above serve ordinary content and return 200. They are not
 # traps and contain nothing sensitive. They exist so that robots.txt compliance
 # is measurable rather than assumed. Results: ${SITE_ORIGIN}/lab
+#
+# Crawl-delay is published for the same reason: a rate nobody was given cannot be
+# honoured or ignored, only guessed at. It is set loose on purpose, it is not
+# enforced, and no request is ever refused for exceeding it. Crawl-delay is not
+# part of the original specification and several crawlers state that they ignore
+# it — that is a measurement, not a grievance.
 
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;

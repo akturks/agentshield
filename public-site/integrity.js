@@ -112,6 +112,7 @@ function interpretationIsRebuildable() {
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { AGENT_OWNER } from "./vendors/sources.js";
 
 /**
  * "External" is a published word: it appears on the home page as a figure a
@@ -162,6 +163,42 @@ function oneDefinitionOfExternal() {
   };
 }
 
+/**
+ * Article IX: no published finding makes a named client the subject of a
+ * sentence about conduct.
+ *
+ * Checked on the headline, because the headline is what gets indexed, quoted and
+ * translated. A body can qualify a claim; a title carries it alone.
+ *
+ * The test is whether a title opens with a company's crawler name. That is a
+ * proxy for grammatical subject and it is a proxy that bites: it fails on all six
+ * findings withdrawn on 27 July — "ClaudeBot has been observed on this site",
+ * "GPTBot has been observed on this site" — and passes "We asked Claude-User to
+ * read this page, and it did", where the agent is named but we are the subject.
+ * That title was rewritten into that shape deliberately, before this rule
+ * existed, for the same reason the rule now exists.
+ */
+function subjectIsTheBehaviour() {
+  const titles = db
+    .prepare("SELECT slug, title FROM Finding WHERE status = 'published'")
+    .all();
+
+  const named = Object.keys(AGENT_OWNER);
+  const offenders = titles.filter((f) =>
+    named.some((agent) => new RegExp(`^${agent}\\b`, "i").test(f.title.trim()))
+  );
+
+  return {
+    name: "The subject is the behaviour",
+    ok: offenders.length === 0,
+    detail:
+      offenders.length === 0
+        ? `${titles.length} published title(s), none of which make a named client the subject`
+        : `a named client is the subject of: ${offenders.map((f) => f.slug).join(", ")}`,
+    why: "A count can be wrong about a number and corrected. A headline can be wrong about a company, and a user agent is a string the sender chose."
+  };
+}
+
 /** All epistemic checks. Green means the separation still holds. */
 export function epistemicIntegrity() {
   const checks = [
@@ -169,7 +206,8 @@ export function epistemicIntegrity() {
     actionsAreNotEvidence(),
     verificationNotBypassed(),
     interpretationIsRebuildable(),
-    oneDefinitionOfExternal()
+    oneDefinitionOfExternal(),
+    subjectIsTheBehaviour()
   ];
   return { checks, ok: checks.every((c) => c.ok) };
 }

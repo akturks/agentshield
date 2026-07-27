@@ -13,6 +13,7 @@ import {
 import { seedHumanFindings } from "./findings/seed.js";
 import { runOnce } from "./findings/engine.js";
 import { robotsTxt, sitemapXml } from "./robots.js";
+import { etagFor, clientHolds } from "./validator.js";
 import { indexNowKey } from "./geo/indexnow.js";
 import * as content from "./pages/content.js";
 import * as probes from "./pages/probes.js";
@@ -82,16 +83,56 @@ captureHook(app);
 function serve(req, reply, variant, contentType, payload) {
   req.realityVariant = variant;
   req.realityCanary = canaryFor(variant);
-  reply.type(contentType).send(payload);
+  sendWithValidator(req, reply.type(contentType), payload);
+}
+
+/**
+ * Sends a body with an ETag, and answers a matching conditional request with 304.
+ *
+ * This is instrument work, not optimisation. Whether a client asks "has this
+ * changed?" instead of downloading again is one of the few politeness behaviours
+ * a site can observe directly — and it was unobservable here, because the site
+ * sent no validator at all. A client cannot echo an ETag it was never given. The
+ * one conditional request in 582 came from a client that invented an
+ * If-Modified-Since from its own last fetch, and the server ignored it.
+ *
+ * Reading that silence as "AI crawlers do not use conditional requests" would
+ * have been a finding about our own response headers wearing the shape of a
+ * finding about crawlers — Article III, from the inside.
+ *
+ * The tag is a hash of the bytes actually being sent, so no page has to be
+ * classified as static or dynamic. A page whose content is stable produces a
+ * stable tag and becomes measurable; /lab recomputes its counters every request
+ * and will produce a new tag every time, which is correct and simply means
+ * nothing can be concluded from that page. Correct by construction rather than
+ * by a list someone has to maintain.
+ *
+ * A 304 is still recorded, with its status and zero body bytes, which is what
+ * makes the behaviour countable afterwards.
+ */
+function sendWithValidator(req, reply, payload) {
+  const body = typeof payload === "string" ? payload : String(payload);
+  const etag = etagFor(body);
+
+  reply.header("etag", etag);
+
+  if (clientHolds(req.headers["if-none-match"], etag)) {
+    reply.code(304).send();
+    return;
+  }
+
+  reply.send(body);
 }
 
 function html(req, reply, variant, render) {
   req.realityVariant = variant;
   const token = canaryFor(variant);
   req.realityCanary = token;
-  reply
-    .type("text/html; charset=utf-8")
-    .send(render(token, publishedAt.get(variant)));
+  sendWithValidator(
+    req,
+    reply.type("text/html; charset=utf-8"),
+    render(token, publishedAt.get(variant))
+  );
 }
 
 app.get("/", (req, reply) => html(req, reply, "home", content.home));
@@ -140,9 +181,11 @@ app.get("/findings/:slug", (req, reply) => {
   const token = ensureCanary(`/findings/${req.params.slug}`, variant);
   req.realityVariant = variant;
   req.realityCanary = token;
-  reply
-    .type("text/html; charset=utf-8")
-    .send(findingPage(req.params.slug, token, canaryPublishedAt(variant)));
+  sendWithValidator(
+    req,
+    reply.type("text/html; charset=utf-8"),
+    findingPage(req.params.slug, token, canaryPublishedAt(variant))
+  );
 });
 
 app.get("/lab", (req, reply) => html(req, reply, "lab", lab));

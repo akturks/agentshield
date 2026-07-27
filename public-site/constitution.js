@@ -59,6 +59,21 @@ export const ARTICLES = [
     title: "Documentation is a deliverable",
     short: "An unrecorded change is half-made",
     body: `<p>Code changes the system. Documentation changes the understanding of the system. A change that alters how this observatory works and is not written down has only been half made.</p>`
+  },
+  {
+    id: "IX",
+    slug: "the-subject-is-the-behaviour",
+    title: "The subject is the behaviour, not the visitor",
+    short: "A finding is about what was done, not about who did it",
+    body: `<p>A finding states what was done. It does not make a client the subject of a sentence about conduct.</p>
+
+<p>This is not a matter of tone. Whether a name appears in a headline decides what the finding can be wrong about. "One address requested 87 credential-file paths in six seconds" can be wrong about a count, and the count is in the record. "GPTBot scanned this site for secrets" can be wrong about a company, and nothing in a request establishes which company sent it — a user agent is a string the sender chose.</p>
+
+<p>Six findings were published here naming ClaudeBot, PerplexityBot, CCBot, GPTBot, OAI-SearchBot and ChatGPT-User as visitors to this site. All six were withdrawn on 27 July 2026. Every one of those requests came from a single address presenting ten different companies' crawler identities while requesting <code>.env</code>, <code>.git/config</code> and <code>.aws/credentials</code>. The counts in those findings were correct and verified. The subject of the sentence was wrong, and that was enough to make each one false.</p>
+
+<p>The consequence for what gets built: asking whether a behaviour has been seen before is permitted, and asking whether a visitor has been seen before is not. The first compares patterns and identifies nobody. The second is a cross-session client identifier — the technique <a href="#observation-is-not-surveillance">Article VII</a> rules out, and the one this project already declined to build for its own convenience when matching a header combination would have let it exclude its own phone from its own figures.</p>
+
+<p>Where the actor genuinely matters, the finding says what can be checked instead: whether the address appears in the range that company publishes for that crawler, and the date the list was captured. That is a statement about a declaration, never about intent.</p>`
   }
 ];
 
