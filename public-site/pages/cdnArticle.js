@@ -18,8 +18,8 @@ export function cdnArticle(canary, published) {
   const body = `
 <h1>I built a site to watch AI crawlers. My CDN was quietly turning them away.</h1>
 
-<p class="lede">Five things sat between my server and my readers. I found them by
-accident, and only because a number looked wrong.</p>
+<p class="lede">Five things sat between what my server sent and what anybody
+received. I found them by accident, and only because a number looked wrong.</p>
 
 <p>Before you read any further, run this against your own domain. It takes ten
 seconds, and you may want the answer before you finish this sentence:</p>
@@ -130,7 +130,7 @@ edge:   3,304 bytes</code></pre>
 <pre><code># AI crawlers and agents are welcome here.
 # This site measures how AI systems read the web; blocking them would defeat it.</code></pre>
 
-<p>The file my visitors received opened differently. Above my text, prepended, was a
+<p>The file that actually left the edge opened differently. Above my text, prepended, was a
 block I did not write:</p>
 
 <pre><code># BEGIN Cloudflare Managed content
@@ -406,7 +406,7 @@ where I was wrong.</p>
   return page({
     title: "I built a site to watch AI crawlers. My CDN was quietly turning them away.",
     description:
-      "Five measured alterations between an origin server and its readers, including a robots.txt block that told nine AI crawlers to leave — prepended by the CDN, not by the site.",
+      "Five measured alterations between what an origin server sent and what clients received, including a robots.txt block that told nine AI crawlers to leave — prepended by the CDN, not by the site.",
     path: "/cdn-interventions",
     canary,
     published,
