@@ -335,7 +335,31 @@ subject and first-sighting time, and an existing row of any status stops a new
 candidate being created. The observations stay in the record; this conclusion
 cannot be reopened.</p>`
     : f2.status === "published"
-      ? `<p class="meta"><a href="https://agentshieldaidefense.com/findings/${escapeHtml(f2.slug)}" target="_blank" rel="noopener">view public page →</a></p>`
+      ? // A published finding had no control at all until one of them broke Article
+        // IX on 27 July and there was no way for a person to take it back.
+        //
+        // The queue was built for the case where review comes first, and most
+        // findings do wait. Some publish themselves — that is the point of a
+        // detector that runs without anybody driving it — and for those, review
+        // can only ever come after. Leaving the only remedy to a hand-written
+        // UPDATE meant the constitution's own answer to being wrong in public was
+        // the one thing the interface could not do.
+        //
+        // It posts to the same endpoint as a rejection, because it is the same
+        // act on the record: the conclusion stops being published and the reason
+        // is kept forever. Only the word differs, and it differs because this one
+        // was already read.
+        `<p class="meta"><a href="https://agentshieldaidefense.com/findings/${escapeHtml(f2.slug)}" target="_blank" rel="noopener">view public page →</a></p>
+<form method="post" action="/findings/${f2.id}/reject">
+<input type="text" name="reason" placeholder="why this is being withdrawn — kept in the record forever" required>
+<button type="submit" class="danger">withdraw</button></form>
+<p class="meta dim">This is already public. Withdrawing it makes the page 404, lists
+the subject and this reason under "Withdrawn and rejected", and does not reprint
+the text — a false sentence republished under a "rejected" heading is still a
+false sentence on an indexable page. The marker on that page stops being
+reachable and can never be ingested again, which is the cost of taking it back.
+Permanent: an existing row of any status stops the detector raising this subject
+again.</p>`
       : ""
 }
 </div>`;
