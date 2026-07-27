@@ -1,5 +1,5 @@
 import { page, escapeHtml, instant } from "../layout.js";
-import { published, bySlug } from "../findings/engine.js";
+import { published, bySlug, withdrawnFindings } from "../findings/engine.js";
 import { claimsFor, recheck } from "../findings/verifier.js";
 import { articlesFor } from "../constitution.js";
 
@@ -96,9 +96,16 @@ ${articles
 <p>These are the standards this finding was held to, not a claim that it is beyond question. The <a href="/constitution">constitution</a> states them in full.</p>`;
 }
 
+function truncate(value, max = 42) {
+  const t = String(value ?? "");
+  return t.length > max ? `${t.slice(0, max)}\u2026` : t;
+}
+
 export function findingsIndex(canary, publishedAt) {
   const all = published();
   const auto = all.filter((f) => f.origin === "detector").length;
+  const withdrawn = withdrawnFindings();
+  const liveThenRemoved = withdrawn.filter((f) => f.publishedAt).length;
 
   return page({
     title: "Findings",
@@ -126,6 +133,27 @@ ${originNote(f)}
 </div>`
         )
         .join("\n")
+}
+
+<h2>Withdrawn and rejected</h2>
+
+<p>${withdrawn.length} conclusion${withdrawn.length === 1 ? "" : "s"} that this pipeline drew and then stopped publishing. ${liveThenRemoved} of them ${liveThenRemoved === 1 ? "was" : "were"} live on this site before being taken down, which is the reason this table exists: a page that returned 200 and now returns 404 owes an explanation to whoever read it.</p>
+
+<p><strong>What is listed is the subject and the reason. The withdrawn text is not republished.</strong> Most of these findings named a company as a visitor to this site and were wrong about it; reprinting that sentence under a "rejected" heading would put the false claim back on an indexable page, where a crawler reads the sentence and not the label. That would repeat the mistake in order to disclose it.</p>
+
+${
+  withdrawn.length === 0
+    ? "<p>Nothing has been withdrawn.</p>"
+    : `<div class="scroll"><table>
+<thead><tr><th>Subject</th><th>Was published</th><th>Taken down</th><th>Why it is not published</th></tr></thead>
+<tbody>${withdrawn
+        .map(
+          (f) =>
+            `<tr><td class="mono">${escapeHtml(truncate(f.subjectKey ?? "—", 42))}</td><td>${escapeHtml(instant(f.publishedAt) || "never live")}</td><td>${escapeHtml(instant(f.rejectedAt) || "not recorded")}</td><td>${escapeHtml(f.rejectedReason ?? "—")}</td></tr>`
+        )
+        .join("")}</tbody></table></div>
+
+<p>Where the takedown column says <em>not recorded</em>, the instant genuinely is not known: the column that holds it was added on 2026-07-27, after these were withdrawn, and it was not backfilled. Writing today's date into those rows would have invented a fact to fill a gap.</p>`
 }
 
 <h2>How a finding gets published</h2>

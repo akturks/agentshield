@@ -171,7 +171,7 @@ const restateFinding = db.prepare(
 // it actually holds is "why this is not currently published", and a withdrawal
 // is one of those. Prefixed so the two cases stay distinguishable in the record.
 const withdrawFinding = db.prepare(
-  `UPDATE Finding SET status = 'pending', rejectedReason = @reason,
+  `UPDATE Finding SET status = 'pending', rejectedReason = @reason, rejectedAt = @at,
           title = @title, summary = @summary, bodyHtml = @bodyHtml,
           detectorVersion = @detectorVersion, verifiedAt = @verifiedAt
    WHERE id = @id`
@@ -271,7 +271,11 @@ export function restate({ siteId = SITE_ID, detectorId = null, verbose = false }
     if (f.status === "published" && candidate.contradicted) {
       const why = candidate.reviewReason ?? "new evidence contradicts what this finding states";
 
-      withdrawFinding.run({ ...fields, reason: `WITHDRAWN BY RESTATE (${DETECTOR_VERSION}): ${why}` });
+      withdrawFinding.run({
+        ...fields,
+        at: new Date().toISOString(),
+        reason: `WITHDRAWN BY RESTATE (${DETECTOR_VERSION}): ${why}`
+      });
       result.withdrawn.push({ slug: f.slug, reason: why });
       if (verbose) console.log(`[restate] WITHDRAWN ${f.slug}: ${why}`);
       continue;
@@ -338,8 +342,32 @@ export function reject(id, reason) {
   const f = findingById.get(id);
   const ok =
     db
-      .prepare("UPDATE Finding SET status = 'rejected', rejectedReason = ? WHERE id = ?")
-      .run(reason ?? "rejected by review", id).changes > 0;
+      .prepare(
+        "UPDATE Finding SET status = 'rejected', rejectedReason = ?, rejectedAt = ? WHERE id = ?"
+      )
+      .run(reason ?? "rejected by review", new Date().toISOString(), id).changes > 0;
   if (ok && f) recordRejection(f, reason);
   return ok;
+}
+
+/**
+ * Conclusions this pipeline drew and then stopped publishing, newest first.
+ *
+ * Rejected and withdrawn are both here on purpose. To a reader the distinction
+ * is procedural — one was refused by a person, the other pulled back by a
+ * stricter method — and what matters is the same either way: the site said
+ * something, then stopped saying it, and owes the reason.
+ *
+ * Titles and bodies are not returned. Most of these named a company as a visitor
+ * and were wrong; the page that lists them must not reprint the sentence.
+ */
+export function withdrawnFindings({ siteId = SITE_ID } = {}) {
+  return db
+    .prepare(
+      `SELECT subjectKey, detectorId, publishedAt, rejectedAt, rejectedReason
+       FROM Finding
+       WHERE siteId = ? AND status = 'rejected'
+       ORDER BY COALESCE(rejectedAt, publishedAt, detectedAt) DESC`
+    )
+    .all(siteId);
 }

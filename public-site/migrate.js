@@ -62,5 +62,17 @@ export default function migrate(db) {
     "CREATE INDEX IF NOT EXISTS idx_rr_site ON RequestReality(siteId, observedAtMs)"
   );
 
+  // 3. When a conclusion stopped being published.
+  //
+  // The table recorded publishedAt and a reason but never the moment a finding
+  // came down, which made every withdrawal an undated one. Seven findings were
+  // live and then removed on 26–27 July and the site could say why but not when.
+  //
+  // Deliberately not backfilled. Those seven rejections happened before the
+  // column existed and the instant is genuinely unknown; writing today's date
+  // into them would invent a fact to fill a gap, and the page states "not
+  // recorded" for exactly the rows where that is the truth.
+  if (addColumn(db, "Finding", "rejectedAt", "TEXT")) applied.push("Finding.rejectedAt");
+
   return { siteId: site.id, applied };
 }
