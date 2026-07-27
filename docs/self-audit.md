@@ -2,7 +2,7 @@
 
 # What this repository is, checked against what it says
 
-Repository at `69e48c73` with uncommitted changes at scan time, scanned 2026-07-27T01:34:34.839Z. Method version `scan-16/arch-det-19/arch-tpl-14/arch-ver-12`.
+Repository at `3ed0e7f3` with uncommitted changes at scan time, scanned 2026-07-27T01:39:05.103Z. Method version `scan-16/arch-det-19/arch-tpl-14/arch-ver-12`.
 
 This tool read **137 files**, out of 165 JavaScript and TypeScript files in the repository and 237 files in total. The 28 not read are tests, examples, type declarations or generated output. Nothing below is a statement about anything outside those 137 files.
 

@@ -26,9 +26,17 @@ test("a page that moves gets a new tag, which is the point", () => {
   assert.notEqual(before, after);
 });
 
-test("the tag is quoted, as the header requires", () => {
+test("the tag is weak and quoted, as the header requires", () => {
   const tag = etagFor("body");
-  assert.match(tag, /^"[A-Za-z0-9_-]{27}"$/);
+  assert.match(tag, /^W\/"[A-Za-z0-9_-]{27}"$/);
+});
+
+test("a weak tag matches itself, weak prefix and all", () => {
+  // clientHolds strips W/ before comparing, so a client echoing exactly what it
+  // was given must match. This broke once already in the making: the tag became
+  // weak and the comparison still expected a strong one.
+  const tag = etagFor("body");
+  assert.equal(clientHolds(tag, tag), true);
 });
 
 test("a client offering the same tag is recognised", () => {
@@ -42,9 +50,15 @@ test("the list form is honoured, because the header is defined as a list", () =>
   assert.equal(clientHolds(`"other", "another"`, tag), false);
 });
 
-test("a weakly offered tag still matches a strong one", () => {
-  const tag = etagFor("body");
-  assert.equal(clientHolds(`W/${tag}`, tag), true);
+test("the weak prefix is ignored on whichever side carries it", () => {
+  const weak = etagFor("body");
+  const strong = weak.replace(/^W\//, "");
+
+  // Our tags are weak now, but an intermediary or a client may hand either form
+  // back. Comparison is on the value, never on the prefix.
+  assert.equal(clientHolds(strong, weak), true, "strong offered against our weak");
+  assert.equal(clientHolds(weak, strong), true, "weak offered against a strong one");
+  assert.equal(clientHolds(weak, weak), true, "both weak");
 });
 
 test("* matches anything, and nonsense matches nothing", () => {
