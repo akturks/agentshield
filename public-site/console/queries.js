@@ -156,7 +156,7 @@ export function findingsByStatus(status) {
   return db
     .prepare(
       `SELECT id, slug, detectorId, origin, status, title, summary,
-              detectedAt, publishedAt, rejectedReason
+              subjectKey, detectedAt, publishedAt, rejectedReason
        FROM Finding WHERE siteId = ? AND status = ?
        ORDER BY COALESCE(publishedAt, detectedAt) DESC`
     )

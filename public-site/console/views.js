@@ -303,6 +303,16 @@ ${f2.publishedAt ? `<span class="tag ok">published ${date(f2.publishedAt)}</span
 ${f2.rejectedReason ? `<span class="tag bad">${escapeHtml(trunc(f2.rejectedReason, 40))}</span>` : ""}
 </div>
 <h3>${escapeHtml(f2.title)}</h3>
+${
+  // Who or what the finding is about. Titles here deliberately describe a shape
+  // rather than name a client — "One user agent, 18 addresses, 14 paths" — which
+  // is right for a public page and useless in a review queue: the reviewer was
+  // asked to approve a Yandex crawl and could not tell it was Yandex without
+  // reading 116 characters into the body. The subject is what they are judging.
+  f2.subjectKey
+    ? `<p class="meta">subject: <span class="mono">${escapeHtml(trunc(f2.subjectKey, 96))}</span></p>`
+    : ""
+}
 <p>${escapeHtml(f2.summary)}</p>
 ${
   claims.length
@@ -318,8 +328,12 @@ ${
   f2.status === "pending"
     ? `<form method="post" action="/findings/${f2.id}/approve"><button type="submit">approve &amp; publish</button></form>
 <form method="post" action="/findings/${f2.id}/reject">
-<input type="text" name="reason" placeholder="reason" value="own test traffic">
-<button type="submit" class="danger">reject</button></form>`
+<input type="text" name="reason" placeholder="why this is not true — kept in the record forever" required>
+<button type="submit" class="danger">reject</button></form>
+<p class="meta dim">Rejection is permanent for this subject: the detector matches on
+subject and first-sighting time, and an existing row of any status stops a new
+candidate being created. The observations stay in the record; this conclusion
+cannot be reopened.</p>`
     : f2.status === "published"
       ? `<p class="meta"><a href="https://agentshieldaidefense.com/findings/${escapeHtml(f2.slug)}" target="_blank" rel="noopener">view public page →</a></p>`
       : ""
