@@ -2,6 +2,7 @@ import { page, escapeHtml, instant, recorded } from "../layout.js";
 import { notOperator } from "../stats.js";
 import db from "../realityDb.js";
 import { allCanaries } from "../canary.js";
+import { markerLifecycle } from "../markers.js";
 import { headline, EXTERNAL } from "../stats.js";
 import { disallowedPaths } from "./content.js";
 import { declaredIdentities } from "../identities.js";
@@ -121,6 +122,19 @@ export function lab(canary, published) {
   const ips = distinctIps.get().n;
   const jsAgents = jsCapable.get().n;
   const canaries = allCanaries();
+  const markers = markerLifecycle();
+
+  // Which markers nothing has ever collected, and whether that set turns out to
+  // be the pages robots.txt tells clients to leave alone. When it does, the
+  // compliance figure reported further up this page has been reproduced from an
+  // unrelated direction: one counts fetches of disallowed paths, this counts
+  // markers that never left the building, and neither knows about the other.
+  // Computed rather than asserted, because the day a crawler takes one of those
+  // paths the sentence has to stop being true on its own.
+  const undelivered = markers.markers.filter((m) => m.delivered === 0);
+  const disallowed = new Set(disallowedPaths());
+  const undeliveredAreAllDisallowed =
+    undelivered.length > 0 && undelivered.every((m) => disallowed.has(m.page));
   const violations = disallowedHits();
   const formats = formatPrefs.all();
 
@@ -151,7 +165,7 @@ what does it do — as opposed to what it says it is?</strong> Nothing here come
 asking a language model what it knows about this site. That is the system under test
 testifying about itself, and it is <a href="/lab/methodology">refused as evidence</a>;
 the <a href="/lab/methodology">methodology</a> states what would make each figure below
-wrong before the figure is offered.
+wrong before the figure is offered.</p>
 
 <h2>The record so far</h2>
 
@@ -266,12 +280,39 @@ ${
 
 <p>Each coined string below was published at the instant recorded against it. None existed anywhere before that moment. The interval between publication and a marker's first appearance in a model's output is the measurement this site exists to produce; that column stays empty until an appearance is observed.</p>
 
+<p>Between those two states there is a third, and it is the one that says whether the
+measurement is running at all. A marker only has a chance of reaching a model if
+something collected it first. <strong>${markers.everDelivered} of
+${markers.total}</strong> markers have been served to at least one external client,
+in ${markers.deliveries} deliveries; <strong>${markers.neverDelivered}</strong>
+${markers.neverDelivered === 1 ? "has" : "have"} never left this server for anyone but
+us. A marker in that state is not waiting slowly — it is not yet in the experiment.</p>
+
+${
+  undeliveredAreAllDisallowed
+    ? `<p>Every marker in that state sits on a page <a href="/robots.txt">robots.txt</a>
+tells clients to leave alone: ${undelivered
+        .map((m) => `<code>${escapeHtml(m.page)}</code>`)
+        .join(", ")}. Those pages serve ordinary content and are linked in the sitemap;
+nothing stops a client taking them. That the only markers never collected are exactly
+the ones asked for politely is the robots.txt compliance figure above, arrived at from
+the opposite direction &mdash; one counts fetches that happened, this counts strings
+that never left the building.</p>`
+    : ""
+}
+
+<p>Delivery counts responses that carried a body. A conditional request answered
+<code>304</code> sends no bytes, so a client told nothing had changed did not receive
+the marker on that visit however plainly it asked for the page; those are counted
+separately. And a delivery is not a reading: it establishes that the string left this
+machine and reached a client, which is the most any server can observe.</p>
+
 <div class="scroll"><table>
-<thead><tr><th>Marker</th><th>Page</th><th>Published</th><th>First observed in a model</th></tr></thead>
-<tbody>${canaries
+<thead><tr><th>Marker</th><th>Page</th><th>Published</th><th>Delivered</th><th>Agents</th><th>Last delivery</th><th>Seen in a model</th></tr></thead>
+<tbody>${markers.markers
       .map(
         (c) =>
-          `<tr><td class="mono">${escapeHtml(c.token)}</td><td class="mono">${escapeHtml(c.page)}</td><td>${escapeHtml(instant(c.publishedAt))}</td><td>&mdash;</td></tr>`
+          `<tr><td class="mono">${escapeHtml(c.token)}</td><td class="mono">${escapeHtml(c.page)}</td><td>${escapeHtml(instant(c.publishedAt))}</td><td>${c.delivered}${c.notModified > 0 ? ` <span class="status">+${c.notModified} not modified</span>` : ""}</td><td>${c.agents}</td><td>${escapeHtml(instant(c.lastDelivered) || "—")}</td><td>&mdash;</td></tr>`
       )
       .join("")}</tbody></table></div>
 

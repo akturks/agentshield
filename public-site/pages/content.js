@@ -1,5 +1,10 @@
 import { page, escapeHtml, instant } from "../layout.js";
-import { pipelineDiagram, evidenceDiagram } from "../diagrams.js";
+import {
+  pipelineDiagram,
+  evidenceDiagram,
+  trustDiagram,
+  cycleDiagram
+} from "../diagrams.js";
 import { headline } from "../stats.js";
 import { declaredIdentities } from "../identities.js";
 import { ARTICLES } from "../constitution.js";
@@ -65,6 +70,37 @@ the reason the numbers can be checked: no customer data, no privileged access, n
 sample you cannot see. One domain is one sample, and a new site about a niche subject
 is not the web. <a href="/about">The longer version</a>, including what this
 deliberately refuses to become.</p>
+
+<h2>What arrives here</h2>
+
+<p>Four populations reach any public site, and they behave differently enough that
+counting them together destroys the signal. Telling them apart is most of the work:</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Population</th><th>What it is doing</th></tr></thead>
+<tbody>
+<tr><td><strong>Corpus crawlers</strong></td><td>Bulk collection for training or index corpora. Unprompted, on their own schedule, sweeping broadly.</td></tr>
+<tr><td><strong>Retrieval agents</strong></td><td>Maintaining the indexes AI products query while answering. Like a search crawler, feeding generated prose instead of a list of links.</td></tr>
+<tr><td><strong>User-triggered fetchers</strong></td><td>Reading one page because a person asked an assistant something, right now, that required it.</td></tr>
+<tr><td><strong>Autonomous clients</strong></td><td>Scanners, scrapers, headless automation. They arrived here within minutes of the domain going live, before anything linked to it.</td></tr>
+</tbody></table></div>
+
+${cycleDiagram()}
+
+<h2>A declaration is not an identity</h2>
+
+<p>Every automated client announces itself in a <code>User-Agent</code> string and
+nothing verifies that announcement. Anyone can send any string. So the declaration is
+stored as a claim, the behaviour is recorded separately, and <strong>the distance
+between the two is the measurement</strong>.</p>
+
+${trustDiagram()}
+
+<p>Some vendors publish the addresses their crawlers use, which turns a claim into
+something checkable against a source the client does not control. Most publish nothing.
+<a href="/verify">Take twelve arrivals and decide each one yourself</a> — the third
+answer, the one that says nothing can be concluded, is the one that does the teaching.
+<a href="/observatory">What this observatory watches, in full</a>.</p>
 
 <h2>What this refuses as evidence</h2>
 

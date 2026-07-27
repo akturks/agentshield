@@ -130,34 +130,41 @@ button:hover{border-color:var(--accent);color:var(--accent)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 `;
 
-// Output first, then how you know it, then the other subject.
+// Subject first, then the week, then the rest.
 //
-// The order is the argument: a visitor arrives wanting to know what was seen, not
-// what the method is. Weekly leads because it is where a returning reader goes —
-// the one page whose content is different every time without anyone writing it.
+// `/observatory` was cut from this list once, on the reasoning that it was the
+// home page at greater length and reading the same argument twice is worse than
+// reading it once. That was right about the duplication and wrong about what it
+// cost. It was the only page that says what this watches — the four populations
+// that arrive at any public site and behave differently enough that counting them
+// together destroys the signal. Without it the site published figures and rules
+// and never named its subject, and a reader who cannot tell what is being watched
+// has no reason to care how carefully it is being watched.
 //
-// Two pages left this list rather than the site. `/observatory` was the home page
-// at greater length, and reading the same argument twice is worse than reading it
-// once. `/status` is about the instrument's health rather than about anything it
-// observed; it stays linked in the footer, where somebody checking whether the
-// thing is running will look.
+// It leads for that reason. The home page now carries the short version and links
+// here for the rest, which is a summary and its detail rather than one argument
+// told twice.
+//
+// `/verify` follows the pages that state the subject and the week, because it is
+// the only page here a reader would send to somebody else, and an observatory
+// with no readers measures the web perfectly and tells nobody.
+//
+// `/audit` moved to the footer to make room. It is a second stream — whether a
+// codebase still does what its documentation says — and that page has always said
+// its audience is a different one. `/status` sits there for a related reason: it
+// reports the instrument's health rather than anything the instrument saw.
 //
 // Neither page is deleted, and this is not tidiness. Both carry a published
 // marker, and a marker on a page that 404s can never be ingested again — retiring
 // a surface silently removes a measurement that was already running.
-// `/verify` sits second for a reason that is not about hierarchy. It is the only
-// page here a reader would send to somebody else, and an observatory with no
-// readers measures the web perfectly and tells nobody. It earns the position by
-// being the one surface where the site's central difficulty is felt rather than
-// reported.
 const NAV = [
+  ["/observatory", "Observatory"],
   ["/weekly", "Weekly"],
   ["/verify", "Verify"],
   ["/lab", "Lab"],
   ["/findings", "Findings"],
   ["/questions", "Questions"],
-  ["/constitution", "Constitution"],
-  ["/audit", "Audit"]
+  ["/constitution", "Constitution"]
 ];
 
 /**
@@ -228,7 +235,7 @@ ${
 }
 <footer>
 <p>${escapeHtml(SITE_NAME)} — an open observatory of how AI systems read the web.
-${noindexNote ? "This page is listed under <code>Disallow</code> in <a href=\"/robots.txt\">robots.txt</a>." : `<a href="/lab">Live observations</a> &middot; <a href="/about">About</a> &middot; <a href="/status">Status</a> &middot; <a href="/about#contact">Corrections</a> &middot; <a href="/robots.txt">robots.txt</a> &middot; <a href="/llms.txt">llms.txt</a>`}</p>
+${noindexNote ? "This page is listed under <code>Disallow</code> in <a href=\"/robots.txt\">robots.txt</a>." : `<a href="/about">About</a> &middot; <a href="/audit">Architecture verification</a> &middot; <a href="/status">Status</a> &middot; <a href="/about#contact">Corrections</a> &middot; <a href="/robots.txt">robots.txt</a> &middot; <a href="/llms.txt">llms.txt</a>`}</p>
 </footer>
 </div>
 </body>
