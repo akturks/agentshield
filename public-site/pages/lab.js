@@ -1,4 +1,4 @@
-import { page, escapeHtml, instant } from "../layout.js";
+import { page, escapeHtml, instant, recorded } from "../layout.js";
 import { notOperator } from "../stats.js";
 import db from "../realityDb.js";
 import { allCanaries } from "../canary.js";
@@ -162,7 +162,7 @@ ${
 <tbody>${agentRows
         .map(
           (r) =>
-            `<tr><td class="mono">${escapeHtml(truncate(r.userAgent))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.firstAt))}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
+            `<tr><td class="mono">${recorded(truncate(r.userAgent))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.firstAt))}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
         )
         .join("")}</tbody></table></div>`
 }
@@ -179,7 +179,7 @@ ${
 <tbody>${violations
         .map(
           (r) =>
-            `<tr><td class="mono">${escapeHtml(r.path)}</td><td class="mono">${escapeHtml(truncate(r.userAgent, 60))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
+            `<tr><td class="mono">${escapeHtml(r.path)}</td><td class="mono">${recorded(truncate(r.userAgent, 60))}</td><td>${r.hits}</td><td>${escapeHtml(instant(r.lastAt))}</td></tr>`
         )
         .join("")}</tbody></table></div>`
 }

@@ -32,6 +32,28 @@ export function instant(value) {
   return `${text.slice(0, 10)} ${text.slice(11, 19)} UTC`.trim();
 }
 
+/**
+ * A string recorded from a client, printed exactly as it arrived.
+ *
+ * The wrapper is Cloudflare's documented opt-out from email-address obfuscation.
+ * Without it, the CDN rewrites anything shaped like an address *in transit*: the
+ * user agent `Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)`
+ * reached readers as `ClaudeBot/1.0; [email protected]`, with a decoder script
+ * injected. The page that says user agents are "recorded verbatim and counted
+ * as-is" was serving an altered observation, and the constitution's promise of
+ * identical bytes to every client was false on it.
+ *
+ * Invisible from inside the application, which is the whole difficulty: this
+ * server sent the right bytes. Article V is about what a reader receives, and
+ * that is not the same object as what the origin emits.
+ *
+ * This is not cloaking. It removes a third party's alteration; every client still
+ * receives the same bytes, and the bytes are now the ones that were observed.
+ */
+export function recorded(value) {
+  return `<!--email_off-->${escapeHtml(value)}<!--/email_off-->`;
+}
+
 // The console's visual language — technical palette, bordered panels, monospace
 // for anything measured — applied to a page that still has to carry long prose.
 // Figures look like readings; paragraphs stay comfortable to read. Both themes

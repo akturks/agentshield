@@ -1,4 +1,4 @@
-import { escapeHtml } from "../layout.js";
+import { escapeHtml, recorded } from "../layout.js";
 
 // Turns a detector candidate into prose. No language model is involved: every
 // sentence is a fixed template and every number comes from the detector, which
@@ -29,7 +29,7 @@ import { escapeHtml } from "../layout.js";
 //   supply the missing verb and quantifier itself. Every counted row therefore
 //   asks "How many ...", which cannot be re-parsed as an instruction or a claim.
 
-export const TEMPLATE_VERSION = "tpl-9";
+export const TEMPLATE_VERSION = "tpl-10";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -66,7 +66,7 @@ const TEMPLATES = {
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC, a single connecting address requested <code>/robots.txt</code> and afterwards fetched <strong>${c.facts.hits}</strong> path${c.facts.hits === 1 ? "" : "s"} that the same file lists under <code>Disallow</code>.</p>
-<p>Declared identity: <code>${escapeHtml(ua)}</code></p>
+<p>Declared identity: <code>${recorded(ua)}</code></p>
 <p>The disallowed paths on this site serve ordinary content and return <code>200</code>. Nothing is hidden there and nothing is trapped; they exist so that compliance is measurable rather than assumed.</p>
 <h2>What it means</h2>
 <p>This is the strong form of a compliance failure. The client did not merely take a disallowed path — it retrieved the rules first, so the rules were available to it. robots.txt carries no enforcement, so nothing was broken in a technical sense; what was recorded is that the request was made after the preference had been read.</p>
@@ -252,7 +252,7 @@ ${limits([
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC, one connecting address requested <strong>${c.facts.paths}</strong> distinct paths.</p>
-<p>Declared identity: <code>${escapeHtml(c.facts.ua ?? "(none sent)")}</code></p>
+<p>Declared identity: <code>${recorded(c.facts.ua ?? "(none sent)")}</code></p>
 <h2>What it means</h2>
 <p>The rate distinguishes systematic retrieval from reading. It does not establish intent — a well-behaved archiver and a scanner looking for an unpatched installation produce a similar shape, and separating them requires looking at which paths were chosen rather than how many.</p>
 ${limits([
@@ -274,7 +274,7 @@ ${limits([
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC:</p>
 <table>
 <tbody>
-<tr><th>Declared agent</th><td><code>${escapeHtml(c.facts.ua)}</code></td></tr>
+<tr><th>Declared agent</th><td><code>${recorded(c.facts.ua)}</code></td></tr>
 <tr><th>How many different addresses</th><td>${c.facts.ips}</td></tr>
 <tr><th>How many of those addresses sent exactly one fetch</th><td>${c.facts.singles} (${share}%)</td></tr>
 <tr><th>How many different paths were fetched</th><td>${c.facts.paths}</td></tr>
@@ -400,7 +400,7 @@ ${limits([
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC, a client reached the beacon URL <strong>${c.facts.beacons}</strong> time${c.facts.beacons === 1 ? "" : "s"}.</p>
-<p>Declared identity: <code>${escapeHtml(c.facts.ua ?? "(none sent)")}</code></p>
+<p>Declared identity: <code>${recorded(c.facts.ua ?? "(none sent)")}</code></p>
 <h2>What it means</h2>
 <p>The beacon is requested only by the script embedded in the probe page. Reaching it therefore requires having executed that script — this is observed capability rather than capability inferred from a user agent string.</p>
 ${limits([

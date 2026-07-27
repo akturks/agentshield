@@ -306,8 +306,29 @@ app.get(`/${INDEXNOW_KEY}.txt`, (req, reply) => {
 });
 
 // Served dynamically so that fetching them is itself an observation.
+// The one surface the CDN caches on its own. Measured 2026-07-27: /robots.txt
+// came back `cf-cache-status: HIT` with `age: 3740` and a `max-age=14400` this
+// server never sent, while /llms.txt, /sitemap.xml and every probe endpoint were
+// DYNAMIC. Cloudflare has a default rule for this path specifically.
+//
+// A cached robots.txt is not a performance detail here, it is a hole in the
+// record: a request answered from the edge never reaches this process and never
+// becomes an observation. `robots_violation` exists to say "it read the rules,
+// then took a path they forbid", and it can only say that about a fetch it saw.
+// Of 229 addresses only 24 appear to have read robots.txt, and how much of that
+// gap the edge absorbed is not knowable after the fact.
+//
+// `no-store` is sent from the origin so this needs no dashboard rule, and it is
+// declared here rather than in robots.js because it is a statement about how this
+// response must travel, not about its content.
 app.get("/robots.txt", (req, reply) =>
-  serve(req, reply, "robots_txt", "text/plain; charset=utf-8", robotsTxt())
+  serve(
+    req,
+    reply.header("cache-control", "no-store"),
+    "robots_txt",
+    "text/plain; charset=utf-8",
+    robotsTxt()
+  )
 );
 
 app.get("/sitemap.xml", (req, reply) =>
