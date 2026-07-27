@@ -29,7 +29,12 @@ import { escapeHtml, recorded } from "../layout.js";
 //   supply the missing verb and quantifier itself. Every counted row therefore
 //   asks "How many ...", which cannot be re-parsed as an instruction or a claim.
 
-export const TEMPLATE_VERSION = "tpl-10";
+// tpl-11 moved two arrival headlines off the crawler and onto the requests,
+// after one of them published an Article IX violation on 27 July. Bumped rather
+// than edited in place because the version is stamped on every finding: without
+// it, two findings would carry the same template version and different rules
+// about who a headline is allowed to be about.
+export const TEMPLATE_VERSION = "tpl-11";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -156,13 +161,27 @@ ${limits([
     // vendor's own list, the headline can carry that — and it should, because
     // the headline is what gets indexed and quoted, and the difference between
     // a claimed crawler and a corroborated one is the whole subject here.
+    //
+    // The last branch is the one that catches everything else, and it read
+    // "<agent> has been observed on this site" until it published exactly that
+    // about Amazonbot on 27 July. Six findings in that shape had already been
+    // withdrawn under Article IX; the withdrawal was permanent and the generator
+    // was not, so it made a seventh. The subject is now the requests, which is
+    // also the more accurate claim: what was recorded is a declaration, and this
+    // branch is reached precisely when nothing corroborates it.
+    //
+    // The corroborated branch had the same defect and had simply never fired.
+    // It read "<agent> fetched this site from an address <vendor> publishes",
+    // which is the banned shape carrying a flattering claim instead of an
+    // unflattering one — and Article IX does not turn on whether the sentence is
+    // kind. All four branches now open on us or on the requests.
     const title = allOurs
       ? `We asked ${c.facts.agent} to read this page, and it did`
       : fullyVerified
-        ? `${c.facts.agent} fetched this site from an address ${v.vendor} publishes`
+        ? `Requests declaring ${c.facts.agent} came from addresses ${v.vendor} publishes for it`
         : v && v.unlisted > 0 && v.verified === 0
           ? `Requests claiming to be ${c.facts.agent} came from addresses ${v.vendor ?? "the vendor"} does not publish`
-          : `${c.facts.agent} has been observed on this site`;
+          : `Requests declaring ${c.facts.agent} were recorded on this site`;
 
     const summary = allOurs
       ? `A client declaring ${c.facts.agent} made ${hits} request${hits === 1 ? "" : "s"} across ${c.facts.paths} distinct path${c.facts.paths === 1 ? "" : "s"} on ${day(c.windowStartMs)}. Every one of them arrived inside a window in which we had asked this vendor to read a page here, so this is the result of a trial rather than an unprompted visit.`
