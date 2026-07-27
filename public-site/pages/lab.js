@@ -4,8 +4,7 @@ import db from "../realityDb.js";
 import { allCanaries } from "../canary.js";
 import { headline, EXTERNAL } from "../stats.js";
 import { disallowedPaths } from "./content.js";
-import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
-import { AI_AGENT_PATTERNS } from "../findings/detectors.js";
+import { declaredIdentities } from "../identities.js";
 
 const countAll = db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`);
 const firstSeen = db.prepare(
@@ -86,60 +85,6 @@ const concentration = db.prepare(`
   LIMIT 1
 `);
 
-/**
- * Declared identities, tallied against the vendors' own published address ranges.
- *
- * The table above this one counts what clients *say*. This one counts how many of
- * those claims the vendor's own list corroborates, which is the difference between
- * a number anybody can inflate and a number that requires OpenAI's infrastructure
- * to inflate.
- *
- * Four outcomes, and only one of them is evidence against a client:
- *  - verified      the address is in the list the vendor publishes for that agent
- *  - vendor_other  a different range belonging to the same vendor
- *  - unlisted      the vendor publishes a list and this address is not on it
- *  - unverifiable  no published list exists to check against
- *
- * `unverifiable` is a gap in the vendor's publishing, never an accusation: Anthropic
- * and Common Crawl publish nothing machine-readable, so every Claude agent lands
- * here no matter how genuine it is.
- *
- * Classification runs against a dated snapshot, never a live fetch, so this table
- * reproduces. A live list would give a different answer next month with no way to
- * tell which answer was right.
- */
-function verifiedIdentities() {
-  const out = [];
-
-  for (const pattern of AI_AGENT_PATTERNS) {
-    const rows = db
-      .prepare(
-        `SELECT cfConnectingIp AS ip, COUNT(*) AS hits
-         FROM RequestReality
-         WHERE ${EXTERNAL} AND userAgent LIKE ?
-         GROUP BY cfConnectingIp`
-      )
-      .all(`%${pattern}%`);
-
-    if (rows.length === 0) continue;
-
-    const tally = { verified: 0, vendor_other: 0, unlisted: 0, unverifiable: 0 };
-    let hits = 0;
-    let reason = null;
-
-    for (const row of rows) {
-      const result = classify(pattern, row.ip);
-      tally[result.status] = (tally[result.status] ?? 0) + row.hits;
-      hits += row.hits;
-      if (result.status === "unverifiable") reason = reason ?? result.reason;
-    }
-
-    out.push({ pattern, hits, addresses: rows.length, ...tally, reason });
-  }
-
-  return out.sort((a, b) => b.hits - a.hits);
-}
-
 function disallowedHits() {
   const paths = disallowedPaths();
   const marks = paths.map(() => "?").join(",");
@@ -181,7 +126,7 @@ export function lab(canary, published) {
 
   const agentRows = topAgents.all();
   const referred = referredArrivals.all();
-  const identities = verifiedIdentities();
+  const identities = declaredIdentities();
 
   const busiest = concentration.get()?.hits ?? 0;
   const busiestShare = total > 0 ? Math.round((busiest / total) * 1000) / 10 : 0;
@@ -196,19 +141,17 @@ export function lab(canary, published) {
     body: `
 <h1>Lab</h1>
 
-<p class="lede">Most of the traffic arriving at a website is no longer people, and almost nothing is publicly established about what those clients actually do. This page is one domain answering that question about itself, out loud, from the first request onward.</p>
+<p class="lede">Every figure this site has, recomputed from the record on each
+request. This page is the instrument's reading; <a href="/weekly">the weekly
+reports</a> are the log of what happened in each week, and <a href="/findings">the
+findings</a> are what a person concluded from them.</p>
 
-<h2>What we are doing here</h2>
-
-<p>The question is narrow on purpose: <strong>when an automated client reads a page, what does it do — as opposed to what it says it is?</strong> Every client announces an identity, nothing verifies that announcement, and the gap between the declaration and the record is measurable without anyone's cooperation.</p>
-
-<p>So the method is the whole point. Nothing on this page comes from asking a language model what it knows about this site; that is the system under test testifying about itself, and it is <a href="/lab/methodology">refused as evidence</a> here. What is left is slower and much smaller: requests this server saw, written down once, never edited, and counted in public. <a href="/about">Why this exists</a> covers the longer argument.</p>
-
-<h2>This site is installation number one</h2>
-
-<p>The instrument is a small server that records what it is asked for. This domain is the first place it runs, which makes the site both the instrument and the subject — every figure below was produced by this site watching itself being read. That is a limitation and it is also the reason the numbers can be checked: there is no customer data behind them, no privileged access, and no sample you cannot see.</p>
-
-<p>It also sets the ceiling on what any of it means. One domain is one sample. A new, small site about a niche subject is not the web, and nothing here generalises to it.</p>
+<p>The question is narrow on purpose: <strong>when an automated client reads a page,
+what does it do — as opposed to what it says it is?</strong> Nothing here comes from
+asking a language model what it knows about this site. That is the system under test
+testifying about itself, and it is <a href="/lab/methodology">refused as evidence</a>;
+the <a href="/lab/methodology">methodology</a> states what would make each figure below
+wrong before the figure is offered.
 
 <h2>The record so far</h2>
 
@@ -259,15 +202,15 @@ ${
 <h2 id="checked">Declared identities, checked against the vendor's list</h2>
 
 <p>The table above counts what clients say. This one counts how far each claim is corroborated by the address ranges the vendor itself publishes — the difference between a figure anybody can inflate and one that would require the vendor's own infrastructure to inflate. Checked against a dated snapshot${
-      SNAPSHOT_DATE ? ` captured ${escapeHtml(SNAPSHOT_DATE)}` : ""
+      identities.snapshot ? ` captured ${escapeHtml(identities.snapshot)}` : ""
     }, never a live fetch, so every row here reproduces.</p>
 
 ${
-  identities.length === 0
+  identities.byAgent.length === 0
     ? "<p>No client has yet declared one of the identities this site checks.</p>"
     : `<div class="scroll"><table>
 <thead><tr><th>Declared identity</th><th>Requests</th><th>Verified</th><th>Vendor's other range</th><th>Unlisted</th><th>Unverifiable</th></tr></thead>
-<tbody>${identities
+<tbody>${identities.byAgent
         .map(
           (r) =>
             `<tr><td class="mono">${escapeHtml(r.pattern)}</td><td>${r.hits}</td><td>${r.verified}</td><td>${r.vendor_other}</td><td>${r.unlisted}</td><td>${r.unverifiable}</td></tr>`

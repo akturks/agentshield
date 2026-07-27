@@ -1,7 +1,7 @@
 import db from "./realityDb.js";
 import { EXTERNAL } from "./stats.js";
-import { classify, SNAPSHOT_DATE } from "./vendors/index.js";
-import { AI_AGENT_PATTERNS } from "./findings/detectors.js";
+import { declaredIdentities } from "./identities.js";
+import { SNAPSHOT_DATE } from "./vendors/index.js";
 
 // A weekly report computed from the record, not written about it.
 //
@@ -113,30 +113,6 @@ const conditionalRequests = db.prepare(`
     AND (headersJson LIKE '%if-none-match%' OR headersJson LIKE '%if-modified-since%')
 `);
 
-/** Declared AI identities in one week, tallied against the vendors' own lists. */
-function identities(from, to) {
-  const tally = { verified: 0, vendor_other: 0, unlisted: 0, unverifiable: 0 };
-  let requests = 0;
-
-  for (const pattern of AI_AGENT_PATTERNS) {
-    const rows = db
-      .prepare(
-        `SELECT cfConnectingIp AS ip, COUNT(*) AS hits
-         FROM RequestReality
-         WHERE ${EXTERNAL} AND observedAtMs >= ? AND observedAtMs < ? AND userAgent LIKE ?
-         GROUP BY cfConnectingIp`
-      )
-      .all(from, to, `%${pattern}%`);
-
-    for (const row of rows) {
-      tally[classify(pattern, row.ip).status] += row.hits;
-      requests += row.hits;
-    }
-  }
-
-  return { requests, ...tally };
-}
-
 // Findings are counted by the week they were decided in, not detected in. A
 // finding held for review across a week boundary belongs to the week a person
 // acted on it — the report is about what was established, not about what the
@@ -186,7 +162,7 @@ export function weeklyReport(label) {
     previousRequests: before.requests,
     busiest,
     busiestShare: now.requests > 0 ? Math.round((busiest / now.requests) * 1000) / 10 : 0,
-    identities: identities(from, to),
+    identities: declaredIdentities({ from, to }),
     disallowed: disallowedFetches.get(from, to)?.hits ?? 0,
     conditional: conditionalRequests.get(from, to)?.hits ?? 0,
     published: decided.filter((f) => f.status === "published"),

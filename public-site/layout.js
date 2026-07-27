@@ -125,15 +125,28 @@ font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}
 `;
 
+// Output first, then how you know it, then the other subject.
+//
+// The order is the argument: a visitor arrives wanting to know what was seen, not
+// what the method is. Weekly leads because it is where a returning reader goes —
+// the one page whose content is different every time without anyone writing it.
+//
+// Two pages left this list rather than the site. `/observatory` was the home page
+// at greater length, and reading the same argument twice is worse than reading it
+// once. `/status` is about the instrument's health rather than about anything it
+// observed; it stays linked in the footer, where somebody checking whether the
+// thing is running will look.
+//
+// Neither page is deleted, and this is not tidiness. Both carry a published
+// marker, and a marker on a page that 404s can never be ingested again — retiring
+// a surface silently removes a measurement that was already running.
 const NAV = [
-  ["/observatory", "Observatory"],
+  ["/weekly", "Weekly"],
   ["/lab", "Lab"],
   ["/findings", "Findings"],
-  ["/weekly", "Weekly"],
-  ["/audit", "Audit"],
   ["/questions", "Questions"],
   ["/constitution", "Constitution"],
-  ["/status", "Status"]
+  ["/audit", "Audit"]
 ];
 
 /**

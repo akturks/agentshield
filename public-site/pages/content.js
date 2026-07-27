@@ -1,66 +1,93 @@
 import { page, escapeHtml, instant } from "../layout.js";
 import { pipelineDiagram, evidenceDiagram } from "../diagrams.js";
 import { headline } from "../stats.js";
+import { declaredIdentities } from "../identities.js";
+import { ARTICLES } from "../constitution.js";
 import { QUESTIONS } from "./questions.js";
 import { published as publishedFindings } from "../findings/engine.js";
 
 export function home(canary, published) {
   const s = headline();
+  const ids = declaredIdentities();
   const n = (v) => escapeHtml(Number(v).toLocaleString("en-US"));
 
   return page({
-    title: "Behavioral evidence platform for AI agents",
+    title: "What AI systems actually do when they read the web",
     description:
-      "An independent observatory recording how AI agents and crawlers behave on the web. Trust is earned through observable, repeated behavioral evidence.",
+      "An independent observatory that measures how AI crawlers and agents read the web by observing them, never by asking them. Every figure traces to a recorded request.",
     path: "/",
     canary,
     published,
     body: `
 <h1>AgentShield Observatory</h1>
 
-<p class="lede">Behavioral evidence for AI agents and autonomous systems. Trust is earned through observable, repeated behavioral evidence — so this site records what agents do, and publishes it.</p>
+<p class="lede">What AI systems actually do when they read the web — measured by watching
+them, never by asking them.</p>
 
 <div class="grid">
 <div><div class="stat">${n(s.external)}</div><div class="stat-label">External requests</div></div>
-<div><div class="stat">${n(s.agents)}</div><div class="stat-label">Declared identities</div></div>
-<div><div class="stat">${n(s.ips)}</div><div class="stat-label">Distinct addresses</div></div>
-<div><div class="stat">${n(s.markers)}</div><div class="stat-label">Markers published</div></div>
+<div><div class="stat">${n(ids.requests)}</div><div class="stat-label">Claimed an AI identity</div></div>
+<div><div class="stat">${n(ids.verified)}</div><div class="stat-label">Corroborated by the vendor</div></div>
+<div><div class="stat">0</div><div class="stat-label">Markers seen in a model</div></div>
 </div>
 
-<p>Recomputed from the record every time this page is served. Requests are counted only when they arrived over the public internet from an address that has not also driven this site from a command line; building and testing the instrument produced a good deal more, which is excluded and <a href="/lab">reported separately</a> rather than deleted.</p>
+<p>Recomputed from the record every time this page is served. Of the requests that
+declared one of the AI crawler identities this site checks for,
+<strong>${n(ids.verified)}</strong> came from inside the address range the vendor
+publishes for that crawler and <strong>${n(ids.unlisted)}</strong> did not.
+${n(ids.unverifiable)} could not be checked at all, because their vendor publishes no
+list — a gap in the vendor's publishing, never a mark against the client.
+<a href="/lab#checked">The full split</a>.</p>
 
-<p><strong>Declared identities</strong> counts distinct <code>User-Agent</code> strings. A user agent is a claim, not a verified identity — which is why the address count beside it is larger, and why neither number is called a count of visitors.</p>
+<p>The last figure is the one this site exists to move. ${n(s.markers)} coined strings
+have been published here at recorded instants; <strong>none has ever been observed in a
+language model's output.</strong> It is printed on the front page whether or not it
+changes, because a counter that appears only when it is interesting is a counter nobody
+can trust.</p>
 
-<h2>Observe behavior. Understand intent. Verify outcomes. Build trust.</h2>
+<h2>Why this exists</h2>
 
-<p>A large share of web traffic is no longer people. It is crawlers assembling training corpora, agents fetching a page because someone just asked an assistant a question, and automation of every other kind. What those clients actually do — as opposed to what they declare — is barely established in public.</p>
+<p>Most of the traffic arriving at a website is no longer people. It is crawlers
+assembling training corpora, agents fetching a page because someone just asked an
+assistant a question, and automation of every other kind. What those clients actually
+do — as opposed to what they declare — is barely established in public.</p>
 
-<p>This observatory watches one domain closely rather than many domains loosely. The site is both the instrument and the subject: everything published here was measured here, which keeps the claims small and keeps them checkable.</p>
+<p>This observatory watches one domain closely rather than many domains loosely. The
+site is both the instrument and the subject, which keeps the claims small and keeps
+them checkable: there is no customer data behind them, no privileged access, and no
+sample you cannot see.</p>
 
-${pipelineDiagram()}
-
-<h2>Behavior is evidence</h2>
-
-<p>Every automated client announces an identity in its user agent string, and nothing verifies that announcement. So the declaration is stored as a claim and the behaviour is recorded separately. Did it read <a href="/robots.txt">robots.txt</a> and then take a path the rules asked it to leave alone? Did it claim to be a browser and never execute a script?</p>
-
-<p>That gap — between what a client declares and what the record shows it did — is the first trust signal any website can measure. It is promise-keeping, and it does not require anyone's cooperation to observe.</p>
-
-<h2>What is refused as evidence</h2>
+<h2>What this refuses as evidence</h2>
 
 ${evidenceDiagram()}
 
-<p>Most tools that measure AI visibility work by prompting a model about you and recording the reply. That is the system under test giving evidence about itself, and this observatory does not accept it. Ingestion is established instead by publishing a coined string at a recorded instant and watching for it to appear — <a href="/questions/why-not-just-ask-the-model">why that distinction matters</a>.</p>
+<p>Most tools that measure AI visibility work by prompting a model about you and
+recording the reply. That is the system under test giving evidence about itself, and it
+is refused here — <a href="/questions/why-not-just-ask-the-model">why that distinction
+matters</a>. The same refusal turned out to apply to this site's own infrastructure, its
+dashboard, and its vendor's support assistant, all in one week.</p>
 
-<h2>What the CDN did to this site</h2>
+<h2>The rules the figures are held to</h2>
 
-<p>On 27 July 2026 the whole sitemap was fetched through the CDN and diffed against
-the origin, for the first time. Five alterations sat between this server and its
-readers. One of them prepended a block to <a href="/robots.txt">robots.txt</a>
-telling nine AI crawlers to leave — directly above the paragraph inviting them in.</p>
+<p>Every number above is produced under nine articles that are executable rather than
+aspirational: several of them are runtime checks that go red and take the claim with
+them. They are the reason a figure here is worth more than a figure in a marketing
+page, and they are the first thing to read if you intend to disbelieve any of this.</p>
 
-<p><a href="/cdn-interventions"><strong>I built a site to watch AI crawlers. My CDN
-was quietly turning them away.</strong></a> — the measurements, what they falsify,
-and the three commands that check your own domain in ten seconds.</p>
+<div class="scroll"><table>
+<thead><tr><th>&nbsp;</th><th>Article</th></tr></thead>
+<tbody>${ARTICLES.map(
+      (a) =>
+        `<tr><td class="mono">${escapeHtml(a.id)}</td><td><a href="/constitution#${escapeHtml(
+          a.slug
+        )}">${escapeHtml(a.short)}</a></td></tr>`
+    ).join("")}</tbody></table></div>
+
+<p>Article V — identical bytes to every client — was <a href="/cdn-interventions">false
+on this site for at least three days</a> because of something the CDN was adding after
+the server had finished. It was found by measurement, published rather than quietly
+fixed, and that is what these articles are for. <a href="/constitution">All nine in
+full</a>.</p>
 
 <h2>Latest findings</h2>
 
