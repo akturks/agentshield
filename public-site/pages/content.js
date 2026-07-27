@@ -45,17 +45,26 @@ language model's output.</strong> It is printed on the front page whether or not
 changes, because a counter that appears only when it is interesting is a counter nobody
 can trust.</p>
 
-<h2>Why this exists</h2>
+<h2>Who this is and what it is for</h2>
 
-<p>Most of the traffic arriving at a website is no longer people. It is crawlers
-assembling training corpora, agents fetching a page because someone just asked an
-assistant a question, and automation of every other kind. What those clients actually
-do — as opposed to what they declare — is barely established in public.</p>
+<p><strong>One person, one domain, in public.</strong> A small server records every
+request that arrives — the address, the user agent, every header, exactly as sent —
+and this site publishes what that record shows. Nothing is sold here, there is no
+account to create, and no reader is tracked: <a href="/constitution#observation-is-not-surveillance">the
+unit of observation is a request, not a person</a>.</p>
 
-<p>This observatory watches one domain closely rather than many domains loosely. The
-site is both the instrument and the subject, which keeps the claims small and keeps
-them checkable: there is no customer data behind them, no privileged access, and no
-sample you cannot see.</p>
+<p>It exists because the basic facts are not publicly established. Which crawlers
+honour the rules they are given. Which execute JavaScript. How long it takes for a
+newly published sentence to become something a model will repeat. Site owners are sold
+measurements of all three — produced by asking an AI system what it thinks, which is
+the least reliable instrument available for the question.</p>
+
+<p>So this observatory watches one domain closely rather than many domains loosely.
+The site is both the instrument and the subject, which is a real limitation and also
+the reason the numbers can be checked: no customer data, no privileged access, no
+sample you cannot see. One domain is one sample, and a new site about a niche subject
+is not the web. <a href="/about">The longer version</a>, including what this
+deliberately refuses to become.</p>
 
 <h2>What this refuses as evidence</h2>
 
