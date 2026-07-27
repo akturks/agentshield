@@ -36,7 +36,7 @@ days. Do not date them.
 |---|---|---|---|
 | 1 | Email Address Obfuscation | rewrote a **recorded observation** | worked around in code |
 | 2 | `robots.txt` edge caching | served a stale file with a `max-age` the origin never sent | fixed in code |
-| 3 | **`robots.txt` content injection** | told 8 AI crawlers `Disallow: /` | **switched off** |
+| 3 | **`robots.txt` content injection** | told 9 crawler groups `Disallow: /` | **switched off** |
 | 4 | **HTML body injection ("AI Labyrinth")** | hidden link to a decoy page, on every HTML page | **switched off** |
 | 5 | `ETag` and `Content-Length` stripped from HTML | conditional requests impossible for HTML | **unresolved** |
 
@@ -92,8 +92,14 @@ User-agent: Google-Extended
 Disallow: /
 User-agent: Applebot-Extended
 Disallow: /
+User-agent: CloudflareBrowserRenderingCrawler
+Disallow: /
 # END Cloudflare Managed Content
 ```
+
+Nine user-agent groups: eight AI crawlers and the CDN's own browser-rendering
+crawler. An earlier version of this file said eight and omitted the last one;
+corrected 2026-07-27 by recounting the captured response.
 
 Directly beneath it, unchanged, was the file this project wrote:
 
