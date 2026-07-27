@@ -118,7 +118,7 @@ const conditionalRequests = db.prepare(`
 // acted on it — the report is about what was established, not about what the
 // detector noticed.
 const findingsDecided = db.prepare(`
-  SELECT status, title, slug, publishedAt, rejectedAt
+  SELECT status, title, slug, summary, publishedAt, rejectedAt
   FROM Finding
   WHERE (publishedAt IS NOT NULL AND publishedAt >= ? AND publishedAt < ?)
      OR (rejectedAt  IS NOT NULL AND rejectedAt  >= ? AND rejectedAt  < ?)

@@ -79,22 +79,59 @@ function decisions(r) {
   if (r.published.length === 0 && r.rejected.length === 0)
     return `<p>No finding was published or rejected in this week.</p>`;
 
-  const list = (rows, verb) =>
+  // Published findings carry their summary here, rejected ones carry nothing but
+  // a count.
+  //
+  // A list of titles is a table of contents, and a week reported as a table of
+  // contents tells a returning reader what was filed rather than what was
+  // learned. The summary is the finding's own sentence about what happened, so
+  // quoting it keeps this page computed rather than written — nobody composes a
+  // weekly digest, and the week still reads like one.
+  //
+  // The asymmetry is deliberate and is the rule that already governs the
+  // withdrawn list on /findings: most rejected findings said something
+  // unsupported about a client, and reprinting that sentence under the word
+  // "rejected" puts the claim back on an indexable page where a crawler reads
+  // the sentence and not the label.
+  // Published findings carry their summary; rejected ones carry a count.
+  //
+  // A list of titles is a table of contents, and a week reported as a table of
+  // contents tells a returning reader what was filed rather than what was
+  // learned. The summary is the finding's own sentence about what happened, so
+  // quoting it keeps this page computed rather than written — nobody composes a
+  // weekly digest, and the week still reads like one.
+  //
+  // Rejected titles were printed here until this week, while the paragraph
+  // below claimed they never were. The claim was the correct rule and the code
+  // was the live behaviour, and on 27 July the two met: a finding was withdrawn
+  // under Article IX for making a crawler the subject of its headline, and this
+  // page was ready to reprint that headline verbatim under the word "rejected".
+  //
+  // Nothing would have caught it. The integrity check reads findings whose
+  // status is 'published', and a withdrawn sentence reappearing on a different
+  // page is outside what it looks at. A crawler reads the sentence, not the
+  // label above it.
+  const published = (rows) =>
     rows.length === 0
       ? ""
-      : `<p><strong>${rows.length} ${verb}:</strong></p><ul>${rows
-          .map((f) =>
-            f.status === "published"
-              ? `<li><a href="/findings/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a></li>`
-              : `<li>${escapeHtml(f.title)}</li>`
+      : `<p><strong>${rows.length} published:</strong></p>${rows
+          .map(
+            (f) =>
+              `<div class="qa"><h3><a href="/findings/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a></h3><p>${escapeHtml(f.summary ?? "")}</p></div>`
           )
-          .join("")}</ul>`;
+          .join("")}`;
 
-  return `${list(r.published, "published")}${list(r.rejected, "rejected")}
-<p>Rejections are counted here and never named as claims, because publishing an
-unverified statement about a client in order to prove it was rejected repeats the
-offence. The count is the part that matters: a review step that has never rejected
-anything has not been shown to be one.</p>`;
+  const withdrawn = (rows) =>
+    rows.length === 0
+      ? ""
+      : `<p><strong>${rows.length} withdrawn or rejected.</strong> The subject and the
+reason for each are listed on <a href="/findings#withdrawn">the findings page</a>.</p>`;
+
+  return `${published(r.published)}${withdrawn(r.rejected)}
+<p>Rejections are counted here and never named, because publishing an unverified
+statement about a client in order to prove it was rejected repeats the offence. The
+count is the part that matters: a review step that has never rejected anything has not
+been shown to be one.</p>`;
 }
 
 export function weeklyPage(label, canary, published) {

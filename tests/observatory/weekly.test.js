@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { weekStart, weekLabel, weekFromLabel, weeksObserved } from "../../public-site/weekly.js";
+import {
+  weekStart,
+  weekLabel,
+  weekFromLabel,
+  weeksObserved,
+  weeklyReport
+} from "../../public-site/weekly.js";
+import { weeklyPage } from "../../public-site/pages/weekly.js";
+import { escapeHtml } from "../../public-site/layout.js";
 
 // A weekly report is only worth publishing if the week it names is the week it
 // counted. ISO week arithmetic is the kind of thing that looks right for eleven
@@ -66,5 +74,55 @@ test("observed weeks are contiguous, newest first, and all resolvable", () => {
     const older = weekFromLabel(weeks[i]);
     assert.ok(newer > older, "newest first");
     assert.equal(newer - older, 7 * DAY, "no week is skipped, including quiet ones");
+  }
+});
+
+test("a withdrawn finding's headline never appears in a weekly report", () => {
+  // This page printed rejected titles while the paragraph beneath them claimed it
+  // never did, and on 27 July the two met: a finding was withdrawn under Article
+  // IX for making a crawler the subject of its headline, and this page was ready
+  // to reprint that headline verbatim under the word "rejected".
+  //
+  // The integrity check could not have caught it. It reads findings whose status
+  // is 'published', and a withdrawn sentence resurfacing on a different page is
+  // outside what it looks at. A crawler reads the sentence, not the label above it.
+  for (const label of weeksObserved()) {
+    const report = weeklyReport(label);
+    if (report.rejected.length === 0) continue;
+
+    const html = weeklyPage(label, "asd-test-marker", "2026-07-27T12:00:00.000Z");
+
+    for (const finding of report.rejected) {
+      assert.ok(
+        !html.includes(finding.title),
+        `${label} reprints a withdrawn headline: "${finding.title}"`
+      );
+      assert.ok(
+        !html.includes(finding.slug),
+        `${label} links a withdrawn finding: ${finding.slug}`
+      );
+    }
+  }
+});
+
+test("a published finding brings its summary into the week", () => {
+  // A list of titles is a table of contents. The week has to say what was learned,
+  // and it has to do it without anybody writing a digest — so the finding's own
+  // sentence is what appears.
+  for (const label of weeksObserved()) {
+    const report = weeklyReport(label);
+    if (report.published.length === 0) continue;
+
+    const html = weeklyPage(label, "asd-test-marker", "2026-07-27T12:00:00.000Z");
+
+    for (const finding of report.published) {
+      assert.ok(html.includes(finding.slug), `${label} omits ${finding.slug}`);
+      if (finding.summary) {
+        assert.ok(
+          html.includes(escapeHtml(finding.summary)),
+          `${label} lists "${finding.title}" without saying what it found`
+        );
+      }
+    }
   }
 });

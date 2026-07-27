@@ -143,5 +143,107 @@ export const FINDINGS = [
 <li><strong>This is evidence of retrieval, not of training ingestion.</strong> The marker was reported because the page was open at that moment. Whether it persists in a model is a separate measurement, and the relevant column on the <a href="/lab">lab page</a> remains empty.</li>
 </ul>
 `
+  },
+
+  {
+    id: "F-004",
+    slug: "one-handset-ten-countries",
+    date: "2026-07-27",
+    title:
+      "The most thorough reader of this site declares itself a 2019 handset, from ten countries at once",
+    summary:
+      "One user agent string — a consumer iPhone running iOS 13.2.3, released November 2019 — has made 222 requests to this site from 168 distinct addresses in ten countries, averaging 1.32 requests per address. It has taken 49 distinct paths, read robots.txt, taken no disallowed path, executed no script and never asked whether anything had changed. It is the only client that has fetched all three pages published here on 27 July. A single handset is one device in one place; the shape is the part that cannot be reconciled with the declaration.",
+    body: `
+<h2>What was observed</h2>
+
+<p>Between 25 July 11:22:49 UTC and 27 July 17:42:48 UTC, 222 external requests arrived
+carrying one identical user agent string:</p>
+
+<pre><code>Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15
+(KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1</code></pre>
+
+<p>iOS 13.2.3 was released in November 2019. The string describes one consumer handset.</p>
+
+<table>
+<thead><tr><th>How many</th><th>Of what</th></tr></thead>
+<tbody>
+<tr><td>222</td><td>requests</td></tr>
+<tr><td>168</td><td>distinct connecting addresses</td></tr>
+<tr><td>10</td><td>countries the addresses geolocate to</td></tr>
+<tr><td>49</td><td>distinct paths taken</td></tr>
+<tr><td>1.32</td><td>requests per address, on average</td></tr>
+<tr><td>45</td><td>addresses used more than once — never more than three times</td></tr>
+</tbody>
+</table>
+
+<p>The addresses geolocate to US (95 requests), SG (26), DE (22), KR (16), BR (16),
+JP (15), HK (14), CN (9), TH (5) and ID (4).</p>
+
+<h2>How it behaves</h2>
+
+<table>
+<thead><tr><th>How many requests</th><th>Did what</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>fetched <a href="/robots.txt">robots.txt</a></td></tr>
+<tr><td>1</td><td>fetched <a href="/sitemap.xml">sitemap.xml</a></td></tr>
+<tr><td>0</td><td>took a path listed under <code>Disallow</code></td></tr>
+<tr><td>0</td><td>asked whether anything had changed (no conditional request)</td></tr>
+<tr><td>0</td><td>executed the script on <a href="/probe/js">the JavaScript probe</a></td></tr>
+</tbody>
+</table>
+
+<p>Three pages were first published here on 27 July. This client fetched all three, and
+is the only one that has:</p>
+
+<table>
+<thead><tr><th>Page</th><th>First fetched by this client</th><th>Anything earlier</th></tr></thead>
+<tbody>
+<tr><td><a href="/verify">/verify</a></td><td>80 minutes after publication</td><td>a mobile browser, at 45 minutes</td></tr>
+<tr><td><a href="/cdn-interventions">/cdn-interventions</a></td><td>266 minutes</td><td>a desktop browser, at 16 minutes</td></tr>
+<tr><td><a href="/weekly/2026-W31">/weekly/2026-W31</a></td><td>342 minutes</td><td>nothing — no other client has fetched it</td></tr>
+</tbody>
+</table>
+
+<h2>What the shape establishes</h2>
+
+<p>A consumer handset is one device. It holds one address at a time, changes address when
+its network changes, and is in one country. It does not appear in Singapore, Germany,
+Korea, Brazil, Japan, Hong Kong, China, Thailand and Indonesia over three days while
+averaging 1.32 requests from each of 168 addresses.</p>
+
+<p>That average is the part worth reading twice. Traffic spread this thinly leaves no
+address looking busy: examined one address at a time, every one of these is an
+unremarkable visitor who loaded a page or two. The pattern exists only when the requests
+are grouped by what they declared, which is the one field nobody has to tell the truth in.</p>
+
+<p><strong>The declaration and the behaviour disagree, and only the declaration is under
+the client's control.</strong> That is the entire finding.</p>
+
+<h2>What it does not establish</h2>
+
+<p>Not who sent these requests. Not what they were for. Not whether one party or several
+arranged it. A request carries no field for intent and this site does not infer one.</p>
+
+<p>Nor does it establish misconduct. This client read the rules and took no path it was
+asked to leave alone — <strong>every disallowed page on this site remains unfetched by
+anyone</strong>, and this client is part of that record rather than an exception to it.
+A false declaration and a violated rule are different things, and only the first is
+present here.</p>
+
+<p>The politeness is worth stating plainly because it is the intuition most likely to
+mislead. A reader who learns "well-behaved crawlers are the genuine ones" has learned a
+rule this record contradicts: the most rule-abiding client here is also the one whose
+declaration its own shape refuses.</p>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>No attribution.</strong> The address blocks are not resolved to an operator here. Doing so would mean citing a registry lookup taken at one moment as though it were part of the record, and this site publishes what it observed. The shape is established; who owns it is not.</li>
+<li>Country codes are geolocations of connecting addresses reported by the CDN. They say where a packet entered the network, not where anybody is.</li>
+<li><strong>One site, three days, 222 requests.</strong> This is a description of what happened here. It supports no rate, no proportion, and no claim about how common this pattern is on the web.</li>
+<li>"Executed no script" is established by the absence of any beacon request. This client also never fetched the page carrying the script, so it is evidence about these visits rather than a capability claim.</li>
+<li>The user agent is the only thing linking these 222 requests into one client. If two unrelated systems happened to send byte-identical strings, this describes their sum. Nothing in the record can separate them, and nothing here assumes it can.</li>
+</ul>
+`
   }
 ];
