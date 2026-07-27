@@ -51,6 +51,17 @@ ${evidenceDiagram()}
 
 <p>Most tools that measure AI visibility work by prompting a model about you and recording the reply. That is the system under test giving evidence about itself, and this observatory does not accept it. Ingestion is established instead by publishing a coined string at a recorded instant and watching for it to appear — <a href="/questions/why-not-just-ask-the-model">why that distinction matters</a>.</p>
 
+<h2>What the CDN did to this site</h2>
+
+<p>On 27 July 2026 the whole sitemap was fetched through the CDN and diffed against
+the origin, for the first time. Five alterations sat between this server and its
+readers. One of them prepended a block to <a href="/robots.txt">robots.txt</a>
+telling nine AI crawlers to leave — directly above the paragraph inviting them in.</p>
+
+<p><a href="/cdn-interventions"><strong>I built a site to watch AI crawlers. My CDN
+was quietly turning them away.</strong></a> — the measurements, what they falsify,
+and the three commands that check your own domain in ten seconds.</p>
+
 <h2>Latest findings</h2>
 
 <ul>

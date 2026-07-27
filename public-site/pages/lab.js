@@ -277,6 +277,10 @@ ${
 
 <p><strong>Only <em>unlisted</em> is evidence against a client</strong>, and what it means is narrow: the vendor publishes a list of its addresses and this request did not come from one. It is never a statement about intent. <em>Unverifiable</em> is a gap in the vendor's publishing rather than anything about the client — Anthropic and Common Crawl publish no machine-readable list, so every one of their agents lands there however genuine it is, and a vendor's silence must not be rendered as an accusation.</p>
 
+<p>Both this table and the concentration figure above exist because of what the CDN
+was found to be doing to this site: <a href="/cdn-interventions">what the CDN did,
+and when it stopped</a>.</p>
+
 <h2>robots.txt compliance</h2>
 
 <p>Three paths are disallowed in <a href="/robots.txt">robots.txt</a> and serve ordinary content. Any fetch listed here is an observed request to a path its own rules asked clients not to take. This table does not distinguish clients that read robots.txt from those that never requested it.</p>
