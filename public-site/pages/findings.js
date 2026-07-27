@@ -125,11 +125,19 @@ ${
   all.length === 0
     ? "<p>Nothing has been established yet.</p>"
     : all
+        // Titles only. The summaries used to sit here too, and then the weekly
+        // report started carrying them so a week would say what was learned
+        // rather than list what was filed — which put the same paragraph on two
+        // pages a reader walks through in order.
+        //
+        // The index is the one that gives them up, because the house style makes
+        // it cheap: a headline here is already a sentence with the figures in it
+        // — "One address requested 34 distinct paths within 3 seconds" — so a
+        // reader scanning the archive loses nothing but the second copy.
         .map(
           (f) => `<div class="qa">
 ${originNote(f)}
 <h3><a href="/findings/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a></h3>
-<p>${escapeHtml(f.summary)}</p>
 </div>`
         )
         .join("\n")
