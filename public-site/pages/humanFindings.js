@@ -610,5 +610,114 @@ declaration its own shape refuses.</p>
 
 <p>The useful output is not a fix. It is a boundary: everything inside it was measured and cleared, and what remains is outside any instrument an operator controls. Most diagnoses stop before drawing that line and leave the owner changing things that were never wrong.</p>
 `
+  },
+
+  // F-009 was written because the operator looked at this site's own console,
+  // saw 1,160 requests in 24 hours, and asked whether the site was under
+  // attack. It was not. But the question was the right one to ask of the
+  // number, because 77% of it was one address for three minutes.
+  //
+  // The security half of this is the boring half and is stated in a table. The
+  // half worth publishing is what a three-minute scan does to a denominator,
+  // on a site whose entire output is figures computed from this record.
+  {
+    id: "F-009",
+    slug: "three-minutes-that-owned-a-day",
+    date: "2026-07-28",
+    title:
+      "893 requests in three minutes became 77% of a day's traffic, and obtained four files anyone can read",
+    summary:
+      "Between 11:39:38 and 11:42:49 UTC on 28 July 2026 a single address sent 893 requests asking for 884 distinct paths. 889 were answered 404. The four that were not returned the home page, robots.txt, llms.txt and the sitemap — the files this site publishes for anyone. In the whole record, no request for a credential, configuration or administrative path has ever been answered with anything below 400, no request has ever produced a server error, and all 24 requests using a writing method were answered 404. The finding is not the scan. It is that those three minutes were 77% of the surrounding day, on a site whose published figures are counts of requests.",
+    body: `
+<h2>What was observed</h2>
+
+<p>One address, one wordlist, 191 seconds.</p>
+
+<table>
+<thead><tr><th>Measure</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>Requests from this address</td><td>893</td></tr>
+<tr><td>Distinct paths asked for</td><td>884</td></tr>
+<tr><td>Answered <code>404</code></td><td>889</td></tr>
+<tr><td>Answered below 400</td><td><strong>4</strong></td></tr>
+<tr><td>Seconds from first request to last</td><td>191</td></tr>
+</tbody>
+</table>
+
+<p>Roughly 4.7 requests a second, essentially none of them repeated. The paths asked for name the software this site does not run: a WordPress installer, a <code>.env</code> file, CI definitions for three different systems, container build files, four mail-server configurations, an API schema.</p>
+
+<p>The four requests that were answered asked for <code>/</code>, <code>/robots.txt</code>, <code>/llms.txt</code> and <code>/sitemap.xml</code>. Those are the four files this site publishes specifically so that anything arriving can read them. Nothing was obtained that a first-time visitor does not receive.</p>
+
+<h2>What the whole record says about that</h2>
+
+<p>The figures below are not about this scan. They cover every external request this site has recorded since it began serving.</p>
+
+<table>
+<thead><tr><th>Across the whole record</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>Requests for a credential, configuration or administrative path answered below 400</td><td><strong>0</strong></td></tr>
+<tr><td>Requests answered with a server error</td><td><strong>0</strong></td></tr>
+<tr><td>Requests using a writing method — <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code></td><td>24</td></tr>
+<tr><td>How many of those were answered with anything other than <code>404</code></td><td><strong>0</strong></td></tr>
+</tbody>
+</table>
+
+<p>The zero in the second row is worth a sentence of its own. At 4.7 requests a second across 884 misses, nothing fell over, which is a property of serving pages that were computed before the request arrived rather than during it.</p>
+
+<h2>The part that is actually a finding</h2>
+
+<p>In the 24 hours ending with that scan's last request, this site recorded <strong>1,159</strong> external requests. <strong>893 of them — 77% — were that one address during those three minutes.</strong></p>
+
+<p>This site publishes counts of requests. It reports how many arrived, from how many addresses, declaring which identities, on which paths. Every one of those figures has a denominator, and for one day that denominator was three-quarters one scanner.</p>
+
+<p>No published figure here was distorted by it, for a reason worth naming: the figures published earlier that day were bounded by a window that closed at 11:30 UTC, nine minutes before the scan began. That was not foresight about this scan. It is what closing a window does — it fixes what a number can still be affected by, and a number nobody can move afterwards is the only kind that can be rechecked.</p>
+
+<p>The operator's own dashboard, which is not bounded that way, showed the spike as a day's traffic. That is what prompted the question this finding answers.</p>
+
+<h2>What it means</h2>
+
+<p>Anyone measuring how AI systems read their site is counting requests, and the counts are small. A site receiving a few hundred requests a day can have a single automated sweep supply most of a week's total, and every rate computed from that total — crawler share, paths per visit, requests per agent — moves with it while looking entirely ordinary.</p>
+
+<p>The defence is not to exclude scanners; deciding what counts as one is a judgement, and a judgement applied to a record quietly is how a record stops being a record. The defence is that a published figure names its window and can be recomputed, so that when the shape of a day is strange the strangeness is visible rather than absorbed.</p>
+
+<h2>What this does not establish</h2>
+
+<ul>
+<li><strong>No claim is made about who sent this or why.</strong> An address geolocates; it does not attribute. The declared user agent was an ordinary desktop browser string, which is worth exactly nothing as identification.</li>
+<li>Scanning a public site for known software is constant background on the internet. Nothing here says this one was targeted, and the first automated probe of this domain arrived under two minutes after it began resolving.</li>
+<li><strong>Zero successful requests to sensitive paths is a statement about paths that were asked for.</strong> It says every attempt recorded here failed. It is not an assurance that no attempt could succeed, and no such assurance is available from a request log.</li>
+</ul>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>One scan, one site, one day.</strong> The 77% is a property of this day's traffic and supports no rate.</li>
+<li>The classification of a path as "sensitive" is a pattern match written by the operator, listed in the query published with this finding. A path it does not match would not appear in that count.</li>
+<li>Requests refused at the CDN never reach this record. What is counted here is what arrived, and one further request was blocked upstream in the same 24 hours — from an unrelated address, recorded in the provider's log rather than this one.</li>
+<li>This is the first address in the record to send 500 or more requests. One instance is not a pattern, and nothing here predicts how often this recurs.</li>
+</ul>
+
+<h2>Why this was worth recording</h2>
+
+<p>The question that produced this finding was "are we under attack?", asked of a number on a dashboard. The answer was no. The better answer is that the number could not tell you either way, because it had no window, and a count without a window is a rumour with a decimal point.</p>
+
+<h2>Correction — 28 July 2026, 12:16 UTC</h2>
+
+<p>This finding was published carrying two claims recorded as failures, and the page rendered the word "mismatch" for about the time it took to read this paragraph. No figure in it was wrong.</p>
+
+<p>The two claims counted requests by HTTP method, and their queries named <code>DELETE</code>. The verifier refuses any claim query containing that word anywhere, including inside quotation marks, because a claim able to modify the record it checks against would defeat the point of checking. So the queries were never run: they were rejected, and a rejected query is stored the same way as a figure that disagreed — no observed value, marked not ok.</p>
+
+<p>They have been rewritten to count the same rows without naming the method — <code>method NOT IN ('GET','HEAD')</code> — and both now return what the text above says, 24 and 0.</p>
+
+<p>A second guard on this site failed the same way in the same hour, and it is worth putting beside the first. The rule that no finding may cite something we did is enforced by looking for the names of the action tables, one of which is <code>Config</code>. The claim counting requests for sensitive paths asks for <code>path LIKE '%config%'</code>, and the check read that as a citation. It reads the observation record and cites nothing.</p>
+
+<p>Only one of those two guards has been changed. Deciding whether to run a query should stay crude, because a false positive there costs a rewrite and a false negative lets a claim edit the record it is checking. Deciding whether a finding is honest should not be crude, because a false positive there marks a sound finding as a violation and nothing on the other side needs protecting. The second now matches those names only where a table can appear.</p>
+
+<p>Two things were wrong here and only one of them was the query.</p>
+
+<p>The first is that the page published at all. The check meant to prevent this reads only findings generated by a detector, and it asks whether <em>any</em> figure matched rather than whether <em>none</em> failed. Both exemptions applied to this finding at once. A seventh integrity check now covers every published finding regardless of who wrote it, and fails on a single claim that did not hold.</p>
+
+<p>The second is that a query which could not be evaluated and a figure which was recomputed and disagreed are stored identically. Only one of those means a finding is wrong, and this record cannot currently tell them apart. That is recorded here as a known defect rather than fixed quietly.</p>
+`
   }
 ];

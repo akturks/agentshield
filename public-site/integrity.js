@@ -48,9 +48,22 @@ function realityStaysClean() {
 }
 
 function actionsAreNotEvidence() {
+  // Matched only where a table can appear. The bare word test this replaced
+  // went red on a claim counting requests for paths like `%config%`, which
+  // cites nothing — it reads the observation record and asks what was fetched.
+  //
+  // The verifier's own guard is deliberately cruder than this and stays that
+  // way, because the two rules are not the same shape. That one decides whether
+  // to run a query, so a false positive costs a rewrite and a false negative
+  // lets a claim edit the record it checks. This one decides whether a finding
+  // is honest, where a false positive marks a sound finding as a violation and
+  // there is no danger on the other side to be conservative about.
+  //
+  // `INSERT INTO` and `UPDATE` need no coverage here; the verifier refuses them
+  // before this is ever consulted.
   const claims = db.prepare("SELECT sql FROM FindingClaim").all();
   const leaked = claims.filter((c) =>
-    ACTION_TABLES.some((t) => new RegExp(`\\b${t}\\b`, "i").test(c.sql))
+    ACTION_TABLES.some((t) => new RegExp(`\\b(?:from|join)\\s+"?${t}"?\\b`, "i").test(c.sql))
   );
 
   return {
@@ -199,12 +212,51 @@ function subjectIsTheBehaviour() {
   };
 }
 
+/**
+ * No published finding carries a figure that did not hold.
+ *
+ * `verificationNotBypassed` above asks a weaker question, and the gap between
+ * the two let something through. It looks only at `origin = 'detector'`, because
+ * generated prose was the thing being guarded against, and it passes a finding
+ * that has *any* matched claim rather than *no* failed one.
+ *
+ * A hand-written finding was published on 28 July with ten claims matching and
+ * two that could not be evaluated at all. Both of those exemptions applied at
+ * once: the wrong origin, and enough passing figures to satisfy a check written
+ * as an existence test. The page went live rendering the word "mismatch".
+ *
+ * Nothing about a sentence being typed by a person makes its figures more
+ * trustworthy than a generated one — the argument for checking is identical,
+ * and the path that publishes them simply never had the gate attached.
+ */
+function everyPublishedFigureHeld() {
+  const offenders = db
+    .prepare(
+      `SELECT f.slug, COUNT(*) AS failed FROM Finding f
+       JOIN FindingClaim c ON c.findingId = f.id
+       WHERE f.status = 'published' AND c.ok = 0
+       GROUP BY f.slug ORDER BY f.slug`
+    )
+    .all();
+
+  return {
+    name: "Every published figure held",
+    ok: offenders.length === 0,
+    detail:
+      offenders.length === 0
+        ? "no published finding carries a claim that failed its recomputation"
+        : `carrying failed claims: ${offenders.map((o) => `${o.slug} (${o.failed})`).join(", ")}`,
+    why: "A finding is a set of figures with the queries that produced them. One that publishes a figure its own query contradicts is not a weaker finding, it is a different kind of object."
+  };
+}
+
 /** All epistemic checks. Green means the separation still holds. */
 export function epistemicIntegrity() {
   const checks = [
     realityStaysClean(),
     actionsAreNotEvidence(),
     verificationNotBypassed(),
+    everyPublishedFigureHeld(),
     interpretationIsRebuildable(),
     oneDefinitionOfExternal(),
     subjectIsTheBehaviour()

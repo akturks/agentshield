@@ -20,6 +20,19 @@ const insertClaim = db.prepare(`
   VALUES (@id, @findingId, @label, @sql, @params, @expected, @observed, @ok, @checkedAt)
 `);
 
+// Deliberately crude: it matches these words anywhere in the string, including
+// inside a quoted literal. A claim counting HTTP methods and naming 'DELETE'
+// is refused by it, which is how a correct query on 28 July was recorded as a
+// failure rather than run.
+//
+// That is the intended trade. Teaching this to parse string literals means
+// teaching it to decide which occurrences are safe, and the whole value of the
+// rule is that it decides nothing. Write the claim another way — `method NOT IN
+// ('GET','HEAD')` counts the same rows without naming one.
+//
+// What is worth fixing is elsewhere: a query this refuses and a figure that
+// genuinely disagreed are stored identically, as ok = 0 with a null observed,
+// and only one of those means the finding was wrong.
 const FORBIDDEN = /\b(insert|update|delete|drop|alter|create|attach|pragma|replace)\b/i;
 
 /**
