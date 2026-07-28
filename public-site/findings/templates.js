@@ -284,10 +284,15 @@ ${limits([
 
   distributed_crawl(c) {
     const share = Math.round((c.facts.singles / c.facts.ips) * 100);
+    // Every other count in this file carries its own plural. These four did not,
+    // and the first finding to reach review with a single-country spread read
+    // "in 1 countries" in the summary that search engines quote. `countries` is
+    // irregular, which is why appending "s" was never going to cover it.
+    const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
     return {
       slug: `distributed-crawl-${day(c.windowStartMs)}-${c.facts.ua.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 32)}`,
-      title: `One user agent, ${c.facts.ips} addresses, ${c.facts.paths} paths — a retrieval spread thin enough to look like nothing`,
-      summary: `A single user agent string arrived from ${c.facts.ips} distinct addresses in ${c.facts.countries} countries over ${c.facts.hours} hours. ${c.facts.singles} of those addresses sent exactly one request. Between them they fetched ${c.facts.paths} distinct paths.`,
+      title: `One user agent, ${n(c.facts.ips, "address", "addresses")}, ${n(c.facts.paths, "path", "paths")} — a retrieval spread thin enough to look like nothing`,
+      summary: `A single user agent string arrived from ${n(c.facts.ips, "distinct address", "distinct addresses")} in ${n(c.facts.countries, "country", "countries")} over ${n(c.facts.hours, "hour", "hours")}. ${c.facts.singles} of those addresses sent exactly one request. Between them they fetched ${n(c.facts.paths, "distinct path", "distinct paths")}.`,
       body: `
 <h2>What was observed</h2>
 <p>Between ${fmt(c.windowStartMs)} and ${fmt(c.windowEndMs)} UTC:</p>
