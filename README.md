@@ -1,5 +1,10 @@
 # AgentShield
 
+> **This document describes the private API, which is not the active work.** The
+> live system is the observatory in `public-site/`. Start from `CLAUDE.md` at the
+> root, then `public-site/README.md`. The continuation prompt near the bottom of
+> this file names a phase that ended; it is kept as history, not as an instruction.
+
 IMPORTANT
 
 This repository contains canonical architectural documents.
