@@ -274,14 +274,36 @@ ${rows
 </tbody></table></div>`;
 }
 
-export function requestsView(rows, filter, ownIps) {
+export function requestsView(rows, filter, ownIps, days = [], day = null) {
+  const q = (over) => {
+    const params = new URLSearchParams();
+    const next = { filter, day, ...over };
+    if (next.filter) params.set("filter", next.filter);
+    if (next.day) params.set("day", next.day);
+    return `/requests?${params}`;
+  };
   const f = (key, label) =>
-    `<a href="/requests?filter=${key}" class="${filter === key ? "on" : ""}">${label}</a>`;
+    `<a href="${q({ filter: key })}" class="${filter === key ? "on" : ""}">${label}</a>`;
+
+  // Without this, a busy day pushes every earlier day past the row limit and the
+  // record looks truncated. Each day is listed with its count so the operator
+  // can see the whole history exists before clicking into any of it.
+  const dayLinks = days.length
+    ? `<div class="filters"><a href="${q({ day: null })}" class="${day ? "" : "on"}">newest 200</a>${days
+        .map(
+          (d) =>
+            `<a href="${q({ day: d.day })}" class="${day === d.day ? "on" : ""}">${escapeHtml(d.day)} <span class="dim">${d.n}</span></a>`
+        )
+        .join("")}</div>`
+    : "";
+
   return `
-<h2>requests</h2>
+<h2>requests${day ? ` &middot; <span class="dim">${escapeHtml(day)}</span>` : ""}</h2>
 <div class="filters">
 ${f("external", "all external")}${f("ai", "declared AI")}${f("disallowed", "disallowed paths")}${f("errors", "4xx/5xx")}${f("instrument", "instrument (ours)")}
 </div>
+${dayLinks}
+<p class="meta">${day ? `Every request recorded on ${escapeHtml(day)} under this filter.` : "The most recent 200. Nothing is ever deleted — pick a day above to see the rest."}</p>
 ${requestTable(rows, ownIps)}
 <p class="meta">Every view here is external traffic. The last filter is the only way to see the instrument's own requests, and it shows nothing else — so the two populations are never mixed on one screen.</p>
 `;

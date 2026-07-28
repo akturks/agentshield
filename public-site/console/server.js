@@ -47,15 +47,18 @@ app.get("/", (req, reply) => {
 
 app.get("/requests", (req, reply) => {
   const filter = String(req.query?.filter ?? "all");
+  const day = req.query?.day ? String(req.query.day) : null;
   reply
     .type("text/html; charset=utf-8")
     .send(
       v.shell(
         "/requests",
         v.requestsView(
-          q.recentRequests({ limit: 200, filter }),
+          q.recentRequests({ limit: day ? 2000 : 200, filter, day }),
           filter,
-          q.operatorIps()
+          q.operatorIps(),
+          q.observedDays(),
+          day
         ),
         { refresh: 30 }
       )

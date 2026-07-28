@@ -48,6 +48,13 @@ const NON_ROUTABLE =
  * Addresses that have sent a plain command-line client at some point. Traffic
  * from these is almost certainly the operator's own testing, and mistaking it
  * for a real crawler has already produced eight false findings once.
+ *
+ * This matches the PLAIN_CLIENT half of notOperator() in stats.js on purpose.
+ * It was briefly rewritten on 28 July on a wrong diagnosis — a row showing the
+ * country code US had been auto-translated by the browser into the Turkish
+ * word for "us", which read as the console calling a spoofing address ours.
+ * The rewrite would have given this console a second definition of who we are,
+ * which is the one thing the standing rule forbids.
  */
 export function operatorIps() {
   return new Set(
@@ -101,11 +108,34 @@ export function overview() {
   };
 }
 
-export function recentRequests({ limit = 60, filter = "external" } = {}) {
+/**
+ * Days present in the record, newest first, with a count for each.
+ *
+ * The console showed the most recent 200 rows and nothing else, so on a day
+ * with 1,879 requests the previous three days fell off the bottom and looked
+ * deleted. For an append-only record that is the worst possible failure mode:
+ * the operator concludes the thing that cannot lose data has lost data.
+ */
+export function observedDays() {
+  return db
+    .prepare(
+      `SELECT substr(observedAt, 1, 10) AS day, COUNT(*) AS n
+       FROM RequestReality WHERE siteId = ? AND ${EXTERNAL}
+       GROUP BY day ORDER BY day DESC`
+    )
+    .all(SITE_ID);
+}
+
+export function recentRequests({ limit = 60, filter = "external", day = null } = {}) {
   // Everything here is external unless the caller explicitly asks for the
   // instrument's own traffic, which is a diagnostic view and is labelled as one.
   let where = filter === "instrument" ? `siteId = ? AND NOT (${EXTERNAL})` : `siteId = ? AND ${EXTERNAL}`;
   const params = [SITE_ID];
+
+  if (day) {
+    where += " AND observedAt LIKE ?";
+    params.push(`${day}%`);
+  }
 
   if (filter === "ai") {
     where += ` AND (${aiLike})`;
