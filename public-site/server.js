@@ -10,7 +10,7 @@ import {
   ensureCanary,
   canaryPublishedAt
 } from "./canary.js";
-import { seedHumanFindings } from "./findings/seed.js";
+import { seedHumanFindings, syncHumanFindings } from "./findings/seed.js";
 import { runOnce } from "./findings/engine.js";
 import { robotsTxt, sitemapXml } from "./robots.js";
 import { etagFor, clientHolds } from "./validator.js";
@@ -47,6 +47,12 @@ const HOST = "127.0.0.1";
 
 const seeded = seedHumanFindings();
 if (seeded > 0) console.log(`[findings] seeded ${seeded} hand-written finding(s)`);
+
+// A hand-written finding whose source has changed since it was published. Printed
+// rather than applied quietly: this rewrites text that was already live, and the
+// only safe version of that is a loud one.
+const amended = syncHumanFindings();
+if (amended.length > 0) console.log(`[findings] amended ${amended.join(", ")}`);
 
 const minted = ensureCanaries();
 const canaries = loadCanaries();

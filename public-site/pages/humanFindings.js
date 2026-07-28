@@ -257,8 +257,23 @@ declaration its own shape refuses.</p>
     title:
       "Fourteen sites served the same 501 bytes of robots.txt, and the bytes name who wrote them",
     summary:
-      "A declared sample of 400 domains was asked for its robots.txt on 28 July 2026. 198 answered with one. Fourteen of those files contain a block that is byte-for-byte identical across all fourteen — 501 bytes, ten user-agent groups, the same order every time — wrapped in a comment naming the content delivery network that inserted it. Nine of the groups refuse a named crawler, eight of them AI crawlers. In none of the fourteen does the site's own text mention any of those crawlers, so nothing there was overruled: the decision simply appears in a file the owner publishes and is absent from everything the owner wrote.",
+      "A declared sample of 400 domains was asked for its robots.txt on 28 July 2026. 198 answered with one. Fourteen of those files contain 1,834 bytes that are identical across all fourteen, at the same offset — but only 501 of them sit inside the comment marking what the delivery network inserted. The marked part refuses eight AI crawlers. The 1,333 unmarked bytes before it are a legal notice, written in the site's own voice, asserting terms as a condition of access and reserving rights under EU copyright law. In none of the fourteen does the text outside the marked block name any of those crawlers, so nothing was overruled: the decision appears in a file the owner publishes and is absent from everything the owner wrote.",
     body: `
+<h2>Correction, 28 July 2026 08:20 UTC</h2>
+
+<p><strong>This finding was published at 07:40 UTC stating that 501 identical bytes appear in fourteen files. The figure was right and it was not the whole insertion.</strong> Checked afterwards: in all fourteen files the marked block begins at byte 1,334, and <strong>the 1,333 bytes before it are also identical across all fourteen</strong>. So 1,834 bytes are the same in every file, and the comment marking what was inserted encloses 501 of them — 27%.</p>
+
+<p>The unmarked 1,333 bytes are not rules. They are a legal notice, and they are written in the first person of the website:</p>
+
+<blockquote><p>As a condition of accessing this website, you agree to abide by the following content signals&hellip;</p>
+<p>ANY RESTRICTIONS EXPRESSED VIA CONTENT SIGNALS ARE EXPRESS RESERVATIONS OF RIGHTS UNDER ARTICLE 4 OF THE EUROPEAN UNION DIRECTIVE 2019/790 ON COPYRIGHT AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.</p></blockquote>
+
+<p>Between those two paragraphs it defines what <code>search</code>, <code>ai-input</code>, <code>ai-train</code> and <code>use</code> mean — the vocabulary of the <code>Content-Signal</code> line that appears inside the marked block.</p>
+
+<p>What this changes: the earlier text counted those 1,333 bytes as the site's own, because the boundary comment says the insertion starts after them. It does not change any figure below. The preamble names no crawler, which is checked directly in the evidence chain, so the contradiction count is still zero.</p>
+
+<p>What it adds is the sharper version of the same observation. A file that states terms of access and reserves rights under copyright law, in a site's own voice, sits outside the marker that identifies what the site did not write. Whether that boundary is meant to delimit rules rather than prose is not knowable from a fetched file; what is measurable is that a reader following the marker attributes those bytes to the site.</p>
+
 <h2>What was observed</h2>
 
 <p>Between 07:04:29 and 07:14:29 UTC on 28 July 2026, this site requested <code>/robots.txt</code> once from each of 400 domains. The population is a published ranking with a permanent identifier and the sample is a fixed stride through it, so the same 400 domains can be derived by anyone. <a href="/survey">The method, the rate and the terms</a> were written down before the first request.</p>
@@ -292,7 +307,7 @@ declaration its own shape refuses.</p>
 
 <p>A robots.txt is read as a statement by the site. It is the one file whose entire purpose is to say what its publisher permits, and every automated client that respects it treats it that way. In these fourteen cases part of that statement was composed elsewhere, and the file says so — the network signs its own insertion with a comment, which is the only reason this is measurable at all.</p>
 
-<p>Byte-for-byte identity across fourteen unrelated sites is the part that needs no argument. Fourteen people writing their own rules do not produce the same 501 bytes in the same order.</p>
+<p>Byte-for-byte identity across fourteen unrelated sites is the part that needs no argument. Fourteen people writing their own rules do not produce the same 1,834 bytes in the same order, starting at the same offset.</p>
 
 <p>Separately, 20 sites in the sample refuse an AI crawler in their own text with no insertion involved — more than the fourteen. Those are decisions somebody wrote down, and they are counted apart for exactly that reason.</p>
 

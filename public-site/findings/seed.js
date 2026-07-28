@@ -20,6 +20,33 @@ const insert = db.prepare(`
   )
 `);
 
+const current = db.prepare("SELECT title, summary, bodyHtml FROM Finding WHERE slug = ?");
+const amend = db.prepare(
+  "UPDATE Finding SET title = @title, summary = @summary, bodyHtml = @bodyHtml WHERE slug = @slug"
+);
+
+/**
+ * Bring a published finding's text back in line with its source.
+ *
+ * Prose is interpretation, and interpretation is meant to be rebuildable — so
+ * editing the source and having the site follow is correct rather than a
+ * loophole. What would not be correct is doing it quietly: the returned slugs
+ * are printed at boot, and a correction that changes what a finding claims is
+ * expected to say so inside its own body, dated, rather than relying on this to
+ * carry the history. `publishedAt` is never touched. It was published then.
+ */
+export function syncHumanFindings() {
+  const changed = [];
+  for (const f of HUMAN_FINDINGS) {
+    const row = current.get(f.slug);
+    if (!row) continue;
+    if (row.title === f.title && row.summary === f.summary && row.bodyHtml === f.body) continue;
+    amend.run({ slug: f.slug, title: f.title, summary: f.summary, bodyHtml: f.body });
+    changed.push(f.slug);
+  }
+  return changed;
+}
+
 export function seedHumanFindings() {
   let n = 0;
   for (const f of HUMAN_FINDINGS) {

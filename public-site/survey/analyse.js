@@ -307,6 +307,31 @@ export function analyse(surveyId = latestSurvey.get()?.id) {
     result.managedBlockContentSignal = /^\s*content-signal\s*:/im.test(only);
   }
 
+  // What sits outside the boundary and still is not the owner's.
+  //
+  // The marked block is not where the insertion begins. In every file carrying
+  // it, the same text precedes it at the same offset — and the boundary comment
+  // starts after that text, so a reader following the marker attributes it to
+  // the site. Identical bytes at an identical offset across unrelated sites is
+  // the fact; who wrote them is an inference, and the page says which is which.
+  const preambles = new Set();
+  for (const row of rows) {
+    if (row.errorCode || !servedRobots(row)) continue;
+    const open = MANAGED_BEGIN.exec(String(row.body ?? ""));
+    if (!open || open.index === 0) continue;
+    preambles.add(String(row.body).slice(0, open.index));
+  }
+
+  result.preamble = {
+    files: rows.filter((row) => {
+      if (row.errorCode || !servedRobots(row)) return false;
+      const open = MANAGED_BEGIN.exec(String(row.body ?? ""));
+      return Boolean(open) && open.index > 0;
+    }).length,
+    variants: preambles.size,
+    bytes: preambles.size === 1 ? [...preambles][0].length : null
+  };
+
   result.errorCodes = [...errors.entries()]
     .map(([code, count]) => ({ code, count }))
     .sort((a, b) => b.count - a.count);
