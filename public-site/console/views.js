@@ -151,8 +151,44 @@ ${rows
 </tbody></table></div>`;
 }
 
-export function integrityView(integrity) {
+/**
+ * The scheduled run's own state, above the checks.
+ *
+ * The checks below are computed as this page renders, so they are always fresh
+ * and say nothing about whether anything watches them when nobody is looking.
+ * That was the actual gap: the integrity of this site was only ever evaluated
+ * by a person opening this page.
+ *
+ * Three states, and the third is the one worth the code. A stale stamp looks
+ * exactly like a passing one unless it is called out, and a watcher that quietly
+ * stopped running is worse than no watcher, because it answers the question
+ * "is anything checking?" with a reassuring yes.
+ */
+function watchBanner(stamp) {
+  if (!stamp)
+    return `<p class="meta"><span class="tag bad">NEVER RUN</span> The scheduled integrity check has not written a result. Either it has not run yet or it is not scheduled.</p>`;
+
+  const ageHours = (Date.now() - Date.parse(stamp.at)) / 3_600_000;
+  const stale = ageHours > 26;
+
+  if (!stamp.ok)
+    return `<p class="meta"><span class="tag bad">SYSTEM INTEGRITY BROKEN</span> at ${escapeHtml(stamp.at)}<br>${stamp.integrity.failed
+      .map((f) => escapeHtml(f))
+      .join("<br>")}</p>`;
+
+  if (stale)
+    return `<p class="meta"><span class="tag bad">CHECK IS STALE</span> Last scheduled run ${escapeHtml(
+      stamp.at
+    )} — ${Math.floor(ageHours)} hours ago. It should run daily.</p>`;
+
+  return `<p class="meta"><span class="tag ok">watched</span> Last scheduled run ${escapeHtml(
+    stamp.at
+  )} · ${stamp.findings.drifted} of ${stamp.findings.checked} published findings have drifted, which is expected on an open window.</p>`;
+}
+
+export function integrityView(integrity, stamp) {
   return `<h2>epistemic integrity ${integrity.ok ? '<span class="tag ok">holding</span>' : '<span class="tag bad">BROKEN</span>'}</h2>
+${watchBanner(stamp)}
 <div class="scroll"><table>
 <thead><tr><th>separation</th><th></th><th>state</th><th>why it matters</th></tr></thead>
 <tbody>
@@ -170,7 +206,7 @@ ${integrity.checks
 <p class="meta">Reality → Interpretation → Action → Reality. These checks ask whether that separation still holds, not whether a process is alive.</p>`;
 }
 
-export function overviewView(o, alerts, recent, ownIps, healthRows, integrity) {
+export function overviewView(o, alerts, recent, ownIps, healthRows, integrity, stamp) {
   const tile = (v, k, hi = false) =>
     `<div class="tile${hi ? " hi" : ""}"><div class="v">${escapeHtml(String(v))}</div><div class="k">${escapeHtml(k)}</div></div>`;
 
@@ -186,7 +222,7 @@ ${
     : ""
 }
 
-${integrity ? integrityView(integrity) : ""}
+${integrity ? integrityView(integrity, stamp) : ""}
 
 ${healthRows ? healthView(healthRows) : ""}
 

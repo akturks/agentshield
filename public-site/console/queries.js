@@ -1,7 +1,19 @@
+import { readFileSync } from "node:fs";
+import { STAMP_PATH } from "../deploy/integrity-watch.mjs";
 import db, { SITE_ID } from "../realityDb.js";
 import { notOperator } from "../stats.js";
 import { EXTERNAL } from "../stats.js";
 export { epistemicIntegrity } from "../integrity.js";
+
+// The scheduled watcher's last result. Read from disk on every request rather
+// than cached, so the console reflects a run that happened after it booted.
+export function integrityStamp() {
+  try {
+    return JSON.parse(readFileSync(STAMP_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 // "External" is defined once, in stats.js, and imported here. It used to be
 // written out a second time in this file with a subtly looser rule — it

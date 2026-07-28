@@ -37,7 +37,8 @@ app.get("/", (req, reply) => {
           q.recentRequests({ limit: 25 }),
           ownIps,
           q.health(),
-          q.epistemicIntegrity()
+          q.epistemicIntegrity(),
+          q.integrityStamp()
         ),
         { refresh: 20 }
       )
