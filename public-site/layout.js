@@ -1,4 +1,5 @@
 export const SITE_ORIGIN = "https://agentshieldaidefense.com";
+import { verificationTags } from "./verification.js";
 export const SITE_NAME = "AgentShield AI Defense";
 
 export function escapeHtml(value) {
@@ -208,6 +209,7 @@ export function page({
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:url" content="${escapeHtml(url)}">
 <meta property="og:type" content="website">
+${verificationTags(escapeHtml)}
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <style>${STYLE}</style>
 </head>
