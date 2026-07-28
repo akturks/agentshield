@@ -29,8 +29,9 @@ Backed up daily at 04:17 by `public-site/deploy/backup-reality.sh` via
 `integrity_check` before being kept, to `~/Backups/agentshield` and Google Drive,
 30-day retention.
 
-`observatory-v1` is the tag for the site as it stood on 2026-07-27: 11 findings
-published, 81 tests, all articles green.
+`observatory-v1` tags the site as it stood on 2026-07-27: 11 findings published, 81
+tests, all articles green. It predates this file, so it is for reading old code —
+**not** for restoring. `docs/RESTORE.md` is the procedure, and it has been run.
 
 ## Standing constraints
 
