@@ -395,11 +395,29 @@ declaration its own shape refuses.</p>
 <p>The question this site exists to answer is whether AI systems read the web, and the usual proxy for it is whether their crawlers show up. Here they showed up eight times and read nothing — which is only visible because the requests were kept whole, with the path attached, and because eleven requests wearing the same name were checked against an address list before being counted.</p>
 `
   },
+  // WITHDRAWN 2026-07-28T11:36:46Z, six minutes after publication, by the
+  // operator. Kept here rather than deleted: the store holds the withdrawal and
+  // its reason, and removing the source would leave a rejected row nobody could
+  // read the text of.
+  //
+  // The reason was not an error in the figures — all nine claims verified and
+  // still do. It was the order. The headline led with the unresolved half (no
+  // request arrived from one assistant, and why is not established) while the
+  // half that was finished sat underneath it: a model quoting a figure this
+  // record holds to the second. Held until the network provider's event log for
+  // the same window has been read.
+  //
+  // `publishedAt` below was originally written as 11:40:00, a rounded value, and
+  // the row was actually seeded at 11:30:14.800. That put the takedown six
+  // minutes *before* the publication in the public table. Corrected in the store
+  // to the instant the claims were verified, which is when the finding existed.
+  // A publication instant on this site is the zero point of the ingestion
+  // measurement; rounding one up is not a cosmetic slip.
   {
     id: "F-007",
     slug: "one-morning-three-assistants",
     date: "2026-07-28",
-    publishedAt: "2026-07-28T11:40:00.000Z",
+    publishedAt: "2026-07-28T11:30:14.800Z",
     title:
       "109 requests reached this site in one morning, and none came from the assistant that was asked to open it",
     summary:
