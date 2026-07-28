@@ -24,7 +24,14 @@ export function seedHumanFindings() {
   let n = 0;
   for (const f of HUMAN_FINDINGS) {
     if (exists.get(f.slug)) continue;
-    const at = `${f.date}T12:00:00.000Z`;
+
+    // A finding written on the day it is seeded carries the instant it was
+    // written. The date-only form stamps midday, which is fine for the three
+    // findings back-filled from July and wrong for anything published this
+    // morning: it would date a conclusion hours ahead of the record it was
+    // drawn from, and on this site a publication instant is the zero point of
+    // the ingestion measurement rather than a decoration.
+    const at = f.publishedAt ?? `${f.date}T12:00:00.000Z`;
     insert.run({
       id: randomUUID(),
       siteId: SITE_ID,

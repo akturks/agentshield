@@ -245,5 +245,74 @@ declaration its own shape refuses.</p>
 <li>The user agent is the only thing linking these 222 requests into one client. If two unrelated systems happened to send byte-identical strings, this describes their sum. Nothing in the record can separate them, and nothing here assumes it can.</li>
 </ul>
 `
+  },
+  {
+    id: "F-005",
+    slug: "same-501-bytes-fourteen-sites",
+    date: "2026-07-28",
+    // The instant it was actually written. See seed.js — the date-only form
+    // stamps midday, which for a finding published this morning would date the
+    // conclusion four hours ahead of the survey it came from.
+    publishedAt: "2026-07-28T07:40:00.000Z",
+    title:
+      "Fourteen sites served the same 501 bytes of robots.txt, and the bytes name who wrote them",
+    summary:
+      "A declared sample of 400 domains was asked for its robots.txt on 28 July 2026. 198 answered with one. Fourteen of those files contain a block that is byte-for-byte identical across all fourteen — 501 bytes, ten user-agent groups, the same order every time — wrapped in a comment naming the content delivery network that inserted it. Nine of the groups refuse a named crawler, eight of them AI crawlers. In none of the fourteen does the site's own text mention any of those crawlers, so nothing there was overruled: the decision simply appears in a file the owner publishes and is absent from everything the owner wrote.",
+    body: `
+<h2>What was observed</h2>
+
+<p>Between 07:04:29 and 07:14:29 UTC on 28 July 2026, this site requested <code>/robots.txt</code> once from each of 400 domains. The population is a published ranking with a permanent identifier and the sample is a fixed stride through it, so the same 400 domains can be derived by anyone. <a href="/survey">The method, the rate and the terms</a> were written down before the first request.</p>
+
+<table>
+<thead><tr><th>Result</th><th>Domains</th></tr></thead>
+<tbody>
+<tr><td>Asked</td><td>400</td></tr>
+<tr><td>Answered</td><td>272</td></tr>
+<tr><td>Did not answer</td><td>128</td></tr>
+<tr><td>Answered with a robots.txt</td><td>198</td></tr>
+<tr><td>Answered with something else, usually an HTML error page under status 200</td><td>74</td></tr>
+<tr><td>Answers delivered through Cloudflare, by its own response header</td><td>95</td></tr>
+<tr><td><strong>Files carrying an inserted block</strong></td><td><strong>14</strong></td></tr>
+</tbody>
+</table>
+
+<p>Fourteen of the 198 files — 7.1% of the files, 14.7% of the answers that came through that network — contain a section delimited by <code># BEGIN Cloudflare Managed content</code> and its closing comment. <strong>All fourteen sections are identical byte for byte:</strong> 501 bytes, ten user-agent groups, in the same order, on sites that share nothing else in this sample.</p>
+
+<p>Nine of the ten groups name a crawler and refuse it with <code>Disallow: /</code>. Eight of those nine are AI crawlers; the ninth is the network's own browser-rendering crawler. The tenth group is not a refusal at all — it applies to every client, allows the whole site, and carries a <code>Content-Signal</code> line stating a policy about training and reuse. That is a different kind of sentence: it asks to be honoured rather than blocking a request, and it is counted separately here rather than added to the eight.</p>
+
+<h2>What was not found</h2>
+
+<p><strong>Not one of the fourteen files contradicts itself.</strong> A contradiction would be an inserted <code>Disallow</code> for a crawler that the site's own section names and allows, and in this sample there are none — because in all fourteen cases the site's own text never mentions those crawlers at all. There was nothing there to overrule.</p>
+
+<p>This survey was built to count contradictions, having found one on this site: <a href="/cdn-interventions">the origin file here welcomes those crawlers by name while the edge refused them</a>. Naming an AI crawler in order to permit it turns out to be unusual. Across 198 files it did not happen once.</p>
+
+<p>The weaker result is the published one. What the sample supports is narrow and worth stating on its own terms: fourteen sites publish a decision about eight AI crawlers that appears nowhere in anything they wrote.</p>
+
+<h2>What it means</h2>
+
+<p>A robots.txt is read as a statement by the site. It is the one file whose entire purpose is to say what its publisher permits, and every automated client that respects it treats it that way. In these fourteen cases part of that statement was composed elsewhere, and the file says so — the network signs its own insertion with a comment, which is the only reason this is measurable at all.</p>
+
+<p>Byte-for-byte identity across fourteen unrelated sites is the part that needs no argument. Fourteen people writing their own rules do not produce the same 501 bytes in the same order.</p>
+
+<p>Separately, 20 sites in the sample refuse an AI crawler in their own text with no insertion involved — more than the fourteen. Those are decisions somebody wrote down, and they are counted apart for exactly that reason.</p>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>Nobody's intent was measured, and none is claimed.</strong> Whether these fourteen operators enabled this deliberately, inherited it as a default, or would recognise it if shown, is invisible from outside. A file that publishes a rule its owner did not type is evidence of that and of nothing further. The one case where the operator did not know is this site, which is a sample of one and is us.</li>
+<li><strong>No domain is named.</strong> Reporting how many sites carry a rule they did not write is a measurement; reporting which ones is a list of other people's configurations published without an opportunity to object.</li>
+<li><strong>An insertion that does not announce itself is invisible to this method.</strong> One network labels its additions, and that is the one this counts. A rewrite with no marker would read as the owner's own text here, and this page would have no way of knowing.</li>
+<li><strong>Reachability was measured from one place.</strong> 128 domains did not answer, including twenty that reset the connection and also failed to resolve in DNS — filtering between this machine and them rather than those sites being down. A domain that did not answer is never counted as a domain without a robots.txt.</li>
+<li><strong>Only a bare <code>Disallow: /</code> counts as a refusal.</strong> Narrower rules are real and are not a closed door; counting them would inflate every figure above.</li>
+<li><strong>A wildcard is not a decision about a named crawler.</strong> A file saying <code>User-agent: *</code> has not decided anything about GPTBot, and is counted as not having mentioned it.</li>
+<li><strong>400 domains, one morning, one sample.</strong> 7.1% is a proportion of this sample and not an estimate for the web. A second run drawn the same way would land somewhere near it or would not, and that is a question for a second run.</li>
+</ul>
+
+<h2>Why this was worth recording</h2>
+
+<p>This site spent three days measuring what crawlers did to it, and then found that the file it used to invite them had been answering on its behalf. The obvious question is how far that extends, and it is answerable without asking anybody, because the intervention labels itself.</p>
+
+<p>The answer is smaller than the question. That is the result, and it is published at the size it came in.</p>
+`
   }
 ];
