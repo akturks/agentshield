@@ -77,7 +77,7 @@ ${
 
 <h2>Who runs this</h2>
 
-<p>One person, in Türkiye. It is not a company, sells nothing, and takes no payment. The domain registration is not hidden behind an anonymising service, because a site that publishes measurements about named organisations while concealing its own operator would not deserve to be believed.</p>
+<p>An independent operator in Türkiye, which is the jurisdiction whose data protection law applies here. It is not a company, sells nothing, takes no payment, and runs no advertising.</p>
 `
   });
 }
