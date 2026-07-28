@@ -394,5 +394,86 @@ declaration its own shape refuses.</p>
 
 <p>The question this site exists to answer is whether AI systems read the web, and the usual proxy for it is whether their crawlers show up. Here they showed up eight times and read nothing — which is only visible because the requests were kept whole, with the path attached, and because eleven requests wearing the same name were checked against an address list before being counted.</p>
 `
+  },
+  {
+    id: "F-007",
+    slug: "one-morning-three-assistants",
+    date: "2026-07-28",
+    publishedAt: "2026-07-28T11:40:00.000Z",
+    title:
+      "109 requests reached this site in one morning, and none came from the assistant that was asked to open it",
+    summary:
+      "Between 00:00 and 11:30 UTC on 28 July 2026 this site answered 109 external requests. Two came from Claude-User, which read robots.txt and then the home page; one from OAI-SearchBot; seven from Google's crawlers. None declared ChatGPT-User. In the same hours, two assistants asked about this site produced summaries of it and a third reported that it could not retrieve the site at all — while citing a different domain, with a tag showing that its own fetching had worked. One of the summaries quoted a figure that appears only on the live home page, and the record holds that exact figure at that exact instant.",
+    body: `
+<h2>What was observed</h2>
+
+<p>All figures below cover <strong>00:00 to 11:30 UTC on 28 July 2026</strong>, a closed window, and come from requests recorded as they arrived.</p>
+
+<table>
+<thead><tr><th>Declared identity</th><th>Requests</th></tr></thead>
+<tbody>
+<tr><td>All external clients</td><td>109</td></tr>
+<tr><td><code>Google-InspectionTool</code>, <code>Googlebot</code>, <code>GoogleOther</code></td><td>7</td></tr>
+<tr><td><code>Claude-User</code></td><td>2</td></tr>
+<tr><td><code>OAI-SearchBot</code></td><td>1</td></tr>
+<tr><td><strong><code>ChatGPT-User</code></strong></td><td><strong>0</strong></td></tr>
+</tbody>
+</table>
+
+<p>The last request declaring <code>ChatGPT-User</code> reached this site on 25 July. None arrived on the morning described here, during which an assistant was asked more than once to open this address.</p>
+
+<h2>The one chain that closed</h2>
+
+<p>At <strong>11:09:39 UTC</strong> a client declaring <code>Claude-User</code> requested <code>/robots.txt</code>. One and a half seconds later it requested the home page and received 28,597 bytes. The rules first, then the page.</p>
+
+<p>The home page prints a running count of external requests. <strong>The record holds exactly 999 external requests before that fetch</strong>, so the page delivered to that client said 999 — a page cannot count the request that is fetching it.</p>
+
+<p>Minutes later, an assistant's summary of this site quoted <strong>999 external requests</strong>.</p>
+
+<p>That is the first complete chain this site has been able to show: a request in the record, a figure on the page that request received, and the same figure in a model's output — each of the three checkable against the other two, and the off-by-one explained rather than explained away.</p>
+
+<h2>What was reported</h2>
+
+<p>Two things below were not observed here. They are what somebody else's system displayed, recorded with who said it and when, and nothing is concluded from them.</p>
+
+<ul>
+<li><strong>Google's AI mode produced a summary of this site</strong>, citing more than one page of it, and described it as an independent observatory of how AI systems read the web rather than as a security product. Observed by the operator in Google's interface on 28 July.</li>
+<li><strong>An assistant reported that it could not retrieve this site</strong>, and in the same exchange cited a different domain whose URL carried <code>utm_source=chatgpt.com</code> — a tag that is added when that assistant fetches a page. Its fetching worked; it was not pointed here.</li>
+</ul>
+
+<h2>What it means</h2>
+
+<p>Three AI systems, one site, one morning, three different outcomes. Two produced accurate summaries. The third sent no request at all, and said it could not reach a site that had answered a request from its own company's search crawler at 10:01 the same morning.</p>
+
+<p>Being reachable is not the same as being retrieved, and being retrieved by one vendor says nothing about another. The chain that closed here shows what the full path looks like when it works — request, page, output — and the value of measuring it is that each link can be checked separately when it does not.</p>
+
+<h2>What this does not establish</h2>
+
+<p><strong>Why no request arrived is not known, and no cause is claimed.</strong> At least three readings survive this record:</p>
+
+<ul>
+<li>The assistant's retrieval step was never pointed at this address, because its search step resolved the site's name to other projects sharing it.</li>
+<li>Something between that assistant and this server refused the request before it arrived. That would leave no trace in this record and would appear in the network provider's own event log, which has not been inspected.</li>
+<li>The request was made and failed for a reason neither side recorded.</li>
+</ul>
+
+<p>These are distinguishable, and the observation that separates them is the CDN's event log for the same window. Until it has been read, the honest statement is the narrow one: <em>no request arrived.</em></p>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>One morning, one site, 109 requests.</strong> This describes a window. It supports no rate and nothing about how these systems behave elsewhere or on other days.</li>
+<li><strong>Two of the four events are reports.</strong> What an assistant displayed is that party's output, recorded verbatim with a date. It is not evidence, and this finding does not rest on it — the chain that closed rests on a request, a byte count and a stored figure.</li>
+<li>The 999 match is one instance. It shows that this particular summary was drawn from the live page rather than from a cache or a memory, and it shows nothing about any other summary.</li>
+<li><strong>Absence of a request is not refusal.</strong> Nothing above establishes that any system will not fetch this site, only that one did not during these hours.</li>
+<li>Corroboration of <code>Claude-User</code> is not possible here: Anthropic publishes no machine-readable list of its crawler addresses, so the identity of that client rests on the declared user agent and its address, and neither is verified.</li>
+</ul>
+
+<h2>Why this was worth recording</h2>
+
+<p>Most attempts to measure whether an AI system reads a site end at "did a crawler arrive". This morning shows why that is too coarse: a crawler arrived, a second system produced a correct summary from a live page, and a third reported the site unreachable — all within ninety minutes, all true.</p>
+
+<p>The part worth keeping is not that one assistant failed. It is that the failure and the success were both measurable, from the same record, in the same window.</p>
+`
   }
 ];
