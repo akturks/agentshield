@@ -1,5 +1,9 @@
 # AgentShield
 
+**Live observatory: <https://agentshieldaidefense.com>** — a site that records how
+AI crawlers and agents read the web, and publishes what it finds with the query
+behind every figure. The code that runs it is in [`public-site/`](public-site/).
+
 > **This document describes the private API, which is not the active work.** The
 > live system is the observatory in `public-site/`. Start from `CLAUDE.md` at the
 > root, then `public-site/README.md`. The continuation prompt near the bottom of
