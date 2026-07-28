@@ -137,11 +137,21 @@ test("an unreachable edge is not reported as agreement", () => {
   assert.equal(run.identical, null);
 });
 
-test("the sensor watches the files that state this site's terms", () => {
-  // Not every page. These three answer a question about permission rather than
-  // content, which is what makes a difference between the two vantages worth
-  // recording. Asserted rather than left to a comment.
-  assert.deepEqual(WATCHED, ["/robots.txt", "/llms.txt", "/sitemap.xml"]);
+test("the sensor watches the terms and the pages a crawler would read", () => {
+  // Three files that state this site's terms, and five pages a client arriving
+  // from them would actually read. Asserted rather than left to a comment: what
+  // is watched is what a future finding can be dated against, and a path quietly
+  // dropped from this list stops being observable without anything failing.
+  assert.deepEqual(WATCHED, [
+    "/robots.txt",
+    "/llms.txt",
+    "/sitemap.xml",
+    "/",
+    "/about",
+    "/lab",
+    "/findings",
+    "/constitution"
+  ]);
 });
 
 test("a diff says which rules arrived and which left", () => {

@@ -35,7 +35,16 @@ export const USER_AGENT =
 // rather than special-cased: the change is real, and a detector that cannot
 // distinguish it from a rewrite is a detector that is not ready, which is a
 // better thing to learn from the record than from an exception in a list.
-export const WATCHED = ["/robots.txt", "/llms.txt", "/sitemap.xml"];
+export const WATCHED = [
+  "/robots.txt",
+  "/llms.txt",
+  "/sitemap.xml",
+  "/",
+  "/about",
+  "/lab",
+  "/findings",
+  "/constitution"
+];
 
 const ORIGIN_BASE = `http://127.0.0.1:${process.env.PUBLIC_SITE_PORT ?? 8080}`;
 const EDGE_BASE = `https://${PRIMARY_HOSTNAME}`;
@@ -108,25 +117,38 @@ async function observe(url, { host } = {}) {
 }
 
 /**
- * One sweep: every watched path, from both vantages.
+ * One sweep: every watched path, with the edge fetch bracketed by two origin
+ * fetches.
  *
- * The two requests for a path go out together. Sequential requests would put
- * seconds between them, and a difference measured across a gap cannot tell a
- * CDN apart from an edit that happened in between.
+ * The bracket is the whole design, and it exists because a page is not simply
+ * static or dynamic. Measured on 28 July: `/lab` differs from itself on every
+ * request, `/about` never does, and `/` differs only when traffic arrived in
+ * between — so stability is a property of the moment rather than of the page,
+ * and both a hardcoded list and a one-off measurement would be wrong.
+ *
+ * Fetching origin, then edge, then origin again answers it per sweep. If the two
+ * origin responses match, nothing about the page moved while the edge was being
+ * asked, and comparing their bytes to the edge's means something. If they do not
+ * match, the page changed under the measurement, and an exact-byte comparison
+ * would report the site's own counters as an intervention.
+ *
+ * Running all three in parallel would be worse and looks better: the two origin
+ * fetches would land in the same instant, agree, and certify a window they never
+ * spanned.
  */
 export async function sweep({ paths = WATCHED } = {}) {
   const runId = randomUUID();
   const written = [];
 
   for (const path of paths) {
-    const [origin, edge] = await Promise.all([
-      observe(`${ORIGIN_BASE}${path}`, { host: PRIMARY_HOSTNAME }),
-      observe(`${EDGE_BASE}${path}`)
-    ]);
+    const origin = await observe(`${ORIGIN_BASE}${path}`, { host: PRIMARY_HOSTNAME });
+    const edge = await observe(`${EDGE_BASE}${path}`);
+    const originAfter = await observe(`${ORIGIN_BASE}${path}`, { host: PRIMARY_HOSTNAME });
 
     for (const [vantage, row] of [
       ["origin", origin],
-      ["edge", edge]
+      ["edge", edge],
+      ["origin_after", originAfter]
     ]) {
       insert.run({
         id: randomUUID(),

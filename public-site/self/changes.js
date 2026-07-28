@@ -58,6 +58,77 @@ export function diffBodies(before, after) {
   };
 }
 
+/**
+ * Lines the edge delivered that appear in no origin response, and lines every
+ * origin response carried that the edge did not.
+ *
+ * This is the comparison that survives a page changing under the measurement.
+ * Exact bytes cannot be used on a surface that recomputes itself — `/lab` differs
+ * from its own previous response every time, and `/` differs whenever a request
+ * arrived in between — so an equality test there reports this site's own counters
+ * as an intervention, permanently, from the first sweep.
+ *
+ * Bracketing fixes it without a list. Two origin responses taken either side of
+ * the edge fetch contain, between them, whatever varied on its own during that
+ * window. A line absent from both of them and present in the edge's response did
+ * not come from here.
+ *
+ * It is a weaker instrument than byte equality and it is the right one for these
+ * surfaces: it would have caught the hidden link injected into every HTML page on
+ * this site in July, which byte equality could never have reported on a page whose
+ * bytes were never twice the same.
+ */
+export function injectedAgainst(originBodies, edgeBody) {
+  const lines = (text) =>
+    String(text ?? "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l !== "");
+
+  // Two lines differing only in their numerals are the same line.
+  //
+  // Bracketing alone is not enough for a counter embedded in a sentence: the
+  // figure moves on every render, so the origin pair holds two versions and the
+  // edge a third, and the edge's version is absent from both. `/lab` produced
+  // exactly that on the first sweep — one sentence about external traffic,
+  // reported as an injection.
+  //
+  // This is a rule about what counts as the same line, stated rather than tuned,
+  // and its cost is stated with it: an insertion that differed from existing text
+  // only in digits would not be seen. The interventions this site has actually
+  // measured were a hidden anchor element and nine user-agent groups, neither of
+  // which survives being read as a numeral.
+  const shape = (line) => line.replace(/\d+/g, "#");
+
+  const originShapes = originBodies.map((b) => new Set(lines(b).map(shape)));
+  const seenAtOrigin = new Set(originShapes.flatMap((s) => [...s]));
+
+  const edge = lines(edgeBody);
+  const edgeShapes = new Set(edge.map(shape));
+
+  // Present in every origin response, so not something that merely varied.
+  const stableAtOrigin = originShapes.reduce(
+    (a, b) => new Set([...a].filter((l) => b.has(l))),
+    originShapes[0] ?? new Set()
+  );
+
+  const seenAdded = new Set();
+
+  return {
+    added: edge.filter((l) => {
+      const s = shape(l);
+      if (seenAtOrigin.has(s) || seenAdded.has(s)) return false;
+      seenAdded.add(s);
+      return true;
+    }),
+    removed: [...stableAtOrigin].filter((l) => !edgeShapes.has(l)),
+    // Whether the origin held still while the edge was being asked. False means
+    // the page moved under the measurement, which is a fact about the page and
+    // not a fault in the sensor.
+    originHeldStill: originBodies.length > 1 && new Set(originBodies).size === 1
+  };
+}
+
 const observations = db.prepare(`
   SELECT id, runId, path, vantage, observedAt, observedAtMs, httpStatus,
          bodyBytes, bodySha256, body, errorCode

@@ -2,6 +2,7 @@ import db from "../realityDb.js";
 import { notOperator, notDeclaredOperator, probablyOperatorLanguage } from "../stats.js";
 import { classify, SNAPSHOT_DATE } from "../vendors/index.js";
 import { AGENT_OWNER, ownersOf } from "../vendors/sources.js";
+import { injectedAgainst } from "../self/changes.js";
 
 // Deterministic rules over observed reality. A detector never interprets and
 // never writes prose — it returns candidates: a subject, a time window, and the
@@ -951,31 +952,76 @@ export function surfaceTransition(series) {
 }
 
 function surfaceDivergence(siteId) {
-  const sweeps = db
+  // Bodies, not hashes.
+  //
+  // Hash equality was the first version and it cannot be used here. Half the
+  // watched surfaces rewrite themselves: `/lab` differs from its own previous
+  // response every time and `/` differs whenever a request arrived in between,
+  // so an equality test would report this site's own counters as an intervention
+  // on every sweep, from the first one — and a detector in that state is worse
+  // than no detector, because the real event arrives looking like the noise.
+  //
+  // `injectedAgainst` asks the question that survives it: is there a line in the
+  // edge's response that appears in neither origin response taken either side of
+  // it. Sweeps are still recorded when the origin did not hold still; they are
+  // simply not used to date a transition, because the bracket is what makes the
+  // comparison mean anything.
+  const rows = db
     .prepare(
-      `SELECT runId, path, MIN(observedAtMs) AS atMs,
-              COUNT(DISTINCT vantage) AS vantages,
-              COUNT(DISTINCT bodySha256) AS bodies,
-              MAX(CASE WHEN vantage = 'edge' THEN bodyBytes END) AS edgeBytes,
-              MAX(CASE WHEN vantage = 'origin' THEN bodyBytes END) AS originBytes
-       FROM SelfObservation
-       WHERE errorCode IS NULL
-       GROUP BY runId, path
-       HAVING vantages = 2
-       ORDER BY path, atMs`
+      `SELECT runId, path, vantage, observedAtMs, bodyBytes, bodySha256, body
+       FROM SelfObservation WHERE errorCode IS NULL
+       ORDER BY path, observedAtMs`
     )
     .all();
 
+  const runs = new Map();
+  for (const r of rows) {
+    const key = `${r.path} ${r.runId}`;
+    if (!runs.has(key)) runs.set(key, { path: r.path, runId: r.runId, atMs: r.observedAtMs, rows: [] });
+    runs.get(key).rows.push(r);
+  }
+
   const byPath = new Map();
-  for (const s of sweeps) {
-    if (!byPath.has(s.path)) byPath.set(s.path, []);
-    byPath.get(s.path).push({ ...s, agrees: s.bodies === 1 });
+  for (const run of runs.values()) {
+    const origins = run.rows.filter((r) => r.vantage.startsWith("origin"));
+    const edge = run.rows.find((r) => r.vantage === "edge");
+    if (origins.length < 2 || !edge) continue;
+
+    const { added, removed, originHeldStill } = injectedAgainst(
+      origins.map((o) => o.body),
+      edge.body
+    );
+
+    if (!byPath.has(run.path)) byPath.set(run.path, []);
+    byPath.get(run.path).push({
+      runId: run.runId,
+      path: run.path,
+      atMs: run.atMs,
+      agrees: added.length === 0 && removed.length === 0,
+      originHeldStill,
+      // Kept beside `agrees` rather than folded into it. `agrees` is a statement
+      // about lines and drives the finding; this is a statement about bytes and
+      // is what the SQL claim can recompute. They part company when a response is
+      // only reordered — same lines, different hash — and a claim quietly
+      // measuring the other thing is how a verified figure comes to mean
+      // something its label does not say.
+      bytesMatch: edge.bodySha256 === origins[0].bodySha256,
+      edgeBytes: edge.bodyBytes,
+      originBytes: origins[0].bodyBytes,
+      added,
+      removed
+    });
   }
 
   const out = [];
 
   for (const [path, series] of byPath) {
-    const transition = surfaceTransition(series);
+    // Only sweeps where the origin held still can date a transition. A page that
+    // moved while the edge was being asked was not bracketed, so the comparison
+    // has nothing to stand on — and the sweep is still recorded, still visible on
+    // /status, simply not used to say when something began.
+    const bracketed = series.filter((s) => s.originHeldStill);
+    const transition = surfaceTransition(bracketed);
     if (!transition) continue;
 
     const diverged = !transition.to.agrees;
@@ -988,32 +1034,42 @@ function surfaceDivergence(siteId) {
       facts: {
         path,
         diverged,
-        sweeps: series.length,
+        sweeps: bracketed.length,
         byteDelta: transition.to.edgeBytes - transition.to.originBytes,
-        lastAgreedAtMs: transition.from.atMs
+        lastAgreedAtMs: transition.from.atMs,
+        added: transition.to.added.slice(0, 8),
+        removed: transition.to.removed.slice(0, 8)
       },
       // Always. A statement that a network is altering what this site publishes
       // is exactly the kind that costs more when wrong than when late.
       requiresReview: true,
       claims: [
+        // "Bracketed" in SQL is exactly this: all three responses arrived, and
+        // the two origin responses were the same bytes — so the page held still
+        // while the edge was being asked. Sweeps where it did not are recorded
+        // and are not counted here, because they cannot date anything.
         claim(
-          "sweeps of this path where both vantages answered",
-          `SELECT COUNT(*) FROM (
-             SELECT runId FROM SelfObservation
-             WHERE path = ? AND errorCode IS NULL
-             GROUP BY runId HAVING COUNT(DISTINCT vantage) = 2)`,
-          [path],
-          series.length
-        ),
-        claim(
-          "sweeps where the edge served different bytes from the origin",
+          "How many sweeps of this path caught the origin holding still",
           `SELECT COUNT(*) FROM (
              SELECT runId FROM SelfObservation
              WHERE path = ? AND errorCode IS NULL
              GROUP BY runId
-             HAVING COUNT(DISTINCT vantage) = 2 AND COUNT(DISTINCT bodySha256) > 1)`,
+             HAVING COUNT(DISTINCT vantage) = 3
+                AND COUNT(DISTINCT CASE WHEN vantage LIKE 'origin%' THEN bodySha256 END) = 1)`,
           [path],
-          series.filter((s) => !s.agrees).length
+          bracketed.length
+        ),
+        claim(
+          "How many of those sweeps saw the edge deliver different bytes",
+          `SELECT COUNT(*) FROM (
+             SELECT runId FROM SelfObservation
+             WHERE path = ? AND errorCode IS NULL
+             GROUP BY runId
+             HAVING COUNT(DISTINCT vantage) = 3
+                AND COUNT(DISTINCT CASE WHEN vantage LIKE 'origin%' THEN bodySha256 END) = 1
+                AND COUNT(DISTINCT bodySha256) > 1)`,
+          [path],
+          bracketed.filter((s) => !s.bytesMatch).length
         )
       ]
     });
