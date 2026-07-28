@@ -1,4 +1,5 @@
-import { page, escapeHtml } from "../layout.js";
+import { page, escapeHtml, instant } from "../layout.js";
+import { paths, summarise } from "../self/changes.js";
 import { epistemicIntegrity } from "../integrity.js";
 import { health } from "../console/queries.js";
 import { headline } from "../stats.js";
@@ -27,6 +28,54 @@ function verdict(ok) {
   return ok
     ? '<span class="status" style="color:var(--ok)">holding</span>'
     : '<span class="status" style="color:#c0392b">BROKEN</span>';
+}
+
+/**
+ * What a stranger receives, next to what this server sent.
+ *
+ * The section exists because this site could not answer that question about
+ * itself. Its own robots.txt was served with nine crawler groups and
+ * `Disallow: /` prepended for an unknown length of time, and "unknown" was the
+ * honest word: nothing here had ever looked at the outside of this site, so the
+ * record could say what the origin holds today and nothing about what anyone
+ * was given yesterday.
+ */
+function selfObservation() {
+  const watched = paths();
+  if (watched.length === 0)
+    return `<h2>What the outside receives</h2>
+<p>The sensor is installed and has not completed a sweep yet. Nothing is claimed
+about what the edge is serving until something has been observed.</p>`;
+
+  const rows = watched.map((p) => summarise(p));
+  const anyDiverged = rows.some((r) => r.divergedSweeps > 0);
+
+  return `<h2>What the outside receives ${verdict(!anyDiverged)}</h2>
+
+<p>Every hour this site fetches its own files twice: once over the loopback address, bypassing the network in front of it, and once over the public hostname, through it. Both are real requests to this same process, so anything the response path adds on the way out appears in both and cancels — what remains in the difference belongs to the network.</p>
+
+<p>This is here because the question was once unanswerable. For an unknown period the edge served a <code>robots.txt</code> telling eight AI crawlers to stay away, over an origin file that welcomes them by name, and <a href="/cdn-interventions">the record could not date the start of it</a>. An hourly snapshot cannot recover that. It can stop the next one from being undatable.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Path</th><th>Sweeps</th><th>Edge differed from origin</th><th>Origin changed</th><th>Edge changed</th><th>Last seen</th></tr></thead>
+<tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td class="mono">${escapeHtml(r.path)}</td><td>${r.comparableSweeps}</td><td>${
+          r.divergedSweeps > 0 ? `<strong>${r.divergedSweeps}</strong>` : "0"
+        }</td><td>${r.originChanges.length}</td><td>${r.edgeChanges.length}</td><td>${escapeHtml(
+          instant(r.latestObserved) || "—"
+        )}</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+${
+  anyDiverged
+    ? `<p><strong>The edge is not serving what this server sent.</strong> The difference is recorded with both bodies kept, so what was added or removed can be read rather than inferred.</p>`
+    : `<p>Every comparable sweep so far found the two identical. That is a statement about the sweeps taken, not a guarantee about the moments between them: at one snapshot an hour, a change beginning at 14:10 is datable to 15:00 and no closer.</p>`
+}
+
+<p>Whether a file is regenerated on every request is measured here rather than declared. A page that differs from itself on every sweep is describing itself as dynamic, and a hardcoded list of such pages would be a claim nobody rechecks — stale the first time one of them becomes static.</p>`;
 }
 
 export function status(canary, publishedAt) {
@@ -81,6 +130,8 @@ ${
           `<tr><td>${escapeHtml(r.name)}</td><td class="mono">${r.ok ? "ok" : "CHECK"}</td><td>${escapeHtml(r.detail ?? "")}</td></tr>`
       )
       .join("")}</tbody></table></div>
+
+${selfObservation()}
 
 <h2>What the review queue has done</h2>
 

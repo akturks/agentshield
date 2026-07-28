@@ -11,6 +11,7 @@ import {
   canaryPublishedAt
 } from "./canary.js";
 import { seedHumanFindings, syncHumanFindings } from "./findings/seed.js";
+import { sweep } from "./self/sensor.js";
 import { runOnce } from "./findings/engine.js";
 import { robotsTxt, sitemapXml } from "./robots.js";
 import { etagFor, clientHolds } from "./validator.js";
@@ -444,10 +445,38 @@ function detectionPass() {
 setTimeout(detectionPass, 10_000).unref();
 setInterval(detectionPass, DETECT_INTERVAL_MS).unref();
 
+// The site reading its own published surface back, from inside and from outside.
+//
+// Hourly, and the interval is the resolution of every future sentence about when
+// something changed: an intervention that begins at 14:10 is datable to 15:00 and
+// no closer. The published finding about the last one has to say the start is
+// unknowable, which is what an interval of never buys.
+//
+// The first sweep waits for the listener, because the origin side is a real
+// request to this process and a sensor that reports its own server as
+// unreachable during startup would file that as an observation.
+const SELF_SWEEP_MS = 60 * 60 * 1000;
+
+async function selfSweep() {
+  try {
+    const { observations } = await sweep();
+    const failed = observations.filter((o) => o.errorCode);
+    if (failed.length > 0)
+      console.log(
+        `[self] ${failed.map((o) => `${o.vantage}${o.path} ${o.errorCode}`).join(", ")}`
+      );
+  } catch (err) {
+    console.error("[self] sweep failed:", err.message);
+  }
+}
+
 try {
   await app.listen({ port: PORT, host: HOST });
   console.log(`public site listening on http://${HOST}:${PORT}`);
   console.log(`${canaries.size} markers live; reality recorded to reality.db`);
+
+  setTimeout(selfSweep, 20_000).unref();
+  setInterval(selfSweep, SELF_SWEEP_MS).unref();
 } catch (err) {
   console.error(err);
   process.exit(1);

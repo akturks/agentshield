@@ -150,6 +150,49 @@ CREATE TABLE IF NOT EXISTS RobotsObservation (
 CREATE INDEX IF NOT EXISTS idx_ro_survey ON RobotsObservation(surveyId);
 CREATE INDEX IF NOT EXISTS idx_ro_domain ON RobotsObservation(domain, requestedAtMs);
 
+-- This site's own published surface, read back from two places.
+--
+-- Everything else in this file records what reached the server. This records
+-- what left it and what a stranger actually receives, which are not the same
+-- thing and were not the same thing here: for an unknown period the edge served
+-- a robots.txt with nine crawler groups and `Disallow: /` prepended, over an
+-- origin file that welcomes those crawlers by name. Nothing at the origin could
+-- see it, and the record could not date it, because no snapshot existed.
+--
+--   vantage 'origin'  fetched over the loopback address, bypassing the CDN
+--   vantage 'edge'    fetched over the public hostname, through it
+--
+-- Both are real HTTP requests to the same running server, so the difference
+-- between them is the CDN's doing and nothing of ours. Rendering the page
+-- in-process instead would compare the server's output to the edge's, and the
+-- gap would silently include whatever the response path adds on the way out.
+--
+-- No column says whether anything changed. Two rows with different hashes are
+-- two observations; "it changed" is a sentence about them, computed when asked,
+-- so improving how the comparison works never means rewriting what was seen.
+CREATE TABLE IF NOT EXISTS SelfObservation (
+  id            TEXT PRIMARY KEY,
+  runId         TEXT    NOT NULL,   -- one sweep; pairs the vantages honestly
+  path          TEXT    NOT NULL,
+  vantage       TEXT    NOT NULL,   -- 'origin' | 'edge'
+  requestedUrl  TEXT    NOT NULL,
+  observedAt    TEXT    NOT NULL,
+  observedAtMs  INTEGER NOT NULL,
+  httpStatus    INTEGER,
+  contentType   TEXT,
+  bodyBytes     INTEGER,
+  body          TEXT,               -- verbatim, the evidence itself
+  bodySha256    TEXT,
+  headersJson   TEXT,
+  elapsedMs     REAL,
+  errorCode     TEXT,
+  errorMessage  TEXT,
+  sensorVersion TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_so_path ON SelfObservation(path, observedAtMs);
+CREATE INDEX IF NOT EXISTS idx_so_run  ON SelfObservation(runId);
+
 -- ===========================================================================
 -- INTERPRETATION LAYER — conclusions drawn from the reality above.
 -- Versioned and disposable: deleting all of it and recomputing must reproduce it.
