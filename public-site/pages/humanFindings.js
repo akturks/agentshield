@@ -493,5 +493,122 @@ declaration its own shape refuses.</p>
 
 <p>The part worth keeping is not that one assistant failed. It is that the failure and the success were both measurable, from the same record, in the same window.</p>
 `
+  },
+
+  // F-008 replaces the withdrawn F-007 rather than restoring it. The slug
+  // `one-morning-three-assistants` stays rejected; rejection here is permanent.
+  //
+  // Two things changed between the withdrawal and this entry, and both are why
+  // it is publishable now. The CDN event log for the window was read, which
+  // eliminates the reading that something in between refused the request. And
+  // the addresses were put through the dated vendor snapshot, which showed that
+  // requests declaring three OpenAI identities are corroborated — so the
+  // absence is specific to one identity, not to a vendor.
+  //
+  // The order is deliberate: what was eliminated first, the open question last.
+  // Leading with an unresolved question was the reason the previous entry came
+  // down.
+  {
+    id: "F-008",
+    slug: "answered-two-hundred-every-time",
+    date: "2026-07-28",
+    title:
+      "Every request declaring an OpenAI identity was answered 200, and none has declared the browsing agent since 25 July",
+    summary:
+      "Eleven requests declaring one of three OpenAI identities are in this record, each corroborated against a dated snapshot of that vendor's published addresses, and every one was answered 200. None was refused, redirected or rate-limited. The CDN's event log for the last 24 hours contains a single block, of an address that appears nowhere in this record and is not on any OpenAI list. Requests declaring the browsing agent stop on 25 July and have not resumed, while an assistant asked repeatedly to open this address reported that it could not. Nothing measurable from this side accounts for that.",
+    body: `
+<h2>What was tested</h2>
+
+<p>An assistant given this domain directly did not open it. Everything below was run to find out whether the cause was here. Each of these is an action taken by the operator, not an observation of anyone else's behaviour, and none of it is offered as evidence of what any AI system does — only of what this server does when asked.</p>
+
+<table>
+<thead><tr><th>Checked</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>DNS, apex and <code>www</code></td><td>A and AAAA records both answer</td></tr>
+<tr><td>Response to a plain request</td><td><code>HTTP/2 200</code>, no redirect</td></tr>
+<tr><td><code>x-robots-tag</code> header</td><td>Absent</td></tr>
+<tr><td><code>&lt;meta name="robots"&gt;</code></td><td>Absent</td></tr>
+<tr><td>Canonical URL</td><td>Points at this origin</td></tr>
+<tr><td><code>/robots.txt</code></td><td>Serves; refuses none of these agents</td></tr>
+<tr><td>Home page requested under three declared identities</td><td>All <code>200</code>; <strong>one distinct byte count</strong> between them</td></tr>
+<tr><td>Search console: crawl, fetch, index</td><td>Allowed, successful, indexed</td></tr>
+<tr><td>CDN security event log, 24 hours</td><td><strong>One block</strong> — see below</td></tr>
+</tbody>
+</table>
+
+<p>The three identities in the seventh row were sent from the operator's own address at 10:22 UTC on 28 July. They received the same page, byte for byte. That is the point of the row: nothing here varies its answer by who is asking.</p>
+
+<h2>The one block</h2>
+
+<p>The CDN recorded exactly one blocked request in twenty-four hours, at <strong>03:10:46 UTC</strong>, from <code>192.241.139.213</code>, by a managed rule.</p>
+
+<p>That address is on no OpenAI address list in the snapshot this site checks against, and it appears <strong>zero</strong> times in this record — consistent with a request stopped before it reached the origin. Its neighbours in the same minutes were scanners: automated probes for <code>/wp-admin/install.php</code> and cloud addresses declaring a mobile browser.</p>
+
+<p>This matters for one reason. A security event log records <em>actions taken</em>, not requests received; an allowed request leaves no row there. So an empty log would have proved nothing on its own. What closes the question is the pair — nothing refused at the edge, <em>and</em> nothing arrived at the origin — because those are two independent records that would fail in different ways.</p>
+
+<h2>What the record holds</h2>
+
+<p>All figures cover the record from its first entry to 11:30 UTC on 28 July, excluding one address that presented thirteen different identities and is therefore not evidence of any of them.</p>
+
+<table>
+<thead><tr><th>Declared identity</th><th>Requests</th><th>Corroborated</th><th>Answered other than 200</th></tr></thead>
+<tbody>
+<tr><td><code>OAI-SearchBot</code></td><td>7</td><td>yes</td><td>0</td></tr>
+<tr><td><code>GPTBot</code></td><td>2</td><td>yes</td><td>0</td></tr>
+<tr><td><code>ChatGPT-User</code></td><td>2</td><td>yes</td><td>0</td></tr>
+</tbody>
+</table>
+
+<p>Corroborated here means the connecting address falls inside a range published by that vendor, as captured in a dated snapshot held in this repository. The snapshot is never refreshed at detection time, so this check reproduces.</p>
+
+<p>Both requests declaring <code>ChatGPT-User</code> arrived on <strong>25 July</strong>, the second at 11:31:54.541 UTC. <strong>None has been recorded since</strong> — not on 26, 27 or 28 July, across the three days on which an assistant was asked to open this address.</p>
+
+<p>Across all seven requests declaring <code>OAI-SearchBot</code>, <strong>one distinct path</strong> was requested: <code>/robots.txt</code>. The most recent was at 10:01:17 UTC on 28 July, ninety minutes before an assistant reported this site unreachable. The rules were read that morning. The pages were not.</p>
+
+<h2>The chain that closed</h2>
+
+<p>At 11:09:39 UTC a client requested <code>/robots.txt</code>, and 1.15 seconds later the home page, receiving <strong>28,597 bytes</strong>. The home page prints a running count of external requests, and the record holds exactly <strong>999</strong> before that fetch — so the page delivered to that client said 999, because a page cannot count the request that is fetching it.</p>
+
+<p>Minutes later an assistant's summary of this site quoted 999.</p>
+
+<p>Three links, each checkable against the other two: a request in the record, a figure on the page that request received, and the same figure in a model's output, with the off-by-one explained rather than explained away.</p>
+
+<p>Separately, at 10:43:09.980 and 10:43:10.705 UTC, two requests declaring <code>Google-InspectionTool</code> were answered with 28,562 bytes each. The search console reported its inspection at the same second.</p>
+
+<h2>What it means</h2>
+
+<p>Reachability and retrieval are different properties, and only one of them is controllable from a server.</p>
+
+<p>Every question that can be answered from this side has been answered the same way: the site responds, to everyone, identically, with no refusal at any layer, and the vendor whose assistant reported it unreachable has infrastructure that reached it — corroborated — on the same morning. What did not happen is that a request was made by the part of that system which reads pages on a user's behalf.</p>
+
+<p>A cause that produces no request produces no evidence, anywhere the operator can look. That is not a gap in this measurement; it is the boundary of what server-side measurement can see, and knowing exactly where that boundary sits is worth more than a guess about what lies past it.</p>
+
+<h2>What this does not establish</h2>
+
+<p><strong>Why no request arrived is not known, and no cause is claimed.</strong> Of the three readings this site listed before the CDN log was read, one is now eliminated:</p>
+
+<ul>
+<li><s>Something between that assistant and this server refused the request.</s> <strong>Eliminated.</strong> One block in twenty-four hours, of an unrelated address, and nothing missing from the origin record.</li>
+<li>The retrieval step was never pointed at this address, because the name resolves to other projects that share it. <strong>Untested here</strong>, and the only one of the three that could be tested from outside that system.</li>
+<li>A request was attempted and failed before leaving that system's own network. <strong>Not observable from here</strong>, by anyone but its operator.</li>
+</ul>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>One site, one name, four days.</strong> This supports no rate and describes no other domain. A site whose name is unambiguous might show none of this.</li>
+<li><strong>Eleven corroborated requests is a small number.</strong> It is enough to say every one was answered 200, which is a count. It is not enough to say anything about frequency.</li>
+<li>The vendor snapshot is dated 26 July 2026. An address added after that date would read as uncorroborated here, which would understate arrivals rather than overstate them.</li>
+<li><strong>The assistant's own account of its limitation is a report, not an observation.</strong> It is recorded on <a href="/discovery">the discovery page</a> with its date, in the column for things this site did not measure, and nothing above rests on it. A statement from the party being examined cannot verify a claim about that party.</li>
+<li><strong>Absence of a request is not refusal.</strong> Nothing here establishes that any system will not fetch this site, only that requests declaring one identity were not recorded during these days.</li>
+<li>Identification of <code>Claude-User</code> is not possible here: no machine-readable list of those addresses is published, so that client rests on a declared user agent and an uncorroborated address. The 999 chain does not depend on which vendor it was.</li>
+</ul>
+
+<h2>Why this was worth recording</h2>
+
+<p>"My site does not appear in AI answers" is the question a site owner actually asks, and the usual advice — check robots.txt, check your headers, check indexing — assumes the answer is on the owner's side. Here it was not, and it took nine checks and two independent logs to establish that with something better than an opinion.</p>
+
+<p>The useful output is not a fix. It is a boundary: everything inside it was measured and cleared, and what remains is outside any instrument an operator controls. Most diagnoses stop before drawing that line and leave the owner changing things that were never wrong.</p>
+`
   }
 ];
