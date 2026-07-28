@@ -8,6 +8,7 @@ import { disallowedPaths } from "./content.js";
 import { declaredIdentities } from "../identities.js";
 import { habits, VISIT_GAP_MS } from "../patterns.js";
 import { hypotheses } from "../hypotheses.js";
+import { experiments } from "../experiments.js";
 
 const countAll = db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`);
 const firstSeen = db.prepare(
@@ -217,6 +218,68 @@ ${rows
 <p>Each entry in the middle column is an experiment written before anyone runs it. That is the intended use: not to pick the pleasing explanation, but to say what would have to be seen for it to be the right one — and then to wait for it.</p>`;
 }
 
+/**
+ * Experiments, with the measurement fixed before the waiting started.
+ *
+ * The section exists to make one ordering visible: the question and the
+ * measurement were written down, and only then did the clock start. Nothing
+ * downstream can tell a figure chosen beforehand from one chosen afterwards —
+ * the query is real either way — so the pre-registration is a hash, checked on
+ * every read, and an experiment whose definition has moved prints a refusal
+ * instead of a number.
+ *
+ * No verdict here is a success. An experiment that observed no difference has
+ * answered its question, and this page is written so that saying so takes no
+ * more words than the alternative.
+ */
+function whatIsRunning() {
+  const rows = experiments();
+  if (rows.length === 0) return "";
+
+  const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+  return `<h2 id="experiments">What is being waited for</h2>
+
+<p>An open question becomes an experiment when the measurement is fixed and the clock starts, in that order. Each row below was registered with its measure, its parameters and both windows hashed together; the hash is rechecked whenever this page is drawn, and a definition that has moved since produces a refusal rather than a figure.</p>
+
+<p>Not every experiment changes something. Where a reading can only be separated by waiting, the waiting is the experiment — and declaring what would count before the wait begins is the whole of the method.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Question</th><th>What is counted</th><th>Before</th><th>Since</th><th>State</th></tr></thead>
+<tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.question)}${
+          r.changeMade
+            ? `<br><span class="status">Change made: ${escapeHtml(r.changeMade)}</span>`
+            : `<br><span class="status">No change made — this experiment is a wait</span>`
+        }</td><td>${escapeHtml(r.measure ?? "—")}${
+          r.params?.length ? ` <code>${escapeHtml(r.params.join(", "))}</code>` : ""
+        }</td><td>${
+          r.preregistrationHolds
+            ? `${r.baseline.value} ${escapeHtml(r.unit)}<br><span class="status">${escapeHtml(day(r.baseline.fromMs))} to ${escapeHtml(day(r.baseline.toMs))}${r.baseline.coverage < 100 ? `, ${r.baseline.coverage}% of it observed` : ""}</span>`
+            : "—"
+        }</td><td>${
+          r.preregistrationHolds ? `${r.observation.value} ${escapeHtml(r.unit)}` : "—"
+        }</td><td>${
+          r.verdict === "refused"
+            ? "<strong>refused</strong>"
+            : r.verdict === "running"
+              ? `running &middot; ${r.daysRemaining} days left`
+              : escapeHtml(r.verdict)
+        }</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+${
+  rows.some((r) => r.baseline?.coverage < 100)
+    ? `<p>Where a baseline window reaches back further than this record goes, the share of it that was actually observed is printed with it. A "before" figure drawn partly from days when this site did not answer is a statement about the site not existing, and comparing against it would be comparing against absence.</p>`
+    : ""
+}
+
+<p>The states are <em>running</em>, <em>difference observed</em>, <em>no observable difference</em> and <em>refused</em>. None of them is success. An experiment that found nothing has answered its question, and a vocabulary that made that the awkward outcome would eventually produce the other one.</p>`;
+}
+
 export function lab(canary, published) {
   const total = countAll.get().n;
   const since = firstSeen.get().t;
@@ -343,6 +406,8 @@ and when it stopped</a>.</p>
 ${readingHabits()}
 
 ${whatWouldSettleIt()}
+
+${whatIsRunning()}
 
 <h2>robots.txt compliance</h2>
 

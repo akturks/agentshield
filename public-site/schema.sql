@@ -315,3 +315,44 @@ CREATE TABLE IF NOT EXISTS Trial (
 );
 
 CREATE INDEX IF NOT EXISTS idx_trial_started ON Trial(startedAtMs);
+
+-- A question asked of the future, with the answer's shape fixed before the
+-- asking.
+--
+-- An experiment here is not always a change. Some are pure waiting: a hypothesis
+-- says "this crawler would fetch content on a longer horizon", and the only way
+-- to separate it from its rivals is to declare what would count, then wait. The
+-- engine supports that as a first-class case, because forcing every experiment to
+-- alter something would mean altering the site in order to have an experiment.
+--
+-- `measureId` and `params` name a measurement from a declared registry, and
+-- `preregistrationSha256` is a hash of them together with the windows. It is
+-- checked before any result is computed and a mismatch refuses to produce one.
+-- Without it, the measurement can be chosen after the data is in — which is the
+-- one failure that makes an experiment worse than no experiment, because it
+-- produces a result that looks earned.
+--
+-- There is no success column and never will be. "No observable difference" is a
+-- result, and a schema that cannot express it as one will eventually be made to
+-- express something else.
+CREATE TABLE IF NOT EXISTS Experiment (
+  id                    TEXT PRIMARY KEY,
+  siteId                TEXT NOT NULL,
+  hypothesisId          TEXT,               -- which set it came from
+  candidateId           TEXT,               -- which reading it separates
+  question              TEXT    NOT NULL,   -- prose, what is being asked
+  changeMade            TEXT,               -- NULL when the experiment is waiting
+  measureId             TEXT    NOT NULL,   -- from the declared registry
+  params                TEXT    NOT NULL,   -- JSON array
+  baselineFromMs        INTEGER NOT NULL,
+  baselineToMs          INTEGER NOT NULL,
+  observationFromMs     INTEGER NOT NULL,
+  observationToMs       INTEGER NOT NULL,
+  declaredAt            TEXT    NOT NULL,
+  preregistrationSha256 TEXT    NOT NULL,
+  closedAt              TEXT,               -- when a person read the result
+  closingNote           TEXT,
+  engineVersion         TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_experiment_obs ON Experiment(observationToMs);
