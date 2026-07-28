@@ -329,5 +329,70 @@ declaration its own shape refuses.</p>
 
 <p>The answer is smaller than the question. That is the result, and it is published at the size it came in.</p>
 `
+  },
+  {
+    id: "F-006",
+    slug: "rules-and-map-never-the-pages",
+    date: "2026-07-28",
+    publishedAt: "2026-07-28T09:55:00.000Z",
+    title:
+      "Eight requests from OpenAI's two automated crawlers asked only for the rules and the map",
+    summary:
+      "Between 25 and 27 July 2026, requests declaring OAI-SearchBot arrived here six times from five addresses on three separate days, and every one of them asked for /robots.txt. Requests declaring GPTBot arrived twice and both asked for /sitemap.xml. Neither crawler has fetched a single page of this site's content. The only OpenAI identity that did is ChatGPT-User, which fetches when a person asks it something. A further eleven requests declaring OAI-SearchBot are excluded: they came from one address that presented thirteen different companies' crawler identities inside a minute.",
+    body: `
+<h2>What was observed</h2>
+
+<p>Three OpenAI crawler identities have reached this site. Their requests separate cleanly, and the separation is the finding.</p>
+
+<table>
+<thead><tr><th>Declared identity</th><th>Requests</th><th>Addresses</th><th>Days</th><th>What it asked for</th></tr></thead>
+<tbody>
+<tr><td><code>OAI-SearchBot</code></td><td>6</td><td>5</td><td>3</td><td><code>/robots.txt</code>, every time</td></tr>
+<tr><td><code>GPTBot</code></td><td>2</td><td>1</td><td>2</td><td><code>/sitemap.xml</code>, both times</td></tr>
+<tr><td><code>ChatGPT-User</code></td><td>2</td><td>2</td><td>1</td><td><code>/</code> and <code>/questions</code></td></tr>
+</tbody>
+</table>
+
+<p><strong>Requests declaring OAI-SearchBot or GPTBot have never asked for a page of this site's content — not once in eight requests across three days.</strong> They asked for the file that states the rules and the file that lists the pages, and stopped there.</p>
+
+<p>Twice, the two arrived together. On 26 July a request for <code>/robots.txt</code> was followed 52 seconds later by a request for <code>/sitemap.xml</code> from a different address; on 27 July the two arrived in the same second. Both addresses fall inside ranges OpenAI publishes, and they are not the same range.</p>
+
+<h2>What is excluded, and why</h2>
+
+<p>A further <strong>eleven</strong> requests declared <code>OAI-SearchBot</code> and are left out of every figure above. All eleven came from one address which, in a single minute, also presented twelve other companies' crawler identities while requesting <code>/.env</code>, <code>/.git/config</code> and sixty other credential paths. <a href="/findings/identity-rotation-2026-07-26-4545237206">That incident is its own finding.</a></p>
+
+<p>Including them would have produced the opposite result — the same identity would appear to read source control and configuration files eagerly. A user agent is a string the sender chooses, and a habit attributed without checking the address is a habit attributed to whoever last borrowed the name.</p>
+
+<h2>What it means</h2>
+
+<p>Being read by an AI crawler and being read at all are different events, and this record separates them for one company over three days. The crawlers that arrive on their own schedule took the rules and the index. The pages were fetched only when a person asked a question and an agent went to look — a different mechanism, a different identity, and one request each time.</p>
+
+<p>For anyone measuring whether AI systems see their site, that distinction matters more than a visit count. Eight arrivals from OpenAI's infrastructure look like attention. None of them read a sentence of what is here.</p>
+
+<h2>What this does not establish</h2>
+
+<p>Four readings of the same observation remain, and the record separates only two of them. <a href="/lab#open-questions">All four are published with the observation that would settle each.</a></p>
+
+<ul>
+<li><strong>Delegation is supported.</strong> Content <em>was</em> fetched from OpenAI's infrastructure — under ChatGPT-User, twice.</li>
+<li><strong>Refusal is contradicted.</strong> This site's <code>robots.txt</code>, read back from what the network actually delivers rather than from the code that generates it, welcomes these crawlers by name.</li>
+<li><strong>"Not yet" is open.</strong> Three days settles nothing about a longer horizon.</li>
+<li><strong>"This is what the crawler is for" is open, deliberately.</strong> It could be closed by consulting OpenAI's documentation, and a company's account of its own crawler is not evidence about that crawler's behaviour here.</li>
+</ul>
+
+<h2>Limits</h2>
+
+<ul>
+<li><strong>Eight requests over three days, on one site.</strong> This is what happened here. It supports no rate, no proportion, and nothing about how these crawlers behave on any other domain.</li>
+<li>Corroboration means the connecting address falls inside a range OpenAI publishes, checked against a dated snapshot rather than a live fetch. It establishes that the request came from that infrastructure, and nothing about what any system did afterwards.</li>
+<li>This site is four days old, small, and mostly about crawlers. A crawler's behaviour here need not resemble its behaviour on a large site with ordinary content.</li>
+<li>The site publishes a <code>Crawl-delay</code> of 10 seconds and several major crawlers document that they ignore it. Nothing above depends on whether it was honoured.</li>
+<li><strong>Absence is not refusal.</strong> That a page was never fetched in three days does not establish that it will not be, and no sentence here should be read as saying so.</li>
+</ul>
+
+<h2>Why this was worth recording</h2>
+
+<p>The question this site exists to answer is whether AI systems read the web, and the usual proxy for it is whether their crawlers show up. Here they showed up eight times and read nothing — which is only visible because the requests were kept whole, with the path attached, and because eleven requests wearing the same name were checked against an address list before being counted.</p>
+`
   }
 ];
