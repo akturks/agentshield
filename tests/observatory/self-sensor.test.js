@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import {
   changesIn,
   volatilityIn,
-  divergenceIn
+  divergenceIn,
+  diffBodies
 } from "../../public-site/self/changes.js";
 import { WATCHED, USER_AGENT } from "../../public-site/self/sensor.js";
 import db from "../../public-site/realityDb.js";
@@ -136,11 +137,72 @@ test("an unreachable edge is not reported as agreement", () => {
   assert.equal(run.identical, null);
 });
 
-test("stage one watches the file that caused the problem, and only it", () => {
-  // A sensor pointed at everything before it is known to work on anything
-  // produces noise nobody reads. This asserts the scope rather than trusting a
-  // comment about it.
-  assert.deepEqual(WATCHED, ["/robots.txt"]);
+test("the sensor watches the files that state this site's terms", () => {
+  // Not every page. These three answer a question about permission rather than
+  // content, which is what makes a difference between the two vantages worth
+  // recording. Asserted rather than left to a comment.
+  assert.deepEqual(WATCHED, ["/robots.txt", "/llms.txt", "/sitemap.xml"]);
+});
+
+test("a diff says which rules arrived and which left", () => {
+  // With three files watched, "something changed" stops being actionable. This
+  // is the exact shape of what was done to this site: a block prepended, nothing
+  // removed.
+  const before = "User-agent: GPTBot\nAllow: /\n";
+  const after = "User-agent: GPTBot\nDisallow: /\nUser-agent: CCBot\nDisallow: /\n";
+
+  const d = diffBodies(before, after);
+
+  assert.deepEqual(d.removed, ["Allow: /"], "the permission that disappeared");
+  assert.deepEqual(
+    d.added,
+    ["Disallow: /", "User-agent: CCBot"],
+    "and what replaced it, deduplicated — a rules file repeats Disallow under every agent"
+  );
+  assert.equal(d.reorderedOnly, false);
+});
+
+test("a repeated rule is one change, not nine", () => {
+  // The block inserted into this site's robots.txt carried `Disallow: /` under
+  // nine user-agent groups. Listing the identical line nine times would make one
+  // insertion read as nine separate changes.
+  const after = ["A", "B", "C"].map((a) => `User-agent: ${a}\nDisallow: /`).join("\n");
+  const d = diffBodies("User-agent: *\nAllow: /", after);
+
+  assert.equal(d.added.filter((l) => l === "Disallow: /").length, 1);
+});
+
+test("the daily sitemap bump shows as one line, so it can be told from a rewrite", () => {
+  // This site's own sitemap derives <lastmod> from today's date, so its bytes
+  // change every midnight UTC by its own doing. A change detector that cannot
+  // separate that from a rewritten rule will be ignored inside a week — and the
+  // separation is visible in the diff rather than hardcoded as an exception.
+  const before = "<loc>https://x/a</loc>\n<lastmod>2026-07-28</lastmod>\n<loc>https://x/b</loc>";
+  const after = "<loc>https://x/a</loc>\n<lastmod>2026-07-29</lastmod>\n<loc>https://x/b</loc>";
+
+  const d = diffBodies(before, after);
+
+  assert.equal(d.added.length, 1);
+  assert.equal(d.removed.length, 1);
+  assert.match(d.added[0], /lastmod/, "only the date line moved");
+  assert.match(d.removed[0], /lastmod/);
+});
+
+test("a body whose lines were only reordered does not read as unchanged", () => {
+  // The worst possible answer. Hashes differ, so something happened; a line-set
+  // diff finds nothing, and reporting nothing would hide a file whose parse
+  // order changed — which for a rules file changes what applies first.
+  const d = diffBodies("A\nB\nC", "C\nB\nA");
+
+  assert.deepEqual(d.added, []);
+  assert.deepEqual(d.removed, []);
+  assert.equal(d.reorderedOnly, true, "the emptiness has to be labelled, not returned bare");
+});
+
+test("blank lines and trailing whitespace are not changes", () => {
+  const d = diffBodies("User-agent: *\n\nDisallow: /x", "User-agent: *   \nDisallow: /x\n\n");
+  assert.equal(d.added.length, 0);
+  assert.equal(d.removed.length, 0);
 });
 
 test("the sensor's own requests never count as external traffic", () => {

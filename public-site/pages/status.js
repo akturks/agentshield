@@ -31,6 +31,55 @@ function verdict(ok) {
 }
 
 /**
+ * Every change the sensor has seen, and what moved in it.
+ *
+ * "Something changed" stops being useful the moment more than one file is
+ * watched. This site's own sitemap rewrites one `<lastmod>` line every midnight,
+ * and a log that cannot separate that from a rewritten rule is a log that gets
+ * ignored within a week — so what arrived and what left is printed beside the
+ * timestamp.
+ */
+function changeLog(rows) {
+  const all = rows
+    .flatMap((r) => [...r.originChanges, ...r.edgeChanges])
+    .sort((a, b) => (a.to.at < b.to.at ? 1 : -1))
+    .slice(0, 12);
+
+  if (all.length === 0)
+    return `<p>No watched file has changed since the sensor started. Nothing is
+concluded from that yet — the record is short, and a file that has not changed in
+a few hours has not been shown to be stable.</p>`;
+
+  const lines = (list, sign) =>
+    list
+      .slice(0, 6)
+      .map((l) => `${sign} ${escapeHtml(l)}`)
+      .join("\n");
+
+  return `<div class="scroll"><table>
+<thead><tr><th>Observed</th><th>Path</th><th>Seen from</th><th>What moved</th></tr></thead>
+<tbody>${all
+    .map(
+      (c) => `<tr><td>${escapeHtml(instant(c.to.at))}</td><td class="mono">${escapeHtml(
+        c.path
+      )}</td><td>${escapeHtml(c.vantage)}</td><td>${
+        c.diff.reorderedOnly
+          ? "<em>no line added or removed — the arrangement changed</em>"
+          : `<pre><code>${escapeHtml(
+              [lines(c.diff.removed, "−"), lines(c.diff.added, "+")]
+                .filter(Boolean)
+                .join("\n")
+            )}</code></pre>`
+      }</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+<p>A rule line arrives in that column without the <code>User-agent</code> group it
+belonged to, so it says that something in the rules moved and not which client is
+affected. Both bodies are kept verbatim, which is what makes reading them possible.</p>`;
+}
+
+/**
  * What a stranger receives, next to what this server sent.
  *
  * The section exists because this site could not answer that question about
@@ -74,6 +123,8 @@ ${
     ? `<p><strong>The edge is not serving what this server sent.</strong> The difference is recorded with both bodies kept, so what was added or removed can be read rather than inferred.</p>`
     : `<p>Every comparable sweep so far found the two identical. That is a statement about the sweeps taken, not a guarantee about the moments between them: at one snapshot an hour, a change beginning at 14:10 is datable to 15:00 and no closer.</p>`
 }
+
+${changeLog(rows)}
 
 <p>Whether a file is regenerated on every request is measured here rather than declared. A page that differs from itself on every sweep is describing itself as dynamic, and a hardcoded list of such pages would be a claim nobody rechecks — stale the first time one of them becomes static.</p>`;
 }

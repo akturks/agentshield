@@ -10,9 +10,57 @@ import db from "../realityDb.js";
 // The version moves when an answer would change.
 export const ANALYSIS_VERSION = "self-sa-1";
 
+/**
+ * Which lines two bodies do not share.
+ *
+ * Line sets, not a longest-common-subsequence diff. The files this watches are
+ * declarations — one rule per line, order carrying no meaning — so "which rules
+ * appeared and which left" is the question, and an alignment algorithm would
+ * answer a harder one less clearly.
+ *
+ * Two limits, both real, neither hidden.
+ *
+ * A body whose lines were only reordered produces an empty diff against a
+ * genuine hash difference, so `reorderedOnly` labels it rather than letting the
+ * change look like nothing — a CDN that sorts a rules file has changed what
+ * applies first, and an empty answer would be the worst possible one.
+ *
+ * And a rule line arrives here divorced from the group it belonged to.
+ * `Disallow: /` says nothing about which crawler was refused; the `User-agent`
+ * line above it carried that, and a set difference does not keep them together.
+ * So this reports that something in the rules moved and is a reason to read the
+ * two bodies — never on its own a statement about which client is affected.
+ * The bodies are kept verbatim precisely so that reading them is possible.
+ */
+export function diffBodies(before, after) {
+  const lines = (text) =>
+    String(text ?? "")
+      .split(/\r?\n/)
+      .map((l) => l.trimEnd())
+      .filter((l) => l !== "");
+
+  const from = lines(before);
+  const to = lines(after);
+  const fromSet = new Set(from);
+  const toSet = new Set(to);
+
+  // Deduplicated: this is a set difference, and a rules file repeats
+  // `Disallow: /` under every agent it refuses. Listing it nine times would make
+  // the output look like nine changes.
+  const removed = [...new Set(from.filter((l) => !toSet.has(l)))];
+  const added = [...new Set(to.filter((l) => !fromSet.has(l)))];
+
+  return {
+    added,
+    removed,
+    // Every line survived, so whatever differs is arrangement or whitespace.
+    reorderedOnly: added.length === 0 && removed.length === 0
+  };
+}
+
 const observations = db.prepare(`
   SELECT id, runId, path, vantage, observedAt, observedAtMs, httpStatus,
-         bodyBytes, bodySha256, errorCode
+         bodyBytes, bodySha256, body, errorCode
   FROM SelfObservation
   WHERE path = ? AND vantage = ?
   ORDER BY observedAtMs
@@ -47,7 +95,12 @@ export function changesIn(rows, { path, vantage } = {}) {
       path,
       vantage,
       from: { at: before.observedAt, sha256: before.bodySha256, bytes: before.bodyBytes },
-      to: { at: after.observedAt, sha256: after.bodySha256, bytes: after.bodyBytes }
+      to: { at: after.observedAt, sha256: after.bodySha256, bytes: after.bodyBytes },
+      // What moved, not only that something did. With three files watched,
+      // "something changed" is not actionable — this site's own sitemap rewrites
+      // one `<lastmod>` line every midnight, and a report that cannot tell that
+      // from a rewritten rule will be ignored within a week.
+      diff: diffBodies(before.body, after.body)
     });
   }
 

@@ -21,10 +21,21 @@ export const SENSOR_VERSION = "self-1";
 export const USER_AGENT =
   "AgentShieldSelfSensor/0.1 (+https://agentshieldaidefense.com/status)";
 
-// Stage one. Deliberately one path: this is the file that produced the problem,
-// and a sensor that watches everything before it is known to work on anything
-// produces noise that nobody reads.
-export const WATCHED = ["/robots.txt"];
+// The files that state this site's terms to an automated client. All three are
+// small, served to anyone, and answer a question about permission rather than
+// content — which is what makes a difference between the two vantages worth
+// recording rather than merely interesting.
+//
+// Stage one was `/robots.txt` alone, because that is the file that produced the
+// problem and a sensor watching everything before it works on anything produces
+// noise nobody reads. It worked, so the other two follow.
+//
+// `/sitemap.xml` carries a `<lastmod>` derived from today's date, so its bytes
+// change once a day at midnight UTC by this site's own doing. That is left in
+// rather than special-cased: the change is real, and a detector that cannot
+// distinguish it from a rewrite is a detector that is not ready, which is a
+// better thing to learn from the record than from an exception in a list.
+export const WATCHED = ["/robots.txt", "/llms.txt", "/sitemap.xml"];
 
 const ORIGIN_BASE = `http://127.0.0.1:${process.env.PUBLIC_SITE_PORT ?? 8080}`;
 const EDGE_BASE = `https://${PRIMARY_HOSTNAME}`;
