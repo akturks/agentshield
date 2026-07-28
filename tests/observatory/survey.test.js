@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { splitManaged, parseGroups, verdictFor, AI_AGENTS } from "../../public-site/survey/analyse.js";
 import { POPULATION, sample } from "../../public-site/survey/population.js";
+import { survey as surveyPage } from "../../public-site/pages/survey.js";
 
 // The whole survey reduces to two questions asked of a text file: did somebody
 // insert a block into it, and does that block contradict what the owner wrote.
@@ -160,4 +161,23 @@ test("the sample is a copy, so a caller cannot edit the declared population", ()
   const first = sample();
   first[0].domain = "example.invalid";
   assert.notEqual(sample()[0].domain, "example.invalid");
+});
+
+test("the published page names no domain it surveyed", () => {
+  // The page promises this in its own text, to a reader who may have arrived
+  // from their own access log. A promise made in prose and enforced by nothing
+  // survives exactly until a table is added "just for debugging".
+  //
+  // Four hundred domains were fetched without asking anybody. Reporting how many
+  // is a measurement; reporting which is a list of other people's
+  // misconfigurations, published under their names, with no way for them to have
+  // objected first.
+  const html = surveyPage("asd-test-marker", "2026-07-28T09:00:00.000Z");
+
+  for (const { domain } of sample()) {
+    assert.ok(
+      !html.includes(domain),
+      `the survey page names ${domain}, which it fetched without asking`
+    );
+  }
 });

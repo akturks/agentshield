@@ -235,7 +235,7 @@ ${
 }
 <footer>
 <p>${escapeHtml(SITE_NAME)} — an open observatory of how AI systems read the web.
-${noindexNote ? "This page is listed under <code>Disallow</code> in <a href=\"/robots.txt\">robots.txt</a>." : `<a href="/about">About</a> &middot; <a href="/audit">Architecture verification</a> &middot; <a href="/status">Status</a> &middot; <a href="/about#contact">Corrections</a> &middot; <a href="/robots.txt">robots.txt</a> &middot; <a href="/llms.txt">llms.txt</a>`}</p>
+${noindexNote ? "This page is listed under <code>Disallow</code> in <a href=\"/robots.txt\">robots.txt</a>." : `<a href="/about">About</a> &middot; <a href="/survey">Survey</a> &middot; <a href="/audit">Architecture verification</a> &middot; <a href="/status">Status</a> &middot; <a href="/about#contact">Corrections</a> &middot; <a href="/robots.txt">robots.txt</a> &middot; <a href="/llms.txt">llms.txt</a>`}</p>
 </footer>
 </div>
 </body>

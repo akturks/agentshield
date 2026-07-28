@@ -23,6 +23,7 @@ import { observatory, constitution, about } from "./pages/observatory.js";
 import { audit } from "./pages/audit.js";
 import { cdnArticle } from "./pages/cdnArticle.js";
 import { verify } from "./pages/verify.js";
+import { survey } from "./pages/survey.js";
 import { weeklyPage } from "./pages/weekly.js";
 import { latestWeek, weekFromLabel } from "./weekly.js";
 import {
@@ -232,6 +233,11 @@ app.get("/weekly/:label", (req, reply) => {
 // validator to send, and pretending otherwise would make /lab's conditional
 // request counts read as behaviour when they were an artefact of this page.
 app.get("/verify", (req, reply) => html(req, reply, "verify", verify));
+
+// The address this site's own survey agent puts in its user agent string. It has
+// to answer before it reports: its first reader is somebody looking at a log
+// line, not somebody interested in the results.
+app.get("/survey", (req, reply) => html(req, reply, "survey", survey));
 
 app.get("/lab", (req, reply) => html(req, reply, "lab", lab));
 
