@@ -34,7 +34,7 @@ import { escapeHtml, recorded } from "../layout.js";
 // than edited in place because the version is stamped on every finding: without
 // it, two findings would carry the same template version and different rules
 // about who a headline is allowed to be about.
-export const TEMPLATE_VERSION = "tpl-11";
+export const TEMPLATE_VERSION = "tpl-12";
 
 const fmt = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -425,6 +425,40 @@ ${limits([
 ${limits([
   UA_CLAIM_LIMIT,
   "This establishes execution on these visits. It does not establish that the client executes scripts generally, nor that it does so when crawling other sites.",
+  SINGLE_SITE_LIMIT
+])}`
+    };
+  },
+
+  // The subject is the bytes, never the network. Article IX is written about
+  // crawlers, but the reason it exists applies here with more force: a sentence
+  // whose subject is a named company is a sentence about conduct, and what this
+  // observed is a difference between two responses.
+  surface_divergence(c) {
+    const f = c.facts;
+    const delta = f.byteDelta > 0 ? `${f.byteDelta} bytes more` : `${Math.abs(f.byteDelta)} bytes fewer`;
+
+    return {
+      slug: `surface-${f.diverged ? "divergence" : "reconciled"}-${f.path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}-${day(c.windowEndMs)}`,
+      title: f.diverged
+        ? `What this site publishes at ${f.path} stopped matching what it serves`
+        : `What this site publishes at ${f.path} matches what it serves again`,
+      summary: f.diverged
+        ? `Until ${fmt(f.lastAgreedAtMs)} UTC, fetching ${f.path} over the public hostname returned the same bytes as fetching it from this server directly. At ${fmt(c.windowEndMs)} UTC it did not: the public response carried ${delta} than the origin sent. Both bodies are recorded.`
+        : `Fetching ${f.path} over the public hostname returned the same bytes as the origin again at ${fmt(c.windowEndMs)} UTC, after a period in which it did not.`,
+      body: `
+<h2>What was observed</h2>
+<p>Every hour this site fetches its own files twice — once over the loopback address, bypassing the network in front of it, and once over the public hostname, through it. Both requests reach this same process, so anything the response path adds appears in both.</p>
+<p>At <strong>${fmt(f.lastAgreedAtMs)} UTC</strong> the two answers were identical. At <strong>${fmt(c.windowEndMs)} UTC</strong> they were ${f.diverged ? `not: the public response carried <strong>${delta}</strong> than this server sent` : "identical again"}.</p>
+<h2>What it means</h2>
+<p>${
+        f.diverged
+          ? "Something between this server and the public internet is not delivering what this server produced. What was added or removed can be read from the two stored bodies rather than inferred, and no cause is assigned here: a fetched pair of responses establishes a difference and not who made it."
+          : "The difference recorded earlier is no longer present. That the two agree now says nothing about what was delivered while they did not."
+      }</p>
+${limits([
+  `The sensor takes one snapshot an hour, so this is dated to the sweep that saw it and no closer. A difference beginning at 14:10 is recorded at 15:00.`,
+  `Both vantages are fetched from the same machine. A difference visible elsewhere in the world and not here would not appear in this record.`,
   SINGLE_SITE_LIMIT
 ])}`
     };

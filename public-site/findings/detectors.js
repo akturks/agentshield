@@ -907,3 +907,119 @@ export function detectAll(siteId) {
   }
   return candidates;
 }
+
+/**
+ * The bytes a stranger receives stopped matching the bytes this server sent —
+ * or started matching them again.
+ *
+ * The subject is deliberately not "the file changed". This site's own sitemap
+ * rewrites one `<lastmod>` line at midnight UTC, so a detector watching for
+ * change would announce our own edit every day and be muted within a week. What
+ * has news in it is *disagreement between the two vantages*: the origin and the
+ * edge were serving the same bytes, and then they were not.
+ *
+ * That framing gets the three cases right without special-casing any of them:
+ *
+ *   both sides changed the same way   we edited the site        — silent
+ *   only the edge changed             something in front of it  — reported
+ *   only the origin changed           the edge is serving what
+ *                                     this server no longer does — reported
+ *
+ * Written because the finding about the last such episode has to say the start
+ * is unknowable. Nothing was watching the outside of this site, and an hourly
+ * sensor only removes that phrase from future findings if something reads it.
+ */
+/**
+ * The last sweep where the two vantages changed their minds about each other.
+ *
+ * The transition, not the state. A path that has disagreed since the very first
+ * sweep has no transition in the record, and is reported as nothing rather than
+ * as an event — its beginning is genuinely outside what this instrument saw, and
+ * publishing it as "changed at 09:00" would date the CDN's behaviour to the
+ * moment the sensor was installed.
+ *
+ * Returns null when nothing transitioned, which is the ordinary case and the one
+ * that must stay quiet: this site's own sitemap rewrites a line every midnight,
+ * both vantages carry it, they go on agreeing, and no finding is produced.
+ */
+export function surfaceTransition(series) {
+  let transition = null;
+  for (let i = 1; i < series.length; i += 1)
+    if (series[i].agrees !== series[i - 1].agrees)
+      transition = { from: series[i - 1], to: series[i] };
+  return transition;
+}
+
+function surfaceDivergence(siteId) {
+  const sweeps = db
+    .prepare(
+      `SELECT runId, path, MIN(observedAtMs) AS atMs,
+              COUNT(DISTINCT vantage) AS vantages,
+              COUNT(DISTINCT bodySha256) AS bodies,
+              MAX(CASE WHEN vantage = 'edge' THEN bodyBytes END) AS edgeBytes,
+              MAX(CASE WHEN vantage = 'origin' THEN bodyBytes END) AS originBytes
+       FROM SelfObservation
+       WHERE errorCode IS NULL
+       GROUP BY runId, path
+       HAVING vantages = 2
+       ORDER BY path, atMs`
+    )
+    .all();
+
+  const byPath = new Map();
+  for (const s of sweeps) {
+    if (!byPath.has(s.path)) byPath.set(s.path, []);
+    byPath.get(s.path).push({ ...s, agrees: s.bodies === 1 });
+  }
+
+  const out = [];
+
+  for (const [path, series] of byPath) {
+    const transition = surfaceTransition(series);
+    if (!transition) continue;
+
+    const diverged = !transition.to.agrees;
+
+    out.push({
+      detectorId: "surface_divergence",
+      subjectKey: `${path} ${diverged ? "diverged" : "reconciled"}`,
+      windowStartMs: transition.from.atMs,
+      windowEndMs: transition.to.atMs,
+      facts: {
+        path,
+        diverged,
+        sweeps: series.length,
+        byteDelta: transition.to.edgeBytes - transition.to.originBytes,
+        lastAgreedAtMs: transition.from.atMs
+      },
+      // Always. A statement that a network is altering what this site publishes
+      // is exactly the kind that costs more when wrong than when late.
+      requiresReview: true,
+      claims: [
+        claim(
+          "sweeps of this path where both vantages answered",
+          `SELECT COUNT(*) FROM (
+             SELECT runId FROM SelfObservation
+             WHERE path = ? AND errorCode IS NULL
+             GROUP BY runId HAVING COUNT(DISTINCT vantage) = 2)`,
+          [path],
+          series.length
+        ),
+        claim(
+          "sweeps where the edge served different bytes from the origin",
+          `SELECT COUNT(*) FROM (
+             SELECT runId FROM SelfObservation
+             WHERE path = ? AND errorCode IS NULL
+             GROUP BY runId
+             HAVING COUNT(DISTINCT vantage) = 2 AND COUNT(DISTINCT bodySha256) > 1)`,
+          [path],
+          series.filter((s) => !s.agrees).length
+        )
+      ]
+    });
+  }
+
+  return out;
+}
+
+DETECTORS.push(surfaceDivergence);
