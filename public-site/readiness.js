@@ -1,6 +1,7 @@
 import db from "./realityDb.js";
 import { EXTERNAL } from "./stats.js";
 import { weeksObserved } from "./weekly.js";
+import { habits } from "./patterns.js";
 
 // What this instrument can and cannot yet answer, computed rather than asserted.
 //
@@ -97,21 +98,17 @@ export const QUESTIONS = [
     // Three separate days for one agent. A pattern claimed from visits inside a
     // single day is a description of that day: a crawler that arrives once, reads
     // eleven pages and leaves has shown an itinerary, not a habit.
-    needs: "one crawler observed on 3 separate days",
-    threshold: 3,
-    unit: "days for the most-seen crawler",
-    built: false,
-    observed: () =>
-      one(
-        `SELECT MAX(days) FROM (
-           SELECT COUNT(DISTINCT substr(observedAt,1,10)) AS days
-           FROM RequestReality WHERE ${EXTERNAL}
-             AND (userAgent LIKE '%GPTBot%' OR userAgent LIKE '%ClaudeBot%'
-               OR userAgent LIKE '%OAI-SearchBot%' OR userAgent LIKE '%PerplexityBot%'
-               OR userAgent LIKE '%CCBot%' OR userAgent LIKE '%Bytespider%'
-               OR userAgent LIKE '%Google-Extended%' OR userAgent LIKE '%Amazonbot%')
-           GROUP BY userAgent)`
-      )
+    needs: "one crawler with 3 corroborated visits on 3 separate days",
+    threshold: 1,
+    unit: "crawlers whose habits are describable",
+    built: true,
+    // Counted through `habits()` rather than by a query of its own. The first
+    // version counted days on which any user agent bearing a crawler's name
+    // appeared, which is not the same question: on 26 July one address sent 90
+    // requests under 13 identities in a single minute, and a day-count credits
+    // every one of them. Corroboration and visit-grouping belong to the thing
+    // that does them.
+    observed: () => habits().filter((h) => h.describable).length
   },
   {
     id: "trend",

@@ -6,6 +6,7 @@ import { markerLifecycle } from "../markers.js";
 import { headline, EXTERNAL } from "../stats.js";
 import { disallowedPaths } from "./content.js";
 import { declaredIdentities } from "../identities.js";
+import { habits, VISIT_GAP_MS } from "../patterns.js";
 
 const countAll = db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`);
 const firstSeen = db.prepare(
@@ -113,6 +114,58 @@ function statBlock(stats) {
         `<div><div class="stat">${escapeHtml(value)}</div><div class="stat-label">${escapeHtml(label)}</div></div>`
     )
     .join("")}</div>`;
+}
+
+/**
+ * What each corroborated crawler does when it comes back.
+ *
+ * Counted in visits, not requests. A crawler that arrives once and reads eleven
+ * pages has shown an itinerary; one that arrives on six occasions and fetches a
+ * single file each time has shown a habit, and counting requests makes the first
+ * look like the second — a flattering error that turns one busy afternoon into a
+ * behaviour.
+ *
+ * Only visits from an address the vendor itself publishes are described. On 26
+ * July one address sent 90 requests under 13 crawler identities inside a minute;
+ * without that filter its itinerary is published as the habit of three separate
+ * companies' crawlers. Agents whose vendor publishes no list keep their counts
+ * and get no description, which is a limit on what can be known rather than a
+ * gap worth filling with a weaker test.
+ */
+function readingHabits() {
+  const rows = habits().filter((h) => h.totalVisits > 0);
+  if (rows.length === 0) return "";
+
+  const described = rows.filter((h) => h.describable);
+
+  return `<h2 id="habits">What each crawler does when it comes back</h2>
+
+<p>The tables above count requests. This one counts <strong>visits</strong> — a run of requests from one identity at one address with no pause longer than ${Math.round(VISIT_GAP_MS / 60000)} minutes. The difference decides what may be called behaviour: a crawler that arrives once and reads eleven pages has shown an itinerary, while one that returns on six occasions and fetches a single file each time has shown a habit.</p>
+
+<p>Only visits from an address the vendor itself publishes are described here. A habit is a statement about a company's crawler, and the user agent alone cannot support one — <a href="/findings/identity-rotation-2026-07-26-4545237206">one address on this site presented thirteen crawler identities in a single minute</a>. Its visits are counted below and attributed to nobody.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Declared identity</th><th>Visits</th><th>From an address the vendor publishes</th><th>Days</th><th>Addresses</th><th>What it did</th></tr></thead>
+<tbody>${rows
+    .map(
+      (h) =>
+        `<tr><td class="mono">${escapeHtml(h.agent)}</td><td>${h.totalVisits}</td><td>${h.corroboratedVisits}</td><td>${h.days || "—"}</td><td>${h.addresses || "—"}</td><td>${
+          h.describable
+            ? h.soleTargets.length && h.soleTargets[0].share >= 50
+              ? `fetched only <code>${escapeHtml(h.soleTargets[0].path)}</code> on ${h.soleTargets[0].visits} of ${h.corroboratedVisits} visits`
+              : `${h.singlePathVisits} of ${h.corroboratedVisits} visits fetched a single path`
+            : `<span class="status">not enough to describe — needs ${escapeHtml(h.needs ?? "")}</span>`
+        }</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+${
+  described.length === 0
+    ? `<p>No crawler has yet returned often enough from a corroborated address for anything here to be called a habit.</p>`
+    : `<p>${described.length} of ${rows.length} identities have returned often enough for a description. The rest are counted and left undescribed, which is the honest state of a four-day record rather than an omission.</p>`
+}
+
+<p>Percentages are of corroborated visits and every one is printed with the count beneath it, because a share of six visits and a share of six hundred read identically and are not the same claim.</p>`;
 }
 
 export function lab(canary, published) {
@@ -237,6 +290,8 @@ ${
 <p>Both this table and the concentration figure above exist because of what the CDN
 was found to be doing to this site: <a href="/cdn-interventions">what the CDN did,
 and when it stopped</a>.</p>
+
+${readingHabits()}
 
 <h2>robots.txt compliance</h2>
 
