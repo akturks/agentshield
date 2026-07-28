@@ -53,19 +53,60 @@ later to fit what was found.</p>`;
 ${n(r.servedRobots)} of the answers were a robots.txt; ${n(r.noRobots)} were something
 else, usually an HTML error page returned with status 200.</p>
 
-<p><strong>${n(r.managedBlock)} of the ${n(r.servedRobots)} files (${share(r.managedBlock)})
-contained a block a CDN had inserted</strong>, identified by the boundary comment the CDN
-writes around its own additions. ${n(r.managedBlocksAnAiAgent)} of those blocks close the
-site to at least one of the ${n(AI_AGENTS.length)} AI crawlers this survey asks about.</p>
+<p>${n(r.behindCloudflare)} of the ${n(reached)} answers came through Cloudflare, by its own
+response header. <strong>${n(r.managedBlock)} of the ${n(r.servedRobots)} files
+(${share(r.managedBlock)}) carried a block that Cloudflare had inserted</strong>, marked by
+the boundary comment it writes around its own additions. ${n(r.managedBlocksAnAiAgent)} of
+those close the site to at least one of the ${n(AI_AGENTS.length)} AI crawlers this survey
+asks about.</p>
 
-<p><strong>${n(r.contradicted)} of them contradict the site's own file</strong> — the
-inserted block refuses a crawler that the owner's own section names and allows. That is
-the number this survey was built for. It is not an estimate of how many owners are
-unaware; nobody outside those organisations can measure intent, and a file that
-contradicts itself is evidence of a contradiction and nothing more.</p>
+${
+  r.managedVariants === 1 && r.managedBlock > 1
+    ? `<p>All ${n(r.managedBlock)} of those blocks are <strong>byte for byte identical</strong>
+— ${n(r.managedBlockGroups)} user-agent groups in ${n(r.managedBlockBytes)} bytes, the same
+order every time, on sites that have nothing else in common. Whatever else is true of them,
+they were not written by ${n(r.managedBlock)} different people.</p>
+
+${
+        r.managedBlockContentSignal
+          ? `<p>${n(r.managedBlockGroups - 1)} of those groups name a crawler and refuse
+it${r.managedBlockAiAgents < r.managedBlockGroups - 1 ? ` — ${n(r.managedBlockAiAgents)} of them AI crawlers this survey asks about, and the rest the CDN's own` : ""}.
+The remaining group applies to everyone and carries no <code>Disallow</code> at all: it
+states a <code>Content-Signal</code> policy about training and reuse. That is a different
+kind of sentence from a refusal — it asks to be honoured rather than blocking a fetch —
+and it is counted apart from the refusals rather than added to them.</p>`
+          : ""
+      }`
+    : ""
+}
+
+${
+  r.contradicted === 0
+    ? `<p><strong>None of them contradicts the owner's own file.</strong> A contradiction
+would be an inserted <code>Disallow</code> for a crawler that the owner's own section names
+and allows, and in this sample there are none — because in all ${n(r.managedBlock)} cases
+the owner's file never mentions those crawlers at all.</p>
+
+<p>That is a weaker result than the one this survey was built to look for, and it is
+reported as the weaker one. This site found the contradiction on itself, where the origin
+file welcomed those crawlers by name; naming them is unusual, and a sample of
+${n(r.servedRobots)} files contains no other example. What the sample does show is
+${n(r.managedBlock)} sites serving a decision about ${n(r.managedBlockAiAgents)} AI crawlers
+that appears nowhere in anything they wrote. Whether they made that decision somewhere else, or would recognise
+it, is not visible from outside and is not claimed here.</p>`
+    : `<p><strong>${n(r.contradicted)} of them contradict the site's own file</strong> — the
+inserted block refuses a crawler that the owner's own section names and allows. It is not an
+estimate of how many owners are unaware: nobody outside those organisations can measure
+intent, and a file that contradicts itself is evidence of a contradiction and nothing
+more.</p>`
+}
 
 <p>Separately, ${n(r.ownerBlocksAnAiAgent)} sites close the door to an AI crawler in their
-own text, with no CDN involved. Those are decisions, and they are counted apart from the
+own text, with no inserted block involved${
+      r.ownerBlocksAnAiAgent > r.managedBlock
+        ? " — more than the number carrying an injection"
+        : ""
+    }. Those are decisions somebody wrote down, and they are counted apart from the
 injections for exactly that reason.</p>
 
 ${

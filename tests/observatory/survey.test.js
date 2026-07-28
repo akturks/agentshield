@@ -4,6 +4,17 @@ import assert from "node:assert/strict";
 import { splitManaged, parseGroups, verdictFor, AI_AGENTS } from "../../public-site/survey/analyse.js";
 import { POPULATION, sample } from "../../public-site/survey/population.js";
 import { survey as surveyPage } from "../../public-site/pages/survey.js";
+import db from "../../public-site/realityDb.js";
+
+/** Every injected block this survey has actually been served, as raw bodies. */
+function observedManagedBlocks() {
+  return db
+    .prepare(
+      `SELECT body FROM RobotsObservation WHERE body LIKE '%Cloudflare Managed%'`
+    )
+    .all()
+    .map((r) => r.body);
+}
 
 // The whole survey reduces to two questions asked of a text file: did somebody
 // insert a block into it, and does that block contradict what the owner wrote.
@@ -161,6 +172,39 @@ test("the sample is a copy, so a caller cannot edit the declared population", ()
   const first = sample();
   first[0].domain = "example.invalid";
   assert.notEqual(sample()[0].domain, "example.invalid");
+});
+
+test("the block observed in the wild names no crawler this survey ignores", () => {
+  // The fixture above is what this site was served on 27 July. What other sites
+  // are served is a separate fact and it has already moved: the block observed
+  // on 28 July carries a tenth group with a `Content-Signal` policy that the
+  // fixture has no trace of.
+  //
+  // So the check runs against the stored bytes, not the fixture. If Cloudflare
+  // adds a crawler to its managed block and AI_AGENTS does not carry the name,
+  // the survey keeps reporting a number that quietly stops counting it — the
+  // failure mode of every hardcoded list, and invisible without this.
+  const rows = observedManagedBlocks();
+  if (rows.length === 0) return; // no survey in this database yet
+
+  const unknown = new Set();
+
+  for (const body of rows) {
+    const { managed } = splitManaged(body);
+    for (const group of parseGroups(managed)) {
+      for (const name of group.agents) {
+        if (name === "*") continue;
+        if (name === "CloudflareBrowserRenderingCrawler") continue;
+        if (!AI_AGENTS.some((a) => a.toLowerCase() === name.toLowerCase())) unknown.add(name);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    [...unknown],
+    [],
+    "an injected block refuses a crawler this survey does not ask about"
+  );
 });
 
 test("the published page names no domain it surveyed", () => {

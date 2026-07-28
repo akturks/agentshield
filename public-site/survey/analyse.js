@@ -211,6 +211,10 @@ export function analyse(surveyId = latestSurvey.get()?.id) {
     managedBlocksAnAiAgent: 0,
     contradicted: 0,
     ownerBlocksAnAiAgent: 0,
+    // How many distinct injected blocks there are, byte for byte. One means the
+    // same text was served by every site carrying it, which is checkable and
+    // says more about where it came from than any argument would.
+    managedVariants: 0,
     errorCodes: [],
     // Per agent: how the managed block treats it, and what the rest of the file
     // says about the same name. The second column is the one that matters.
@@ -224,6 +228,7 @@ export function analyse(surveyId = latestSurvey.get()?.id) {
   };
 
   const byAgent = new Map(result.agents.map((a) => [a.agent, a]));
+  const managedTexts = new Set();
 
   for (const row of rows) {
     if (row.errorCode) {
@@ -252,6 +257,7 @@ export function analyse(surveyId = latestSurvey.get()?.id) {
     }
 
     result.managedBlock += 1;
+    managedTexts.add(managed);
 
     let blocksAny = false;
     let contradictsAny = false;
@@ -278,6 +284,27 @@ export function analyse(surveyId = latestSurvey.get()?.id) {
     if (contradictsAny) result.contradicted += 1;
     if (AI_AGENTS.some((agent) => verdictFor(rest, agent) === "blocked"))
       result.ownerBlocksAnAiAgent += 1;
+  }
+
+  result.managedVariants = managedTexts.size;
+
+  // When every site carrying the block carries the same one, its shape can be
+  // described exactly rather than approximately. Computed from the bytes, so a
+  // block that gains a tenth crawler tomorrow reports ten without anyone
+  // editing a sentence.
+  if (managedTexts.size === 1) {
+    const [only] = managedTexts;
+    result.managedBlockBytes = only.length;
+    result.managedBlockGroups = parseGroups(only).length;
+    result.managedBlockAiAgents = AI_AGENTS.filter(
+      (agent) => verdictFor(only, agent) === "blocked"
+    ).length;
+
+    // The block does more than refuse. Its wildcard group carries a
+    // `Content-Signal` line, which states a policy about training and reuse
+    // rather than allowing or denying a fetch — so it is counted separately
+    // from the refusals and never folded into them.
+    result.managedBlockContentSignal = /^\s*content-signal\s*:/im.test(only);
   }
 
   result.errorCodes = [...errors.entries()]
