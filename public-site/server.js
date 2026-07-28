@@ -21,6 +21,7 @@ import * as probes from "./pages/probes.js";
 import { lab, methodology } from "./pages/lab.js";
 import { status } from "./pages/status.js";
 import { observatory, constitution, about } from "./pages/observatory.js";
+import { privacy } from "./pages/privacy.js";
 import { audit } from "./pages/audit.js";
 import { cdnArticle } from "./pages/cdnArticle.js";
 import { verify } from "./pages/verify.js";
@@ -148,7 +149,9 @@ function html(req, reply, variant, render) {
   );
 }
 
-app.get("/", (req, reply) => html(req, reply, "home", content.home));
+// home_r2, not home — the first marker for this page was burned on 28 July.
+// See CANARY_SURFACES.
+app.get("/", (req, reply) => html(req, reply, "home_r2", content.home));
 
 app.get("/how-it-works", (req, reply) =>
   html(req, reply, "how_it_works", content.howItWorks)
@@ -167,6 +170,7 @@ app.get("/constitution", (req, reply) =>
 );
 
 app.get("/about", (req, reply) => html(req, reply, "about", about));
+app.get("/privacy", (req, reply) => html(req, reply, "privacy", privacy));
 
 app.get("/audit", (req, reply) => html(req, reply, "audit", audit));
 
@@ -428,7 +432,22 @@ function notFound(req, reply) {
     .send(content.notFound(req.raw?.url ?? "/"));
 }
 
-app.setNotFoundHandler(notFound);
+// The rate limit registered above attaches itself to routes. A request for a
+// path that matches no route never reaches one, so until this preHandler was
+// added the cap applied only to pages that exist.
+//
+// That is backwards for the thing a cap defends against. On 28 July one address
+// sent 893 requests in three minutes; 889 asked for paths this site does not
+// serve and none of them was counted, while the four that reached real routes
+// were counted and were nowhere near the limit. 892 of those requests arrived
+// inside 18.4 seconds — about 48 a second, against a cap of 240 a minute — and
+// not one 429 was issued. Every 429 in the record before this change was served
+// on `/probe/data.txt`, a route that exists.
+//
+// Nothing fell over, and that is not the reason to fix it: a cap that misses
+// the traffic it was written for is not a cap, and reality.db grows by one row
+// per request whether the path exists or not.
+app.setNotFoundHandler({ preHandler: app.rateLimit() }, notFound);
 
 // Detection runs on a timer so the site keeps producing findings without
 // anyone driving it. Unref'd so it never holds the process open.

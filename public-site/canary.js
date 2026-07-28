@@ -32,10 +32,22 @@ function coinToken() {
 // next start; existing tokens and their publishedAt are never rewritten,
 // because publishedAt is the clock the whole measurement depends on.
 export const CANARY_SURFACES = [
+  // `home` was minted on 25 July and served on 356 requests. On 28 July it
+  // appeared in an analysis pasted into a chat with a third-party model, which
+  // ends its usefulness: a marker is evidence because it exists in exactly one
+  // place, and finding it in a model's output afterwards would prove only that
+  // it had been in that conversation.
+  //
+  // The row is not touched. Its publishedAt is the start of a measurement that
+  // ran for three days, and rewriting it would falsify every observation made
+  // against it. A second variant on the same page starts a clean clock instead,
+  // and `home` keeps whatever it recorded.
+  { page: "/", variant: "home_r2" },
   { page: "/", variant: "home" },
   { page: "/observatory", variant: "observatory" },
   { page: "/constitution", variant: "constitution" },
   { page: "/about", variant: "about" },
+  { page: "/privacy", variant: "privacy" },
   { page: "/audit", variant: "audit" },
   { page: "/cdn-interventions", variant: "cdn_interventions" },
   { page: "/questions", variant: "questions" },

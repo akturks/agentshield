@@ -104,6 +104,7 @@ function publicPages() {
   ["/what-we-measure", "0.8"],
   ["/constitution", "0.7"],
   ["/about", "0.6"],
+  ["/privacy", "0.4"],
   ["/lab/methodology", "0.7"],
   ["/status", "0.7"],
   ...glossarySlugs().map((slug) => [`/glossary/${slug}`, "0.6"]),

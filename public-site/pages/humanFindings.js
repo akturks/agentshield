@@ -540,7 +540,9 @@ declaration its own shape refuses.</p>
 
 <h2>The one block</h2>
 
-<p>The CDN recorded exactly one blocked request in twenty-four hours, at <strong>03:10:46 UTC</strong>, from <code>192.241.139.213</code>, by a managed rule.</p>
+<p>The CDN recorded exactly one blocked request in twenty-four hours, at <strong>03:10:46 UTC</strong>, from <code>192.241.139.***</code>, by a managed rule.</p>
+
+<p>The last octet is withheld and the rest is not, because the network is what the claim rests on: vendor crawler ranges are published as blocks, so <code>192.241.139.0/24</code> is enough for a reader to check the assertion below against any of them. The individual address adds nothing a reader could use and is <a href="/privacy">not ours to publish</a>.</p>
 
 <p>That address is on no OpenAI address list in the snapshot this site checks against, and it appears <strong>zero</strong> times in this record — consistent with a request stopped before it reached the origin. Its neighbours in the same minutes were scanners: automated probes for <code>/wp-admin/install.php</code> and cloud addresses declaring a mobile browser.</p>
 
@@ -644,7 +646,9 @@ declaration its own shape refuses.</p>
 </tbody>
 </table>
 
-<p>Roughly 4.7 requests a second, essentially none of them repeated. The paths asked for name the software this site does not run: a WordPress installer, a <code>.env</code> file, CI definitions for three different systems, container build files, four mail-server configurations, an API schema.</p>
+<p>Those 191 seconds are not evenly filled, and the average across them describes nothing that happened. One request arrived at 11:39:38 and asked for the home page. Nothing followed for almost three minutes. Then <strong>892 requests arrived in 18.4 seconds</strong> — from 11:42:31.013 to 11:42:49.395 — which is roughly <strong>48 a second</strong>.</p>
+
+<p>That shape is worth more than the total: a single fetch, a pause, then a burst. Essentially none of the paths repeated. What they name is software this site does not run — a WordPress installer, a <code>.env</code> file, CI definitions for three different systems, container build files, four mail-server configurations, an API schema.</p>
 
 <p>The four requests that were answered asked for <code>/</code>, <code>/robots.txt</code>, <code>/llms.txt</code> and <code>/sitemap.xml</code>. Those are the four files this site publishes specifically so that anything arriving can read them. Nothing was obtained that a first-time visitor does not receive.</p>
 
@@ -662,7 +666,7 @@ declaration its own shape refuses.</p>
 </tbody>
 </table>
 
-<p>The zero in the second row is worth a sentence of its own. At 4.7 requests a second across 884 misses, nothing fell over, which is a property of serving pages that were computed before the request arrived rather than during it.</p>
+<p>The zero in the second row is worth a sentence of its own. At 48 requests a second across 884 misses, nothing fell over, which is a property of serving pages that were computed before the request arrived rather than during it.</p>
 
 <h2>The part that is actually a finding</h2>
 

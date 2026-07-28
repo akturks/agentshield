@@ -66,6 +66,31 @@ function toInt(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Headers whose values identify a person rather than describe a request.
+//
+// `headersJson` stored whatever arrived, and on 28 July 2026 it was found to
+// hold 520 `Cookie` values carrying a stable per-visitor identifier. Nothing on
+// this site sets a cookie, nothing reads one, and no published figure has ever
+// been computed from one — it was collected because the capture was written to
+// keep everything, and keeping everything is not the same as observing.
+//
+// The name of the header is kept and the value replaced, because which headers
+// a client sends is part of how it behaves and is worth recording. What the
+// value contains is not ours.
+export const IDENTIFYING_HEADERS = new Set([
+  "cookie",
+  "set-cookie",
+  "authorization",
+  "proxy-authorization"
+]);
+
+export function withoutIdentifiers(headers) {
+  const out = {};
+  for (const [name, value] of Object.entries(headers))
+    out[name] = IDENTIFYING_HEADERS.has(name.toLowerCase()) ? "[redacted]" : value;
+  return out;
+}
+
 /**
  * Records every inbound request as observed fact. Registered on the public
  * process only. Nothing here may throw into the response path: a failure to
@@ -107,7 +132,7 @@ export default function captureHook(app) {
         acceptLanguage: header(headers, "accept-language"),
         acceptEncoding: header(headers, "accept-encoding"),
         referer: header(headers, "referer") ?? header(headers, "referrer"),
-        headersJson: JSON.stringify(headers),
+        headersJson: JSON.stringify(withoutIdentifiers(headers)),
         requestBodyBytes: toInt(header(headers, "content-length")),
         responseStatus: reply.statusCode ?? null,
         responseBytes: toInt(reply.getHeader?.("content-length")),
