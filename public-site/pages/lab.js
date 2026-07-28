@@ -7,6 +7,7 @@ import { headline, EXTERNAL } from "../stats.js";
 import { disallowedPaths } from "./content.js";
 import { declaredIdentities } from "../identities.js";
 import { habits, VISIT_GAP_MS } from "../patterns.js";
+import { hypotheses } from "../hypotheses.js";
 
 const countAll = db.prepare(`SELECT COUNT(*) AS n FROM RequestReality WHERE ${EXTERNAL}`);
 const firstSeen = db.prepare(
@@ -168,6 +169,54 @@ ${
 <p>Percentages are of corroborated visits and every one is printed with the count beneath it, because a share of six visits and a share of six hundred read identically and are not the same claim.</p>`;
 }
 
+/**
+ * Explanations for an observed habit — plural, unranked, each with the
+ * observation that would tell it from the others.
+ *
+ * A single explanation stops the reader looking. "AI clients never reached
+ * /pricing, so the links may not be visible" is a conclusion the moment it
+ * appears alone, while the record supported four other readings equally well.
+ *
+ * Where a separating observation is already in the record it has been run, so a
+ * candidate arrives supported or contradicted rather than merely stated. One is
+ * left open on principle: settling it would mean asking the vendor about its own
+ * crawler, which is the kind of evidence this site declines.
+ */
+function whatWouldSettleIt() {
+  const rows = hypotheses();
+  if (rows.length === 0) return "";
+
+  const badge = {
+    supported: "the record supports this",
+    contradicted: "<strong>the record contradicts this</strong>",
+    untested: "open"
+  };
+
+  return `<h2 id="open-questions">What the record does not settle</h2>
+
+<p>A habit is not an explanation. Each observation below is followed by every reading this record cannot yet tell apart, in a fixed order that is <strong>not</strong> a ranking — putting the likeliest first would be an opinion wearing a measurement's clothes. Where an observation exists that separates two of them, it has been made and the result is printed.</p>
+
+${rows
+    .map(
+      (h) => `<div class="qa">
+<p class="status">Observed</p>
+<p><strong>${escapeHtml(h.observation)}</strong></p>
+<div class="scroll"><table>
+<thead><tr><th>Reading</th><th>What would separate it</th><th>Where the record stands</th></tr></thead>
+<tbody>${h.candidates
+        .map(
+          (c) =>
+            `<tr><td>${escapeHtml(c.claim)}</td><td>${escapeHtml(c.separatedBy)}</td><td>${badge[c.status]} — ${escapeHtml(c.evidence)}</td></tr>`
+        )
+        .join("")}</tbody></table></div>
+<p class="status">${h.settled} of ${h.candidates.length} settled by observations already in the record &middot; ${h.open} open &middot; ${escapeHtml(h.version)}</p>
+</div>`
+    )
+    .join("")}
+
+<p>Each entry in the middle column is an experiment written before anyone runs it. That is the intended use: not to pick the pleasing explanation, but to say what would have to be seen for it to be the right one — and then to wait for it.</p>`;
+}
+
 export function lab(canary, published) {
   const total = countAll.get().n;
   const since = firstSeen.get().t;
@@ -292,6 +341,8 @@ was found to be doing to this site: <a href="/cdn-interventions">what the CDN di
 and when it stopped</a>.</p>
 
 ${readingHabits()}
+
+${whatWouldSettleIt()}
 
 <h2>robots.txt compliance</h2>
 
