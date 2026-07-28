@@ -2,6 +2,7 @@ import { page, escapeHtml, instant } from "../layout.js";
 import { published, bySlug, withdrawnFindings } from "../findings/engine.js";
 import { claimsFor, recheck } from "../findings/verifier.js";
 import { articlesFor } from "../constitution.js";
+import { knowledge } from "../knowledge.js";
 
 // Renders whatever the store holds. Nothing here is hard-coded: a finding
 // produced by a detector five minutes ago and one written by a person in July
@@ -101,6 +102,56 @@ function truncate(value, max = 42) {
   return t.length > max ? `${t.slice(0, max)}\u2026` : t;
 }
 
+/**
+ * Statements that have survived every chance the record gave them to be false.
+ *
+ * A finding is dated: it says what the record showed at a moment. This says what
+ * has kept being true since, and it is recomputed on every request — so a
+ * statement the record has stopped supporting leaves this list by itself, on the
+ * next page load, without anyone remembering to remove it.
+ *
+ * Each one prints how many opportunities it has had. "No external client has
+ * executed the script" reads identically across five page views and five
+ * thousand, and is worth nothing in the first case; below a declared minimum it
+ * is not called knowledge here at all.
+ */
+function whatHasHeld() {
+  const rows = knowledge();
+  const holding = rows.filter((r) => r.state === "holding");
+  const ended = rows.filter((r) => r.state === "ended");
+
+  const label = {
+    holding: "holding",
+    untested: "not yet enough to say",
+    ended: "<strong>ended</strong>"
+  };
+
+  return `<h2 id="held">What has kept being true</h2>
+
+<p>A finding is dated: it reports what the record showed at a moment. These are the statements that have gone on being true since, and each is checked against the record every time this page is requested. One that stops holding leaves this list by itself.</p>
+
+<p>Every statement below is negative — <em>no such thing has happened</em> — which is what early knowledge looks like and is also the only kind a single observation can destroy. So each names the one thing that would end it, and prints how many chances the record has already given it. ${holding.length} of ${rows.length} have had enough chances to be worth stating.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Statement</th><th>What would end it</th><th>Chances it has had</th><th>State</th></tr></thead>
+<tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.claim)}</td><td>${escapeHtml(r.endedBy)}</td><td class="mono">${escapeHtml(
+          `${r.opportunities} ${r.unit}`
+        )}${r.state === "untested" ? escapeHtml(` — needs ${r.minimum}`) : ""}</td><td>${label[r.state]}</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+${
+  ended.length > 0
+    ? `<p><strong>${ended.length} statement${ended.length === 1 ? " has" : "s have"} ended.</strong> The record now holds a counterexample, and the sentence is kept here in that state rather than deleted — a claim that was made and then failed is part of what this instrument has done.</p>`
+    : `<p>None has ended yet. That is a fact about a record four days old and not a claim about the statements: most of them have not had enough opportunities to fail, which the middle column says row by row.</p>`
+}
+
+<p>The minimums are not statistical power calculations. They are the point below which repeating the sentence would mislead on its face — and they are in source, where they can be argued with, rather than in a judgement that moves when an answer is wanted.</p>`;
+}
+
 export function findingsIndex(canary, publishedAt) {
   const all = published();
   const auto = all.filter((f) => f.origin === "detector").length;
@@ -142,6 +193,8 @@ ${originNote(f)}
         )
         .join("\n")
 }
+
+${whatHasHeld()}
 
 <h2>Withdrawn and rejected</h2>
 
