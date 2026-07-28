@@ -1,5 +1,6 @@
 import { page, escapeHtml, instant } from "../layout.js";
 import { paths, summarise } from "../self/changes.js";
+import { readiness } from "../readiness.js";
 import { epistemicIntegrity } from "../integrity.js";
 import { health } from "../console/queries.js";
 import { headline } from "../stats.js";
@@ -28,6 +29,50 @@ function verdict(ok) {
   return ok
     ? '<span class="status" style="color:var(--ok)">holding</span>'
     : '<span class="status" style="color:#c0392b">BROKEN</span>';
+}
+
+/**
+ * Which questions this instrument may yet answer.
+ *
+ * A component being finished and a component having seen enough are different
+ * facts, and a page that shows only the first invites everybody — including
+ * whoever built it — to forget the second. That is where a measurement system
+ * does its lying: not by reporting a wrong figure, but by reporting a real one
+ * from a sample that cannot carry it.
+ *
+ * Each row states what it needs before it may be answered, in code, where it can
+ * be argued with. A threshold held in somebody's judgement moves quietly at the
+ * moment an answer is wanted.
+ */
+function whatItCanAnswer() {
+  const rows = readiness();
+  const ready = rows.filter((r) => r.answerable).length;
+
+  const label = {
+    "not built": "no code yet",
+    "nothing observed": "built, nothing seen",
+    observing: "observing",
+    answerable: "answerable"
+  };
+
+  return `<h2>What this instrument can answer today</h2>
+
+<p>Everything below is built or is being built. That is not the same as any of it having observed enough to be worth saying, and the two are shown apart because they are usually confused. ${ready} of ${rows.length} questions have a record behind them that carries an answer.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Question</th><th>Needs</th><th>Record holds</th><th>State</th></tr></thead>
+<tbody>${rows
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.question)}</td><td>${escapeHtml(r.needs)}</td><td class="mono">${escapeHtml(
+          `${r.observed} ${r.unit}`
+        )}</td><td>${r.answerable ? "<strong>answerable</strong>" : escapeHtml(label[r.state])}</td></tr>`
+    )
+    .join("")}</tbody></table></div>
+
+<p>The thresholds are not statistical power calculations. They are the point below which a sentence would be plainly indefensible — one crawler seen on three separate days before its reading order is called a habit, three complete weeks before a direction is called a trend. They are published so that a figure crossing one can be checked against the rule rather than against a decision made afterwards.</p>
+
+<p>A row can hold enough observations and still have no code behind it, which is why the last two columns are separate. The reverse is more common and more dangerous: finished code, nothing seen, and a page that shows a tick.</p>`;
 }
 
 /**
@@ -181,6 +226,8 @@ ${
           `<tr><td>${escapeHtml(r.name)}</td><td class="mono">${r.ok ? "ok" : "CHECK"}</td><td>${escapeHtml(r.detail ?? "")}</td></tr>`
       )
       .join("")}</tbody></table></div>
+
+${whatItCanAnswer()}
 
 ${selfObservation()}
 
