@@ -76,6 +76,80 @@ CREATE TABLE IF NOT EXISTS JsExecution (
 
 CREATE INDEX IF NOT EXISTS idx_js_request ON JsExecution(requestId);
 
+-- ---------------------------------------------------------------------------
+-- Solicited observation — artefacts this site went and looked at.
+--
+-- Still reality: the bytes below were served by somebody else's server and are
+-- recorded verbatim, unjudged. But it is a different reality from the tables
+-- above, and the difference is the whole reason it lives apart.
+--
+-- RequestReality holds what arrived here unasked. This holds what we went and
+-- asked for. Counting them together would eventually produce a sentence like
+-- "four hundred sites came to us", which is the exact inversion of what
+-- happened. So:
+--
+--   * nothing here is ever joined to RequestReality;
+--   * no figure about this site's own traffic may include a row from here;
+--   * `domain` is stored because a survey has to be repeatable, and is never
+--     published — a finding reports how many, never which.
+--
+-- No column holds a conclusion. Whether a body contains an injected block, or
+-- contradicts the owner's own rules, is computed when the question is asked, so
+-- improving the question never means rewriting what was observed.
+-- ---------------------------------------------------------------------------
+
+-- One declared run: which population, which rule drew the sample, how fast, and
+-- under what name we introduced ourselves. Written before any fetch, so a run
+-- can never be described after its results are known.
+CREATE TABLE IF NOT EXISTS RobotsSurvey (
+  id             TEXT PRIMARY KEY,
+  declaredAt     TEXT    NOT NULL,
+  populationId   TEXT    NOT NULL,   -- e.g. 'tranco-46ZYX'
+  populationUrl  TEXT    NOT NULL,   -- where anyone can obtain the same list
+  sampleRule     TEXT    NOT NULL,   -- prose, one sentence, reproducible
+  sampleSize     INTEGER NOT NULL,
+  userAgent      TEXT    NOT NULL,   -- exactly what we sent
+  minIntervalMs  INTEGER NOT NULL,
+  maxConcurrent  INTEGER NOT NULL,
+  -- Where the survey was conducted from. A measurement of reachability is a
+  -- measurement of reachability *from somewhere*, and the first eight domains
+  -- ever fetched proved it: two answered with a reset and did not resolve in
+  -- DNS at all, which is national filtering rather than anything about those
+  -- sites. Unrecorded, that becomes "4% of the web serves no robots.txt".
+  vantagePoint   TEXT,
+  startedAt      TEXT,
+  finishedAt     TEXT,
+  fetchVersion   TEXT    NOT NULL
+);
+
+-- One attempt to read one domain's robots.txt. INSERT-only, like everything in
+-- this layer: a domain that failed and later succeeded is two rows, because
+-- "it was unreachable at 09:00" stays true after 10:00.
+CREATE TABLE IF NOT EXISTS RobotsObservation (
+  id            TEXT PRIMARY KEY,
+  surveyId      TEXT    NOT NULL,
+  domain        TEXT    NOT NULL,   -- never published
+  rank          INTEGER,            -- position in the declared population
+  requestedUrl  TEXT    NOT NULL,
+  requestedAt   TEXT    NOT NULL,
+  requestedAtMs INTEGER NOT NULL,
+  finalUrl      TEXT,               -- after redirects, verbatim
+  redirects     INTEGER,
+  httpStatus    INTEGER,
+  contentType   TEXT,
+  bodyBytes     INTEGER,
+  body          TEXT,               -- the evidence itself, verbatim
+  bodySha256    TEXT,
+  headersJson   TEXT,               -- every response header
+  elapsedMs     REAL,
+  errorCode     TEXT,               -- the runtime's own code, not our taxonomy
+  errorMessage  TEXT,
+  fetchVersion  TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ro_survey ON RobotsObservation(surveyId);
+CREATE INDEX IF NOT EXISTS idx_ro_domain ON RobotsObservation(domain, requestedAtMs);
+
 -- ===========================================================================
 -- INTERPRETATION LAYER — conclusions drawn from the reality above.
 -- Versioned and disposable: deleting all of it and recomputing must reproduce it.

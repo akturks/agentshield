@@ -74,5 +74,19 @@ export default function migrate(db) {
   // recorded" for exactly the rows where that is the truth.
   if (addColumn(db, "Finding", "rejectedAt", "TEXT")) applied.push("Finding.rejectedAt");
 
+  // 4. Where a survey was conducted from.
+  //
+  // Added after the first fourteen fetches, not before them: two of the first
+  // eight domains answered with a connection reset and failed to resolve in DNS
+  // at all — filtering on the path out, not anything about those sites. A
+  // survey that records only "unreachable" turns the network it ran on into a
+  // property of the web it was measuring.
+  //
+  // The rows that predate the column keep a NULL, which is accurate. They were
+  // conducted before the question was asked, and answering it for them now
+  // would be answering it from memory.
+  if (addColumn(db, "RobotsSurvey", "vantagePoint", "TEXT"))
+    applied.push("RobotsSurvey.vantagePoint");
+
   return { siteId: site.id, applied };
 }
