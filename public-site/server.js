@@ -25,6 +25,7 @@ import { audit } from "./pages/audit.js";
 import { cdnArticle } from "./pages/cdnArticle.js";
 import { verify } from "./pages/verify.js";
 import { survey } from "./pages/survey.js";
+import { discovery } from "./pages/discovery.js";
 import { weeklyPage } from "./pages/weekly.js";
 import { latestWeek, weekFromLabel } from "./weekly.js";
 import {
@@ -245,6 +246,10 @@ app.get("/verify", (req, reply) => html(req, reply, "verify", verify));
 // to answer before it reports: its first reader is somebody looking at a log
 // line, not somebody interested in the results.
 app.get("/survey", (req, reply) => html(req, reply, "survey", survey));
+
+// The one question a site owner actually arrives with. It is a ladder rather
+// than a score because the useful answer is a location, not a number.
+app.get("/discovery", (req, reply) => html(req, reply, "discovery", discovery));
 
 app.get("/lab", (req, reply) => html(req, reply, "lab", lab));
 

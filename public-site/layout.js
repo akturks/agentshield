@@ -160,6 +160,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 // a surface silently removes a measurement that was already running.
 const NAV = [
   ["/observatory", "Observatory"],
+  ["/discovery", "Discovery"],
   ["/weekly", "Weekly"],
   ["/verify", "Verify"],
   ["/lab", "Lab"],

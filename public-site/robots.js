@@ -92,6 +92,7 @@ function publicPages() {
   ["/observatory", "0.9"],
   ["/verify", "0.9"],
   ["/survey", "0.9"],
+  ["/discovery", "1.0"],
   ["/lab", "0.9"],
   ["/findings", "0.9"],
   ...findingSlugs().map((slug) => [`/findings/${slug}`, "0.8"]),
