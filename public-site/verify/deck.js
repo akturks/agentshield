@@ -90,36 +90,40 @@ function addressInside(prefix) {
   return v6 ? intToIpv6(value) : intToIpv4(value);
 }
 
-const everObserved = db.prepare(
-  "SELECT 1 AS hit FROM RequestReality WHERE cfConnectingIp = ? LIMIT 1"
-);
+// The three blocks IANA reserved for documentation and examples (RFC 5737).
+// They are allocated to nobody and routed nowhere, which is the property this
+// page needs.
+const DOCUMENTATION_BLOCKS = ["192.0.2", "198.51.100", "203.0.113"];
 
 /**
- * A routable-looking IPv4 address that this site has never recorded.
+ * An address for a card that is not, and cannot become, anybody's.
  *
- * The collision it avoids is vanishingly unlikely and the check is here anyway,
- * because "unlikely" is the wrong guarantee to offer about publishing somebody's
- * address. Drawing at random out of the whole space would put a real visitor on
- * a card roughly once in fifty million cards; that is a promise this page cannot
- * make good on by arithmetic, and it can by asking.
+ * This used to draw from the whole routable space, excluding private ranges and
+ * anything already in our record. That check answered the wrong question. It
+ * asked "has this address ever visited us", when what a card asserts is that a
+ * client at that address declared a crawler identity — a claim about behaviour,
+ * attached to an address, printed on a public page.
+ *
+ * An address can be absent from our record and still belong to a real network.
+ * 59.213.221.127 was dealt on a card reading "declares Applebot-Extended"; it
+ * had never reached this server, and it is somebody's. Fabricating conduct is
+ * fine when the deck says the cards are synthetic. Fabricating it against a real
+ * address is not, and no amount of improbability fixes that — the fix is to use
+ * addresses that cannot be anyone's.
+ *
+ * A reader who recognises 203.0.113.x as documentation space loses a little
+ * realism and learns something true instead. `EXTERNAL` in stats.js already
+ * excludes these three blocks, so the rest of the codebase agrees they are not
+ * observations.
  *
  * Corroborated cards do not come through here. Their addresses are generated
  * inside a range the vendor itself publishes, so they are public by the vendor's
  * own act — a /32 in Perplexity's list is a documented crawler address, not an
  * observation of anybody.
  */
-function randomPublicIpv4() {
-  for (;;) {
-    const a = 1 + Math.floor(Math.random() * 223);
-    const b = Math.floor(Math.random() * 256);
-    if (a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31)) continue;
-    if (a === 192 && b === 168) continue;
-    if (a === 169 && b === 254) continue;
-
-    const address = `${a}.${b}.${Math.floor(Math.random() * 256)}.${1 + Math.floor(Math.random() * 254)}`;
-    if (everObserved.get(address)) continue;
-    return address;
-  }
+function documentationIpv4() {
+  const block = DOCUMENTATION_BLOCKS[Math.floor(Math.random() * DOCUMENTATION_BLOCKS.length)];
+  return `${block}.${1 + Math.floor(Math.random() * 254)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +289,7 @@ function corroboratedCard(used) {
 /** A card claiming an identity the vendor's list contradicts. */
 function contradictedCard(used) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const built = card(pick(AGENTS_WITH_LISTS, used), randomPublicIpv4());
+    const built = card(pick(AGENTS_WITH_LISTS, used), documentationIpv4());
     if (built.answer === "unlisted") return built;
   }
   return null;
@@ -294,7 +298,7 @@ function contradictedCard(used) {
 /** A card no list can settle, because the vendor publishes none. */
 function uncheckableCard(used) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const built = card(pick(AGENTS_WITHOUT_LISTS, used), randomPublicIpv4());
+    const built = card(pick(AGENTS_WITHOUT_LISTS, used), documentationIpv4());
     if (built.answer === "unverifiable") return built;
   }
   return null;
