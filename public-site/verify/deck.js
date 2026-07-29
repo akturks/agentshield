@@ -295,8 +295,18 @@ function contradictedCard(used) {
   return null;
 }
 
-/** A card no list can settle, because the vendor publishes none. */
+/**
+ * A card no list can settle, because the vendor publishes none.
+ *
+ * Currently never deals: AGENTS_WITHOUT_LISTS is empty by operator decision.
+ * The guard is explicit because without it `pick` on an empty pool returns
+ * undefined, `classify(undefined, …)` answers "unverifiable", and the deck
+ * cheerfully dealt 160 nameless cards that looked exactly like the ones it was
+ * meant to have stopped dealing.
+ */
 function uncheckableCard(used) {
+  if (AGENTS_WITHOUT_LISTS.length === 0) return null;
+
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const built = card(pick(AGENTS_WITHOUT_LISTS, used), documentationIpv4());
     if (built.answer === "unverifiable") return built;
@@ -317,10 +327,16 @@ function uncheckableCard(used) {
  * leaves believing the deck is the distribution.
  */
 export function buildDeck({ size = 12 } = {}) {
+  // Only the builders that can currently draw an agent. Kept from a day when
+  // one pool was emptied and the deck went on dealing nameless cards that
+  // classify() still answered "unverifiable" for — twelve cards, a third of them
+  // about nobody.
+  const builders = [corroboratedCard, contradictedCard, uncheckableCard].filter(
+    (make) => make(new Set()) !== null
+  );
+
   const wanted = [];
-  for (let i = 0; i < size; i += 1) {
-    wanted.push([corroboratedCard, contradictedCard, uncheckableCard][i % 3]);
-  }
+  for (let i = 0; i < size; i += 1) wanted.push(builders[i % builders.length]);
 
   const cards = [];
   const used = new Set();

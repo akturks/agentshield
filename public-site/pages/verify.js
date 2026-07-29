@@ -191,8 +191,17 @@ const GAME = String.raw`
     if (!b.observed) {
       return "Constructed. This site has never recorded a request declaring this agent.";
     }
+    // "Requests declaring", not the agent's name, and the difference is the
+    // whole page. This line read "Amazonbot has been recorded here 27 times"
+    // until 29 July — the counts were right and the sentence was the one that
+    // withdrew six findings on 27 July, printed underneath a card whose lesson
+    // is that a user agent is a claim rather than an identity.
+    //
+    // Amazon publishes no address list, so every one of those 27 is
+    // unverifiable. The word "Observed" is true of the requests and cannot be
+    // true of the company.
     return (
-      "Observed. " + c.agent + " has been recorded here " + b.hits +
+      "Observed. Requests declaring this agent have been recorded here " + b.hits +
       " time" + (b.hits === 1 ? "" : "s") +
       " from " + b.addresses + " address" + (b.addresses === 1 ? "" : "es") +
       ", most recently " + String(b.last).slice(0, 10) + "."
@@ -201,8 +210,18 @@ const GAME = String.raw`
 
   function listBlock(c) {
     if (!c.hasList) {
+      // "No list was found for this agent", not "<Company>: no published list".
+      //
+      // The second reads as a mark against a company, printed beside behaviour
+      // that was invented for the exercise. The first says what was actually
+      // done: a search was run on a date and came back empty. Same fact, and
+      // only one of them is an observation.
+      //
+      // The dated reason underneath still names who was searched for, because a
+      // reader has to be able to repeat the search. Naming a vendor to describe
+      // a check is not the same as making it the subject of conduct.
       return (
-        '<p><strong>' + esc(c.agent) + ': no published list.</strong></p>' +
+        "<p><strong>No published list was found for this agent.</strong></p>" +
         '<p class="lede">' + esc(c.noListReason || "No machine-readable list exists to check against.") + "</p>"
       );
     }
