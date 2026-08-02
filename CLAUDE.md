@@ -26,8 +26,10 @@ from anything. Code is replaceable; this is not.
 
 Backed up daily at 04:17 by `public-site/deploy/backup-reality.sh` via
 `sqlite3 .backup` (never `cp`, which would copy a database mid-write), verified with
-`integrity_check` before being kept, to `~/Backups/agentshield` and Google Drive,
-30-day retention.
+`integrity_check` before being kept, 30-day retention, to three places:
+`~/Backups/agentshield`, Google Drive, and `/Volumes/Yedek` — an external disk.
+Each covers a different failure: a mistake, the house, and the internal SSD. The
+external disk being unplugged is reported and skipped, not treated as an error.
 
 `observatory-v1` tags the site as it stood on 2026-07-27: 11 findings published, 81
 tests, all articles green. It predates this file, so it is for reading old code —

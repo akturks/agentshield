@@ -19,6 +19,10 @@ LOCAL="$HOME/Backups/agentshield"
 # the first run creates it, so testing it would skip the copy forever.
 DRIVE="$HOME/Library/CloudStorage/GoogleDrive-akturkserdarr@gmail.com/Drive'ım"
 REMOTE="$DRIVE/Backups/agentshield"
+# A second physical disk. Google Drive covers the house burning down; this
+# covers the far more likely case — the internal SSD failing, or Drive being
+# unreachable. Both, because they fail for different reasons.
+EXTERNAL="/Volumes/Yedek/Backups/agentshield"
 KEEP_DAYS=30
 STAMP="$(date +%Y-%m-%d)"
 SQLITE="$(command -v sqlite3)"
@@ -66,7 +70,16 @@ else
   echo "warning: Google Drive not mounted — local copy only, same disk as the original"
 fi
 
+# Second disk. Unplugged is not an error — it is a laptop-shaped fact.
+if [ -d "$(dirname "$EXTERNAL")" ]; then
+  mkdir -p "$EXTERNAL"
+  cp -f "$LOCAL"/*-"$STAMP".db.gz "$EXTERNAL"/ 2>/dev/null && echo "copied to external disk"
+else
+  echo "note: external disk not mounted — skipped"
+fi
+
 find "$LOCAL" -name "*.db.gz" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
 [ -d "$REMOTE" ] && find "$REMOTE" -name "*.db.gz" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
+[ -d "$EXTERNAL" ] && find "$EXTERNAL" -name "*.db.gz" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
 
 echo "$(date '+%Y-%m-%d %H:%M') done — keeping $KEEP_DAYS days"
